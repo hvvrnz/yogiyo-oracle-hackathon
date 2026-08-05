@@ -1,0 +1,326 @@
+[
+  {
+    "customer_id": "C-001",
+    "display_name": "박서준",
+    "delivery_area": "강남구 테스트권역 1",
+    "delivery_address": "서울 강남구 테스트동 201 테스트아파트 1동",
+    "lat": 37.493075,
+    "lng": 127.014963,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-002",
+    "display_name": "오수빈",
+    "delivery_area": "강남구 테스트권역 2",
+    "delivery_address": "서울 강남구 테스트동 202 테스트아파트 2동",
+    "lat": 37.496391,
+    "lng": 127.008025,
+    "request_note": "문 앞에 놓아주세요."
+  },
+  {
+    "customer_id": "C-003",
+    "display_name": "최수빈",
+    "delivery_area": "강남구 테스트권역 3",
+    "delivery_address": "서울 강남구 테스트동 203 테스트아파트 3동",
+    "lat": 37.511253,
+    "lng": 127.0542,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-004",
+    "display_name": "한지민",
+    "delivery_area": "강남구 테스트권역 4",
+    "delivery_address": "서울 강남구 테스트동 204 테스트아파트 4동",
+    "lat": 37.51302,
+    "lng": 127.018393,
+    "request_note": "문 앞에 놓아주세요."
+  },
+  {
+    "customer_id": "C-005",
+    "display_name": "임민지",
+    "delivery_area": "강남구 테스트권역 5",
+    "delivery_address": "서울 강남구 테스트동 205 테스트아파트 5동",
+    "lat": 37.492037,
+    "lng": 127.051058,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-006",
+    "display_name": "오하늘",
+    "delivery_area": "강남구 테스트권역 6",
+    "delivery_address": "서울 강남구 테스트동 206 테스트아파트 6동",
+    "lat": 37.466757,
+    "lng": 127.033945,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-007",
+    "display_name": "오예린",
+    "delivery_area": "강남구 테스트권역 7",
+    "delivery_address": "서울 강남구 테스트동 207 테스트아파트 7동",
+    "lat": 37.484286,
+    "lng": 127.067338,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-008",
+    "display_name": "송민지",
+    "delivery_area": "강남구 테스트권역 8",
+    "delivery_address": "서울 강남구 테스트동 208 테스트아파트 8동",
+    "lat": 37.499603,
+    "lng": 127.079715,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-009",
+    "display_name": "정지호",
+    "delivery_area": "강남구 테스트권역 9",
+    "delivery_address": "서울 강남구 테스트동 209 테스트아파트 9동",
+    "lat": 37.530524,
+    "lng": 127.019161,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-010",
+    "display_name": "박지민",
+    "delivery_area": "강남구 테스트권역 1",
+    "delivery_address": "서울 강남구 테스트동 210 테스트아파트 10동",
+    "lat": 37.53128,
+    "lng": 127.039762,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-011",
+    "display_name": "정서준",
+    "delivery_area": "강남구 테스트권역 2",
+    "delivery_address": "서울 강남구 테스트동 211 테스트아파트 11동",
+    "lat": 37.506296,
+    "lng": 127.054558,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-012",
+    "display_name": "박수빈",
+    "delivery_area": "강남구 테스트권역 3",
+    "delivery_address": "서울 강남구 테스트동 212 테스트아파트 12동",
+    "lat": 37.528961,
+    "lng": 127.055423,
+    "request_note": "문 앞에 놓아주세요."
+  },
+  {
+    "customer_id": "C-013",
+    "display_name": "오나연",
+    "delivery_area": "강남구 테스트권역 4",
+    "delivery_address": "서울 강남구 테스트동 213 테스트아파트 13동",
+    "lat": 37.469468,
+    "lng": 127.035307,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-014",
+    "display_name": "송서준",
+    "delivery_area": "강남구 테스트권역 5",
+    "delivery_address": "서울 강남구 테스트동 214 테스트아파트 14동",
+    "lat": 37.512394,
+    "lng": 127.040405,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-015",
+    "display_name": "한현우",
+    "delivery_area": "강남구 테스트권역 6",
+    "delivery_address": "서울 강남구 테스트동 215 테스트아파트 15동",
+    "lat": 37.494029,
+    "lng": 127.073748,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-016",
+    "display_name": "최민지",
+    "delivery_area": "강남구 테스트권역 7",
+    "delivery_address": "서울 강남구 테스트동 216 테스트아파트 16동",
+    "lat": 37.477969,
+    "lng": 127.007913,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-017",
+    "display_name": "정도윤",
+    "delivery_area": "강남구 테스트권역 8",
+    "delivery_address": "서울 강남구 테스트동 217 테스트아파트 17동",
+    "lat": 37.487542,
+    "lng": 127.032063,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-018",
+    "display_name": "이현우",
+    "delivery_area": "강남구 테스트권역 9",
+    "delivery_address": "서울 강남구 테스트동 218 테스트아파트 18동",
+    "lat": 37.502281,
+    "lng": 127.078231,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-019",
+    "display_name": "한현우",
+    "delivery_area": "강남구 테스트권역 1",
+    "delivery_address": "서울 강남구 테스트동 219 테스트아파트 19동",
+    "lat": 37.512242,
+    "lng": 127.019032,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-020",
+    "display_name": "박도윤",
+    "delivery_area": "강남구 테스트권역 2",
+    "delivery_address": "서울 강남구 테스트동 220 테스트아파트 20동",
+    "lat": 37.484682,
+    "lng": 127.046015,
+    "request_note": "문 앞에 놓아주세요."
+  },
+  {
+    "customer_id": "C-021",
+    "display_name": "이도윤",
+    "delivery_area": "강남구 테스트권역 3",
+    "delivery_address": "서울 강남구 테스트동 221 테스트아파트 21동",
+    "lat": 37.514211,
+    "lng": 127.062951,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-022",
+    "display_name": "박수빈",
+    "delivery_area": "강남구 테스트권역 4",
+    "delivery_address": "서울 강남구 테스트동 222 테스트아파트 22동",
+    "lat": 37.523328,
+    "lng": 127.0433,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-023",
+    "display_name": "임예린",
+    "delivery_area": "강남구 테스트권역 5",
+    "delivery_address": "서울 강남구 테스트동 223 테스트아파트 23동",
+    "lat": 37.500582,
+    "lng": 126.996834,
+    "request_note": "문 앞에 놓아주세요."
+  },
+  {
+    "customer_id": "C-024",
+    "display_name": "한예린",
+    "delivery_area": "강남구 테스트권역 6",
+    "delivery_address": "서울 강남구 테스트동 224 테스트아파트 24동",
+    "lat": 37.490858,
+    "lng": 127.048194,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-025",
+    "display_name": "정서준",
+    "delivery_area": "강남구 테스트권역 7",
+    "delivery_address": "서울 강남구 테스트동 225 테스트아파트 25동",
+    "lat": 37.499218,
+    "lng": 127.005359,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-026",
+    "display_name": "오예린",
+    "delivery_area": "강남구 테스트권역 8",
+    "delivery_address": "서울 강남구 테스트동 226 테스트아파트 26동",
+    "lat": 37.467774,
+    "lng": 127.04539,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-027",
+    "display_name": "임나연",
+    "delivery_area": "강남구 테스트권역 9",
+    "delivery_address": "서울 강남구 테스트동 227 테스트아파트 27동",
+    "lat": 37.528732,
+    "lng": 127.0247,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-028",
+    "display_name": "임현우",
+    "delivery_area": "강남구 테스트권역 1",
+    "delivery_address": "서울 강남구 테스트동 228 테스트아파트 28동",
+    "lat": 37.472431,
+    "lng": 127.034296,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-029",
+    "display_name": "이민지",
+    "delivery_area": "강남구 테스트권역 2",
+    "delivery_address": "서울 강남구 테스트동 229 테스트아파트 29동",
+    "lat": 37.489724,
+    "lng": 127.016875,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-030",
+    "display_name": "임예린",
+    "delivery_area": "강남구 테스트권역 3",
+    "delivery_address": "서울 강남구 테스트동 230 테스트아파트 30동",
+    "lat": 37.506849,
+    "lng": 127.048326,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-031",
+    "display_name": "이지민",
+    "delivery_area": "강남구 테스트권역 4",
+    "delivery_address": "서울 강남구 테스트동 231 테스트아파트 31동",
+    "lat": 37.471908,
+    "lng": 127.04357,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-032",
+    "display_name": "송현우",
+    "delivery_area": "강남구 테스트권역 5",
+    "delivery_address": "서울 강남구 테스트동 232 테스트아파트 32동",
+    "lat": 37.476114,
+    "lng": 127.023288,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-033",
+    "display_name": "이서준",
+    "delivery_area": "강남구 테스트권역 6",
+    "delivery_address": "서울 강남구 테스트동 233 테스트아파트 33동",
+    "lat": 37.511397,
+    "lng": 127.044916,
+    "request_note": "벨을 누르지 말아주세요."
+  },
+  {
+    "customer_id": "C-034",
+    "display_name": "이서준",
+    "delivery_area": "강남구 테스트권역 7",
+    "delivery_address": "서울 강남구 테스트동 234 테스트아파트 34동",
+    "lat": 37.506086,
+    "lng": 127.021175,
+    "request_note": "도착 후 메시지 부탁드려요."
+  },
+  {
+    "customer_id": "C-035",
+    "display_name": "송지민",
+    "delivery_area": "강남구 테스트권역 8",
+    "delivery_address": "서울 강남구 테스트동 235 테스트아파트 35동",
+    "lat": 37.482108,
+    "lng": 127.045103,
+    "request_note": "경비실에 맡겨주세요."
+  },
+  {
+    "customer_id": "C-036",
+    "display_name": "최지호",
+    "delivery_area": "강남구 테스트권역 9",
+    "delivery_address": "서울 강남구 테스트동 236 테스트아파트 36동",
+    "lat": 37.482525,
+    "lng": 127.042524,
+    "request_note": "문 앞에 놓아주세요."
+  }
+]

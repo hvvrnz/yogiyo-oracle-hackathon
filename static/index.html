@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>요기요 AI 조리·배달 동기화 데모</title>
+  <link rel="stylesheet" href="/static/common.css" />
+  <style>
+    body{min-height:100vh;padding:48px 24px}.landing{max-width:1120px;margin:0 auto}.top{display:grid;grid-template-columns:1.35fr .65fr;gap:28px;align-items:stretch}.intro{background:linear-gradient(145deg,#ff3d78,#e81155);color:white;border-radius:34px;padding:42px;box-shadow:0 24px 55px rgba(230,18,84,.25);position:relative;overflow:hidden}.intro:after{content:"";position:absolute;width:280px;height:280px;border-radius:50%;right:-90px;top:-120px;background:rgba(255,255,255,.12)}.kicker{font-size:13px;font-weight:800;opacity:.9}.intro h1{font-size:46px;line-height:1.08;letter-spacing:-2.2px;margin:16px 0 17px;max-width:720px}.intro p{font-size:16px;line-height:1.7;opacity:.94;max-width:680px;margin:0}.mini-panel{background:white;border-radius:34px;padding:28px;box-shadow:var(--shadow)}.mini-panel h2{font-size:18px;margin:0 0 18px}.data-line{padding:14px 0;border-bottom:1px solid var(--line)}.data-line:last-child{border:0}.data-line strong{display:block;font-size:13px;margin-bottom:4px}.data-line span{font-size:12px;color:var(--muted);line-height:1.5}.role-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}.role{background:white;border-radius:26px;padding:24px;border:1px solid rgba(0,0,0,.05);box-shadow:0 10px 28px rgba(0,0,0,.06);transition:.18s}.role:hover{transform:translateY(-4px);box-shadow:0 16px 34px rgba(0,0,0,.1)}.role-icon{width:48px;height:48px;border-radius:17px;display:grid;place-items:center;font-size:23px;background:var(--brand-soft);margin-bottom:18px}.role h3{margin:0 0 8px;font-size:18px}.role p{margin:0 0 20px;color:var(--muted);font-size:12px;line-height:1.6}.role a{display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:13px;color:var(--brand-dark)}.architecture{margin-top:24px;background:white;border-radius:30px;padding:30px;box-shadow:0 12px 32px rgba(0,0,0,.05)}.architecture h2{margin:0 0 20px;font-size:22px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:center}.flow-node{background:#f7f7fa;border-radius:18px;padding:17px;text-align:center;font-size:12px;line-height:1.55}.flow-node strong{display:block;font-size:14px;margin-bottom:5px}.arrow{text-align:center;color:#aaa;font-size:20px}.foot{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}.chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.chip{padding:8px 11px;border-radius:999px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);font-size:11px;font-weight:750}@media(max-width:850px){.top{grid-template-columns:1fr}.role-grid{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}.intro h1{font-size:36px}}@media(max-width:520px){body{padding:18px}.intro{padding:28px;border-radius:26px}.intro h1{font-size:31px}.role-grid{grid-template-columns:1fr}.mini-panel,.architecture{border-radius:25px}}
+  </style>
+</head>
+<body>
+  <main class="landing">
+    <section class="top">
+      <div class="intro">
+        <div class="kicker">요기요 X 오라클 해커톤 · 팀 낭만젊음사랑</div>
+        <h1>AI 조리·배달 동기화 및 동적 배칭 추천 시스템</h1>
+        <p>고객에게는 도착시간과 묶음 이유를, 사장님에게는 조리 완료 목표와 라이더 도착시각을, 라이더에게는 효율적인 수익과 이동 순서를 실시간으로 제공합니다.</p>
+        <div class="chip-row"><span class="chip">최대 3건 배칭</span><span class="chip">90개 유효 경로 비교</span><span class="chip">품질·ETA 가드레일</span><span class="chip">실시간 WebSocket</span><span class="chip">2가지 경로 전략</span><span class="chip">네이버·구글 지도</span></div>
+      </div>
+      <aside class="mini-panel">
+        <h2>데이터 구성</h2>
+        <div class="data-line"><strong>공공데이터포털</strong><span>음식점명·업종·주소·위경도</span></div>
+        <div class="data-line"><strong>카카오모빌리티</strong><span>도로 거리·예상 시간·경로 좌표 연동 지점</span></div>
+        <div class="data-line"><strong>네이버·구글 지도</strong><span>실제 지도 SDK 선택 및 기존 지도 자동 fallback</span></div>
+        <div class="data-line"><strong>기상청</strong><span>실시간 날씨 및 이동 지연 보정 연동 지점</span></div>
+        <div class="data-line"><strong>시연용 데이터</strong><span>주문 발생, 조리 진행, 고객 주소, 라이더 이동</span></div>
+      </aside>
+    </section>
+
+    <section class="role-grid">
+      <article class="role"><div class="role-icon">🍱</div><h3>고객 화면</h3><p>ETA, 주문 진행, 라이더 위치, 묶음 추천 사유, 음식 품질 가드레일을 확인합니다.</p><a href="/customer?customerId=C-001">고객 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🏪</div><h3>사장님 화면</h3><p>AI 조리 완료 목표, 조리 시작 권장시각, 라이더 도착 ETA와 지연 입력을 제공합니다.</p><a href="/merchant?storeId=S-001">사장님 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🛵</div><h3>라이더 화면</h3><p>패키지 수익, 매장 준비 상태와 혼합 최적화·전체 픽업 후 배달 순서를 표시합니다.</p><a href="/rider?riderId=R-001">라이더 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🎛️</div><h3>통합 시연</h3><p>세 역할 화면과 이벤트 로그를 한곳에서 보고 지연·날씨·배차 시나리오를 제어합니다.</p><a href="/demo">통합 시연 열기 <span>→</span></a></article>
+    </section>
+
+    <section class="architecture">
+      <h2>하나의 서버, 세 역할, 하나의 상태</h2>
+      <div class="flow">
+        <div class="flow-node"><strong>고객·사장님·라이더</strong>REST + WebSocket</div><div class="arrow">→</div>
+        <div class="flow-node"><strong>FastAPI</strong>인증·명령·상태 전달</div><div class="arrow">→</div>
+        <div class="flow-node"><strong>Redis / Kafka / Oracle</strong>실서비스 교체 경계</div>
+      </div>
+      <p class="foot">현재 패키지는 외부 키 없이 동작하는 통합 POC이며, 같은 데이터 계약을 유지한 채 실제 OCI·카카오·기상청 서비스로 교체하도록 설계했습니다.</p>
+    </section>
+  </main>
+</body>
+</html>

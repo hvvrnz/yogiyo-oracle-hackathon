@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "seed": 20260804,
+  "notice": "모든 데이터는 테스트용으로 생성되었으며 실제 사용자·매장·라이더 정보가 아닙니다.",
+  "counts": {
+    "stores": 12,
+    "customers": 36,
+    "riders": 8,
+    "historical_orders": 80,
+    "cooking_history": 80,
+    "scenarios": 4
+  },
+  "scenarios": [
+    {
+      "dataset_id": "balanced",
+      "name": "평시 균형형 3건 묶음배달",
+      "description": "조리시간과 이동방향이 고르게 맞는 기본 발표 시나리오입니다."
+    },
+    {
+      "dataset_id": "rainy_rush",
+      "name": "우천 피크타임 시나리오",
+      "description": "강한 비와 매장 혼잡으로 ETA와 수익 효율이 낮아지는 상황을 확인합니다."
+    },
+    {
+      "dataset_id": "store_delay",
+      "name": "버거 매장 조리 지연 시나리오",
+      "description": "두 번째 매장의 조리가 늦어 혼합 경로 재계산이 필요한 상황입니다."
+    },
+    {
+      "dataset_id": "pickup_first",
+      "name": "전체 픽업 후 배달 시나리오",
+      "description": "세 매장의 조리 완료시각이 가까워 모든 픽업을 먼저 수행할 수 있습니다."
+    }
+  ]
+}

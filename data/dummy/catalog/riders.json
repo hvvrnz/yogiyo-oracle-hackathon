@@ -1,0 +1,74 @@
+[
+  {
+    "rider_id": "R-001",
+    "display_name": "라이더 01",
+    "vehicle": "오토바이",
+    "status": "AVAILABLE",
+    "lat": 37.516599,
+    "lng": 127.070824,
+    "average_speed_kmh": 23
+  },
+  {
+    "rider_id": "R-002",
+    "display_name": "라이더 02",
+    "vehicle": "오토바이",
+    "status": "AVAILABLE",
+    "lat": 37.510363,
+    "lng": 127.018944,
+    "average_speed_kmh": 19
+  },
+  {
+    "rider_id": "R-003",
+    "display_name": "라이더 03",
+    "vehicle": "오토바이",
+    "status": "AVAILABLE",
+    "lat": 37.505514,
+    "lng": 127.04618,
+    "average_speed_kmh": 20
+  },
+  {
+    "rider_id": "R-004",
+    "display_name": "라이더 04",
+    "vehicle": "전기자전거",
+    "status": "AVAILABLE",
+    "lat": 37.48368,
+    "lng": 127.052752,
+    "average_speed_kmh": 21
+  },
+  {
+    "rider_id": "R-005",
+    "display_name": "라이더 05",
+    "vehicle": "오토바이",
+    "status": "AVAILABLE",
+    "lat": 37.484165,
+    "lng": 127.047381,
+    "average_speed_kmh": 27
+  },
+  {
+    "rider_id": "R-006",
+    "display_name": "라이더 06",
+    "vehicle": "오토바이",
+    "status": "AVAILABLE",
+    "lat": 37.519098,
+    "lng": 127.053131,
+    "average_speed_kmh": 27
+  },
+  {
+    "rider_id": "R-007",
+    "display_name": "라이더 07",
+    "vehicle": "오토바이",
+    "status": "AVAILABLE",
+    "lat": 37.491297,
+    "lng": 127.007571,
+    "average_speed_kmh": 19
+  },
+  {
+    "rider_id": "R-008",
+    "display_name": "라이더 08",
+    "vehicle": "오토바이",
+    "status": "AVAILABLE",
+    "lat": 37.48757,
+    "lng": 127.06314,
+    "average_speed_kmh": 24
+  }
+]

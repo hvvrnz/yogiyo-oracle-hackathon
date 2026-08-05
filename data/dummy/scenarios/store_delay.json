@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "dataset_id": "store_delay",
+  "name": "버거 매장 조리 지연 시나리오",
+  "description": "두 번째 매장의 조리가 늦어 혼합 경로 재계산이 필요한 상황입니다.",
+  "seed": 20260806,
+  "generated": true,
+  "notice": "모든 인물·매장·주소·수치는 테스트를 위해 생성한 가상 데이터입니다.",
+  "simulation": {
+    "rider_progress": 0.18
+  },
+  "weather": {
+    "condition": "RAIN",
+    "label": "비",
+    "temperature_c": 26,
+    "precipitation_mm": 5.5,
+    "wind_speed_mps": 3.4,
+    "travel_delay_min": 3,
+    "advisory": "강수 영향으로 이동시간이 평소보다 약 3분 늘어날 수 있어요.",
+    "source": "가상 기상 데이터 · 실제 API 호출 아님"
+  },
+  "stores": [
+    {
+      "store_id": "S-001",
+      "name": "낭만치킨 역삼점",
+      "category": "치킨",
+      "address": "서울 강남구 역삼동 테스트로 101",
+      "lat": 37.503059,
+      "lng": 127.069097,
+      "base_cooking_min": 22,
+      "bag_time_limit_min": 12,
+      "correction_factor": 1.02,
+      "prediction_accuracy_pct": 82,
+      "open": true,
+      "congestion": "보통"
+    },
+    {
+      "store_id": "S-002",
+      "name": "젊음버거 선릉점",
+      "category": "버거",
+      "address": "서울 강남구 선릉동 테스트로 102",
+      "lat": 37.524771,
+      "lng": 127.060995,
+      "base_cooking_min": 17,
+      "bag_time_limit_min": 12,
+      "correction_factor": 0.97,
+      "prediction_accuracy_pct": 83,
+      "open": true,
+      "congestion": "매우 혼잡"
+    },
+    {
+      "store_id": "S-003",
+      "name": "사랑한식 삼성점",
+      "category": "한식",
+      "address": "서울 강남구 삼성동 테스트로 103",
+      "lat": 37.521252,
+      "lng": 127.056069,
+      "base_cooking_min": 19,
+      "bag_time_limit_min": 14,
+      "correction_factor": 1.02,
+      "prediction_accuracy_pct": 91,
+      "open": true,
+      "congestion": "여유"
+    }
+  ],
+  "customers": [
+    {
+      "customer_id": "C-001",
+      "display_name": "박서준",
+      "delivery_area": "역삼동 인근",
+      "delivery_address": "서울 강남구 역삼동 고객 주소",
+      "lat": 37.4974,
+      "lng": 127.0411,
+      "request_note": "문 앞에 놓아주세요."
+    },
+    {
+      "customer_id": "C-002",
+      "display_name": "오수빈",
+      "delivery_area": "선릉동 인근",
+      "delivery_address": "서울 강남구 선릉동 고객 주소",
+      "lat": 37.5014,
+      "lng": 127.0446,
+      "request_note": "벨을 누르지 말아주세요."
+    },
+    {
+      "customer_id": "C-003",
+      "display_name": "최수빈",
+      "delivery_area": "삼성동 인근",
+      "delivery_address": "서울 강남구 삼성동 고객 주소",
+      "lat": 37.5083,
+      "lng": 127.0518,
+      "request_note": "경비실에 맡겨주세요."
+    }
+  ],
+  "riders": [
+    {
+      "rider_id": "R-001",
+      "display_name": "라이더 01",
+      "vehicle": "오토바이",
+      "status": "AVAILABLE",
+      "lat": 37.501659,
+      "lng": 127.067297,
+      "average_speed_kmh": 23
+    },
+    {
+      "rider_id": "R-002",
+      "display_name": "라이더 02",
+      "vehicle": "오토바이",
+      "status": "AVAILABLE",
+      "lat": 37.500059,
+      "lng": 127.066297,
+      "average_speed_kmh": 22
+    },
+    {
+      "rider_id": "R-003",
+      "display_name": "라이더 03",
+      "vehicle": "오토바이",
+      "status": "AVAILABLE",
+      "lat": 37.506859,
+      "lng": 127.065597,
+      "average_speed_kmh": 21
+    },
+    {
+      "rider_id": "R-004",
+      "display_name": "라이더 04",
+      "vehicle": "전기자전거",
+      "status": "AVAILABLE",
+      "lat": 37.498059,
+      "lng": 127.073297,
+      "average_speed_kmh": 20
+    }
+  ],
+  "orders": [
+    {
+      "order_id": "O-001",
+      "customer_id": "C-001",
+      "store_id": "S-001",
+      "created_offset_min": -15,
+      "status": "COOKING",
+      "menu_summary": "후라이드치킨 외 1개",
+      "items": [
+        {
+          "name": "후라이드치킨",
+          "quantity": 1
+        },
+        {
+          "name": "콜라 1.25L",
+          "quantity": 1
+        }
+      ],
+      "amount": 23900,
+      "predicted_cooking_min": 22,
+      "ready_offset_min": 7,
+      "recommended_start_offset_min": -15,
+      "bag_time_min": 9,
+      "bag_time_limit_min": 12,
+      "food_sitting_min": 2
+    },
+    {
+      "order_id": "O-002",
+      "customer_id": "C-002",
+      "store_id": "S-002",
+      "created_offset_min": -13,
+      "status": "DELAYED",
+      "menu_summary": "클래식버거 세트",
+      "items": [
+        {
+          "name": "클래식버거 세트",
+          "quantity": 1
+        }
+      ],
+      "amount": 14900,
+      "predicted_cooking_min": 18,
+      "ready_offset_min": 17,
+      "recommended_start_offset_min": -1,
+      "bag_time_min": 7,
+      "bag_time_limit_min": 12,
+      "food_sitting_min": 2
+    },
+    {
+      "order_id": "O-003",
+      "customer_id": "C-003",
+      "store_id": "S-003",
+      "created_offset_min": -12,
+      "status": "READY",
+      "menu_summary": "제육볶음 도시락 외 1개",
+      "items": [
+        {
+          "name": "제육볶음 도시락",
+          "quantity": 1
+        },
+        {
+          "name": "계란말이",
+          "quantity": 1
+        }
+      ],
+      "amount": 18500,
+      "predicted_cooking_min": 19,
+      "ready_offset_min": 11,
+      "recommended_start_offset_min": -8,
+      "bag_time_min": 10,
+      "bag_time_limit_min": 14,
+      "food_sitting_min": 2
+    }
+  ],
+  "package": {
+    "package_id": "PKG-001",
+    "status": "OFFERED",
+    "status_label": "라이더 제안 중",
+    "order_ids": [
+      "O-001",
+      "O-002",
+      "O-003"
+    ],
+    "rider_id": null,
+    "offered_rider_id": "R-001",
+    "auto_reassign_enabled": true,
+    "offer_timeout_sec": 30,
+    "bundle_size": 3,
+    "default_strategy": "optimized",
+    "ready_gap_min": 10,
+    "candidate_route_count": 90,
+    "package_revenue": 7500,
+    "eta_confidence_pct": 86,
+    "quality_guard_passed": true,
+    "eta_guard_passed": true,
+    "promise_eta_preserved": true,
+    "reroute_enabled": true,
+    "fallback_when_late": "묶음 해제 후 재배차",
+    "strategy_profiles": {
+      "optimized": {
+        "route_strategy": "optimized",
+        "route_strategy_label": "혼합 최적화",
+        "route_strategy_description": "조리 완료시각과 품질 제한을 고려해 픽업과 배달을 섞어 이동합니다.",
+        "estimated_duration_min": 21,
+        "hourly_revenue": 21400.0,
+        "total_distance_km": 4.2,
+        "total_wait_min": 3,
+        "route_overlap_pct": 76,
+        "extra_distance_km": 0.7,
+        "extra_duration_min": 6,
+        "selected_route_reason": "조리 완료 시각이 가깝고 이동 방향이 겹치는 경로",
+        "bag_times": {
+          "O-001": 10,
+          "O-002": 7,
+          "O-003": 11
+        }
+      },
+      "pickup_first": {
+        "route_strategy": "pickup_first",
+        "route_strategy_label": "전체 픽업 후 배달",
+        "route_strategy_description": "세 매장의 음식을 모두 픽업한 뒤 고객에게 순서대로 배달합니다.",
+        "estimated_duration_min": 24,
+        "hourly_revenue": 18800.0,
+        "total_distance_km": 4.6,
+        "total_wait_min": 2,
+        "route_overlap_pct": 78,
+        "extra_distance_km": 1.1,
+        "extra_duration_min": 8,
+        "selected_route_reason": "모든 픽업을 먼저 완료해 픽업 흐름을 단순화한 경로",
+        "bag_times": {
+          "O-001": 12,
+          "O-002": 8,
+          "O-003": 14
+        }
+      }
+    },
+    "route_blueprints": {
+      "optimized": [
+        {
+          "type": "PICKUP",
+          "order_id": "O-001",
+          "duration_min": 4,
+          "label": "낭만치킨 픽업"
+        },
+        {
+          "type": "PICKUP",
+          "order_id": "O-002",
+          "duration_min": 3,
+          "label": "젊음버거 픽업"
+        },
+        {
+          "type": "DELIVERY",
+          "order_id": "O-002",
+          "duration_min": 6,
+          "label": "주문 B 배달"
+        },
+        {
+          "type": "PICKUP",
+          "order_id": "O-003",
+          "duration_min": 4,
+          "label": "사랑한식 픽업"
+        },
+        {
+          "type": "DELIVERY",
+          "order_id": "O-001",
+          "duration_min": 7,
+          "label": "고객님 주문 배달"
+        },
+        {
+          "type": "DELIVERY",
+          "order_id": "O-003",
+          "duration_min": 6,
+          "label": "주문 C 배달"
+        }
+      ],
+      "pickup_first": [
+        {
+          "type": "PICKUP",
+          "order_id": "O-001",
+          "duration_min": 4,
+          "label": "낭만치킨 픽업"
+        },
+        {
+          "type": "PICKUP",
+          "order_id": "O-002",
+          "duration_min": 3,
+          "label": "젊음버거 픽업"
+        },
+        {
+          "type": "PICKUP",
+          "order_id": "O-003",
+          "duration_min": 4,
+          "label": "사랑한식 픽업"
+        },
+        {
+          "type": "DELIVERY",
+          "order_id": "O-002",
+          "duration_min": 6,
+          "label": "주문 B 배달"
+        },
+        {
+          "type": "DELIVERY",
+          "order_id": "O-001",
+          "duration_min": 7,
+          "label": "고객님 주문 배달"
+        },
+        {
+          "type": "DELIVERY",
+          "order_id": "O-003",
+          "duration_min": 6,
+          "label": "주문 C 배달"
+        }
+      ]
+    }
+  }
+}
