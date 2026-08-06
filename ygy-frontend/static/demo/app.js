@@ -37,6 +37,7 @@ async function post(request) {
   try {
     const result = await request();
     await loadDemo();
+    document.querySelectorAll('.phone-frame').forEach(frame => frame.contentWindow?.location.reload());
     return result;
   } catch (error) { alert(error.message); }
 }
