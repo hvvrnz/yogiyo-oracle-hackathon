@@ -1,4 +1,0 @@
-﻿weather_id,condition,temperature_c,precipitation_mm,wind_speed_mps,travel_delay_min
-W-001,CLEAR,29,0.0,1.8,0
-W-002,RAIN,26,5.5,3.4,3
-W-003,HEAVY_RAIN,25,13.0,5.2,6
