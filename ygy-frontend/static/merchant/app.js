@@ -62,7 +62,6 @@ function renderMerchant(view) {
   Yogiyo.el('merchantWeatherIcon').textContent = weather.condition === 'RAIN' ? '🌧️' : '☀️';
   Yogiyo.el('merchantWeatherTitle').textContent = `${weather.label} · ${weather.temperature_c}℃`;
   Yogiyo.el('merchantWeatherAdvisory').textContent = weather.advisory;
-  document.querySelectorAll('#storeSelector button').forEach(button => button.classList.toggle('active', button.dataset.store === storeId));
 }
 
 async function handleOrderAction(event) {
@@ -89,7 +88,6 @@ async function showExplanation() {
   Yogiyo.el('sheetNote').textContent = explanation.note;
 }
 
-document.querySelectorAll('#storeSelector button').forEach(button => button.addEventListener('click', () => {storeId = button.dataset.store; history.replaceState(null,'',`?storeId=${storeId}`); explanation=null; loadMerchant();}));
 Yogiyo.el('merchantWhyButton').addEventListener('click', showExplanation);
 Yogiyo.el('sheetClose').addEventListener('click', Yogiyo.closeSheet);
 Yogiyo.el('sheetBackdrop').addEventListener('click', Yogiyo.closeSheet);

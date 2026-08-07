@@ -23,11 +23,6 @@ async function loadDemo() {
     const activeRider = state.riders[activeRiderId];
     Yogiyo.el('summaryRider').textContent = activeRider ? `${activeRider.display_name} · ${pkg.offer_attempt || 0}차` : '후보 없음';
     Yogiyo.el('summaryVersion').textContent = state.version;
-    const riderUrl = `/rider?riderId=${encodeURIComponent(activeRiderId)}`;
-    const frame = Yogiyo.el('riderFrame');
-    if (frame && !frame.src.endsWith(riderUrl)) frame.src = riderUrl;
-    Yogiyo.el('riderFrameTitle').textContent = activeRider ? `${activeRider.display_name} (${activeRiderId})` : '라이더 후보 없음';
-    Yogiyo.el('riderFrameLink').href = riderUrl;
     Yogiyo.el('eventList').innerHTML = state.events.length ? state.events.map(event => `<div class="event"><code>${Yogiyo.escape(event.type)}</code><span>${Yogiyo.escape(event.message)}</span><time>${Yogiyo.fmtTime(event.occurred_at)}</time></div>`).join('') : '<div class="event"><span>이벤트가 없습니다.</span></div>';
     Yogiyo.el('connectionText').textContent = `실시간 연결 · v${state.version}`;
   } catch (error) { Yogiyo.el('connectionText').textContent = error.message; }

@@ -19,7 +19,6 @@
 | 조리 시작 | 주문 상태/라벨, 조리 건수 | `orderId`, `action: "start"` | `orders[]`, `summary` |
 | +5분 / +10분 | 상태, 예상 조리 시간, 추천 문구 | `orderId`, `action: "delay"`, `delayMin` | `orders[].status`, `predictedCookingMin`, `targetReadyLabel` |
 | 조리 완료 | 상태/라벨, 준비 완료 건수, 라이더 대기 정보 | `orderId`, `action: "ready"` | `orders[]`, `summary`, `rider`, `package` |
-| 매장 선택 | 매장명, 주문 목록, 혼잡도, 배차 정보 | `storeId` | `store`, `summary`, `orders`, `rider`, `package`, `weather` |
 | 추천 근거 | bottom sheet 내용 | `role: "merchant"`, `entityId: storeId` | `headline`, `summary`, `reasons[]`, `note` |
 
 ## 라이더 화면 (`/rider`)
@@ -33,7 +32,7 @@
 
 ## 통합시연 화면 (`/demo`)
 
-모든 제어 뒤에는 `version`, `packages["PKG-001"]`, `riders`, `events[]`를 다시 조회해 상단 요약, 내장 라이더 화면, 이벤트 로그를 갱신한다.
+통합 시연은 고객 `C-001`, 사장님 `S-001~S-003`, 라이더 `R-001~R-003`의 독립 화면을 동시에 표시한다. 모든 제어 뒤에는 `version`, `packages["PKG-001"]`, `riders`, `events[]`를 다시 조회해 상단 요약, 모든 내장 역할 화면, 이벤트 로그를 갱신한다.
 
 | 제어 | 변경되는 값 | 요청 데이터 |
 | --- | --- | --- |

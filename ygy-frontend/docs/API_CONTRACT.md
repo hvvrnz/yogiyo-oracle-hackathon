@@ -10,6 +10,8 @@
 - WebSocket 경로: `/ws/{role}/{entity_id}`
 - 클라이언트는 20초마다 문자열 `ping`을 전송하며 서버는 `{"type":"pong"}`으로 응답
 - `pong` 이외의 메시지가 오면 해당 역할 화면이 REST 조회를 다시 수행
+- 통합 시연은 동시에 `C-001`, `S-001~S-003`, `R-001~R-003`을 조회한다. 각 ID는 독립 엔터티이며, 다른 ID의 데이터를 대신 반환하면 안 된다.
+- 하나의 묶음 배차 상태가 변경되면 관련 고객·매장·라이더의 WebSocket 채널 모두에 갱신 이벤트를 발행한다.
 
 ## 고객
 
@@ -33,6 +35,8 @@
 - `package`: `status_label`, `bundle_size`, `route_strategy_label`, `ready_gap_min`, `total_wait_min`, `selected_route_reason`, `route_changed`, `route_change_note`, `offer_attempt`, `reassignment_note`
 - `weather`: `condition`, `label`, `temperature_c`, `advisory`
 
+`store_id`는 사장님이 운영하는 단일 매장을 뜻한다. 통합 시연의 기본 매핑은 `S-001=치킨`, `S-002=버거`, `S-003=한식`이며, 응답의 `orders[]`에는 해당 매장 주문만 포함한다.
+
 ### `POST /api/merchant/orders/{order_id}/action`
 
 ```json
@@ -50,6 +54,8 @@
 - `steps[]`: `sequence`, `status`, `is_current`, `destination`, `address`, `distance_km`, `duration_min`, `eta_label`, `label`, `lat`, `lng`, `type`
 - `store_readiness[]`: `status`, `status_label`, `store_name`, `remaining_min`, `ready_at`
 - `weather`: `condition`, `label`, `travel_delay_min`, `advisory`
+
+라이더가 현재 제안 또는 배정 대상이 아니어도 해당 라이더의 실제 상태를 반환한다. `can_accept`은 현재 제안을 받은 라이더에게만 `true`여야 하며, `status_label`로 가용·재배차 후보·다른 주문 수행 중 상태를 구분한다.
 
 ### `POST /api/rider/{rider_id}/action`
 
@@ -84,6 +90,8 @@
 - `GET /api/demo/datasets`: `active_dataset_id`, `datasets[] {dataset_id, name}`
 - `GET /api/state`: `version`, `packages.PKG-001`, `riders`, `events[] {type, message, occurred_at}`
 
+`packages.PKG-001`은 `order_ids[]`, `offered_rider_ids[]`, `offered_rider_id`, `rider_id`(수락 후 배정 라이더)를 포함해야 한다. `riders`는 적어도 `R-001`, `R-002`, `R-003`의 상태를 ID 키로 반환한다.
+
 ### 명령
 
 - `POST /api/demo/dataset`: `{"dataset_id":"..."}`
@@ -91,4 +99,3 @@
 - `POST /api/demo/weather`: `{"condition":"RAIN | CLEAR"}`
 - `POST /api/demo/simulation`: `{"running":true}`
 - 빈 JSON 객체로 호출: `/api/demo/next`, `/api/demo/rider-accept`, `/api/demo/rider-reject`, `/api/demo/rider-timeout`, `/api/demo/store-delay`, `/api/demo/new-order`, `/api/demo/reset`
-
