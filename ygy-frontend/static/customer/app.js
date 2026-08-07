@@ -1,4 +1,5 @@
 const customerId = Yogiyo.qs('customerId', Yogiyo.defaultIds.customer);
+const storeForCustomer = {'C-001':'S-001','C-002':'S-002','C-003':'S-003'};
 let currentView;
 
 async function loadCustomer() {
@@ -36,10 +37,14 @@ function renderCustomer(view) {
 
 async function createOrder() {
   const preference = document.querySelector('input[name="deliveryPreference"]:checked')?.value || 'AI_RECOMMENDED';
-  try { const result = await Yogiyo.apiClient.orders.create({customer_id:customerId,store_id:'S-001',items:[{name:'반반치킨',quantity:1}],delivery_preference:preference}); Yogiyo.toast(result.message); await loadCustomer(); }
+  try { const result = await Yogiyo.apiClient.orders.create({customer_id:customerId,store_id:storeForCustomer[customerId] || 'S-001',delivery_preference:preference}); Yogiyo.toast(result.message); await loadCustomer(); }
   catch (error) { Yogiyo.toast(error.message); }
 }
 
 Yogiyo.el('createOrderButton').addEventListener('click', createOrder);
+Yogiyo.el('customerSwitcher').querySelectorAll('[data-customer-id]').forEach(button => {
+  button.className = button.dataset.customerId === customerId ? 'primary-button' : 'ghost-button';
+  button.addEventListener('click', () => { location.href = `/customer?customerId=${encodeURIComponent(button.dataset.customerId)}`; });
+});
 Yogiyo.el('whyButton').addEventListener('click', async () => { Yogiyo.openSheet(); const info=await Yogiyo.apiClient.explanation('customer',customerId); Yogiyo.el('sheetHeadline').textContent=info.headline; Yogiyo.el('sheetSummary').textContent=info.summary; Yogiyo.el('sheetReasons').innerHTML=info.reasons.map(reason=>`<div class="reason-item"><div class="reason-copy"><h3>${Yogiyo.escape(reason.title)}</h3><p>${Yogiyo.escape(reason.description)}</p></div><div class="reason-metric">${Yogiyo.escape(reason.metric)}</div></div>`).join(''); Yogiyo.el('sheetNote').textContent=info.note; });
 Yogiyo.el('sheetClose').addEventListener('click', Yogiyo.closeSheet); Yogiyo.el('sheetBackdrop').addEventListener('click', Yogiyo.closeSheet); Yogiyo.websocket('customer',customerId,loadCustomer); loadCustomer();

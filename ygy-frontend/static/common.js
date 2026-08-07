@@ -17,6 +17,7 @@ window.Yogiyo = (() => {
     'C-002': {display_name:'고객 B', lat:37.494, lng:127.035},
     'C-003': {display_name:'고객 C', lat:37.490, lng:127.029},
   };
+  const customerStoreIds = {'C-001':'S-001','C-002':'S-002','C-003':'S-003'};
   const menuFor = storeId => ({
     'S-001': {summary:'반반치킨 · 콜라', amount:23900, items:[{name:'반반치킨',quantity:1},{name:'콜라',quantity:1}]},
     'S-002': {summary:'치즈버거 세트', amount:15900, items:[{name:'치즈버거',quantity:1},{name:'감자튀김',quantity:1}]},
@@ -89,7 +90,9 @@ window.Yogiyo = (() => {
   };
   const orderForCustomer = customerId => Object.values(mock.orders).filter(order => order.customer_id === customerId).sort((a,b) => b.created_at.localeCompare(a.created_at))[0];
   const customerView = customerId => {
-    const order = orderForCustomer(customerId) || {order_id:'새 주문 없음',customer_id:customerId,store_id:'S-001',status:'DELIVERED',status_label:'주문을 만들어 시연을 시작하세요.',menu_summary:'반반치킨',amount:0,items:[],request_note:'-',delivery_preference:'AI_RECOMMENDED',delivery_preference_label:labels.AI_RECOMMENDED};
+    const defaultStoreId = customerStoreIds[customerId] || 'S-001';
+    const defaultMenu = menuFor(defaultStoreId);
+    const order = orderForCustomer(customerId) || {order_id:'새 주문 없음',customer_id:customerId,store_id:defaultStoreId,status:'DELIVERED',status_label:'주문을 만들어 시연을 시작하세요.',menu_summary:defaultMenu.summary,amount:0,items:[],request_note:'-',delivery_preference:'AI_RECOMMENDED',delivery_preference_label:labels.AI_RECOMMENDED};
     const pkg = packageForOrder(order); const rider = pkg && mock.riders[pkg.assigned_rider_id];
     const eta = order.eta_at ? new Date(order.eta_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}) : '배차 계산 중';
     const message = order.status === 'MATCHING' && !pkg ? `AI 추천 배달 분석 중 · 현재 AI 추천 주문: ${activeOrders().filter(item => item.delivery_preference === 'AI_RECOMMENDED' && !item.package_id).length}건 · 3건 묶음 조건을 확인하고 있어요.` : order.resolved_delivery_type === 'AI_BUNDLE_3' ? 'AI 추천 결과: 조리 시간, 매장 위치, 고객 위치를 반영한 3건 묶음 배차입니다.' : order.resolved_delivery_type ? 'AI 추천 결과: 현재 묶음 조건이 충족되지 않아 개별 배달로 배정합니다.' : order.status_label;
