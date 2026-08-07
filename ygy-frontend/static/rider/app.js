@@ -44,6 +44,16 @@ function renderRider(view) {
   Yogiyo.el('routeCount').textContent = `${steps.length}단계`;
   Yogiyo.el('storeReadiness').innerHTML = store_readiness.map(store => `<div class="row"><div><span class="badge ${statusClass(store.status)}">${Yogiyo.escape(store.status_label)}</span><div class="order-menu" style="font-size:13px;margin-top:6px">${Yogiyo.escape(store.store_name)}</div></div><div class="value">${store.status === 'READY' ? '준비됨' : `${store.remaining_min}분 후`}<div class="subtext">${store.ready_at}</div></div></div>`).join('');
   Yogiyo.el('routeTimeline').innerHTML = steps.map(step => `<div class="timeline-item ${step.status === 'COMPLETED' ? 'done' : step.is_current ? 'current' : ''}"><div class="timeline-dot">${step.status === 'COMPLETED' ? '✓' : step.sequence}</div><div class="timeline-copy"><h3>${Yogiyo.escape(step.destination)}</h3><p>${Yogiyo.escape(step.address)} · ${step.distance_km}km · ${step.duration_min}분</p></div><span class="timeline-time">${step.eta_label}</span></div>`).join('');
+  const actionable = steps.filter(step => step.type === 'PICKUP' || step.type === 'DELIVERY');
+  Yogiyo.el('orderActionsSection').hidden = !pkg.accepted;
+  Yogiyo.el('orderActions').innerHTML = actionable.map(step => {
+    const ready = step.type === 'PICKUP' ? store_readiness.find(store => step.destination === store.store_name)?.status === 'READY' : true;
+    const enabled = step.is_current && ready && step.status !== 'COMPLETED';
+    const action = step.type === 'PICKUP' ? 'pickup' : 'deliver';
+    const label = step.type === 'PICKUP' ? '픽업 완료' : '배달 완료';
+    return `<article class="card" style="margin-top:8px"><div class="row"><div><span class="badge ${step.status === 'COMPLETED' ? 'good' : step.is_current ? 'brand' : 'neutral'}">${step.status === 'COMPLETED' ? '완료' : step.type === 'PICKUP' ? '픽업' : '배달'}</span><div class="order-menu">${Yogiyo.escape(step.destination)}</div><div class="order-id">${Yogiyo.escape(step.order_id)}</div></div><button class="${enabled ? 'primary-button' : 'ghost-button'}" data-order-action="${action}" data-order="${step.order_id}" ${enabled ? '' : 'disabled'}>${step.status === 'COMPLETED' ? '완료' : enabled ? label : step.type === 'PICKUP' ? '조리/순서 대기' : '픽업/순서 대기'}</button></div></article>`;
+  }).join('');
+  Yogiyo.el('orderActions').querySelectorAll('[data-order-action]').forEach(button => button.addEventListener('click', handleOrderAction));
   Yogiyo.el('riderWeatherIcon').textContent = weather.condition === 'RAIN' ? '🌧️' : '☀️';
   Yogiyo.el('riderWeatherTitle').textContent = `${weather.label} · 이동 보정 +${weather.travel_delay_min}분`;
   Yogiyo.el('riderWeatherAdvisory').textContent = weather.condition === 'RAIN' ? `${weather.advisory} 노면 미끄럼에 주의하세요.` : weather.advisory;
@@ -85,6 +95,16 @@ async function handleRiderAction(event) {
     Yogiyo.toast(result.message); await loadRider();
   } catch (error) { Yogiyo.toast(error.message); }
   finally { button.disabled = false; }
+}
+
+async function handleOrderAction(event) {
+  const button = event.currentTarget; button.disabled = true;
+  try {
+    const result = button.dataset.orderAction === 'pickup'
+      ? await Yogiyo.apiClient.rider.pickup(riderId, button.dataset.order)
+      : await Yogiyo.apiClient.rider.deliver(riderId, button.dataset.order);
+    Yogiyo.toast(result.message); await loadRider();
+  } catch (error) { Yogiyo.toast(error.message); }
 }
 
 async function showExplanation() {

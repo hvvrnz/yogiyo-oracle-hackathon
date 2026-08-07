@@ -45,6 +45,16 @@ function renderCustomer(view) {
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
   Yogiyo.el('itemsCard').innerHTML = order.items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.name)}</span><span class="value">${item.quantity}개</span></div>`).join('') + `<div class="row"><span class="label">배달 요청</span><span class="value">${Yogiyo.escape(order.request_note)}</span></div>`;
   Yogiyo.renderRouteMap('customerMap', route, rider.assigned ? rider : null);
+  const button = Yogiyo.el('createOrderButton');
+  button.disabled = !['DELIVERED'].includes(order.status) && order.status !== 'NEW';
+  button.textContent = button.disabled ? '진행 중인 주문이 있습니다' : '치킨 주문하기';
+}
+
+async function createOrder() {
+  try {
+    const result = await Yogiyo.apiClient.orders.create({customer_id:customerId, store_id:'S-001', items:[{name:'반반치킨',quantity:1}]});
+    Yogiyo.toast(result.message); await loadCustomer(true);
+  } catch (error) { Yogiyo.toast(error.message); }
 }
 
 async function showExplanation() {
@@ -64,6 +74,7 @@ async function showExplanation() {
 }
 
 Yogiyo.el('whyButton').addEventListener('click', showExplanation);
+Yogiyo.el('createOrderButton').addEventListener('click', createOrder);
 Yogiyo.el('sheetClose').addEventListener('click', Yogiyo.closeSheet);
 Yogiyo.el('sheetBackdrop').addEventListener('click', Yogiyo.closeSheet);
 Yogiyo.websocket('customer', customerId, () => loadCustomer(true));

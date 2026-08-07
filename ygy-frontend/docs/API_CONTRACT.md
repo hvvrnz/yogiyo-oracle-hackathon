@@ -15,6 +15,11 @@
 
 ## 고객
 
+### `POST /api/orders`
+
+- 요청: `customer_id`, `store_id`, `items[]`
+- 주문을 `NEW`로 생성하고 해당 고객·매장 채널에 갱신 이벤트를 발행한다.
+
 ### `GET /api/customer/{customer_id}`
 
 - `order`: `order_id`, `eta_window`, `current_message`, `delivery_sequence`, `eta_updated_label`, `status`, `status_label`, `menu_summary`, `remaining_min`, `progress_index`, `bag_time_min`, `bag_time_limit_min`, `quality_margin_min`, `quality_guard_passed`, `amount`, `request_note`, `items[] {name, quantity}`
@@ -62,6 +67,16 @@
 ```json
 {"action": "accept | reject | complete_step"}
 ```
+
+동시 배차 제안에서는 패키지의 모든 가용 라이더에게 `offers.{rider_id}.status="OFFERED"`를 제공한다. 첫 수락만 원자적으로 성공시키고, 나머지 제안은 `CANCELLED`로 전환한다.
+
+향후 백엔드에서는 `POST /api/rider/{rider_id}/packages/{package_id}/offer-response`에 `{"action":"accept | reject"}`를 제공하는 것을 권장한다. 프런트 mock은 기존 라이더 action 경로를 호환용으로 유지한다.
+
+### 주문별 운행 처리
+
+- `POST /api/rider/{rider_id}/orders/{order_id}/pickup`: 현재 순서이며 주문이 `READY`일 때만 `PICKED_UP`으로 변경
+- `POST /api/rider/{rider_id}/orders/{order_id}/deliver`: 현재 순서이며 주문이 `PICKED_UP`일 때만 `DELIVERED`로 변경
+- 주문 응답에는 `created_at`, `accepted_at`, `cooking_started_at`, `ready_at`, `picked_up_at`, `delivered_at`, `eta_at`을 포함한다. 상태 변경 뒤 고객별 ETA를 재계산한다.
 
 ## 추천 설명
 

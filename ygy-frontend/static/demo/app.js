@@ -45,6 +45,7 @@ Yogiyo.el('applyDataset').addEventListener('click', async () => {
   await loadDemo();
 });
 document.querySelectorAll('[data-command]').forEach(button => button.addEventListener('click', () => post(() => Yogiyo.apiClient.demo.command(button.dataset.command))));
+document.querySelectorAll('[data-virtual-order]').forEach(button => button.addEventListener('click', () => post(() => Yogiyo.apiClient.orders.create({customer_id:button.dataset.virtualOrder, store_id:button.dataset.store, items:[{name:'가상 고객 시연 주문',quantity:1}]}))));
 document.querySelectorAll('[data-route-strategy]').forEach(button => button.addEventListener('click', () => post(() => Yogiyo.apiClient.demo.routeStrategy({strategy:button.dataset.routeStrategy}))));
 document.querySelectorAll('[data-weather]').forEach(button => button.addEventListener('click', () => post(() => Yogiyo.apiClient.demo.weather({condition:button.dataset.weather}))));
 document.querySelectorAll('[data-simulation]').forEach(button => button.addEventListener('click', () => post(() => Yogiyo.apiClient.demo.simulation({running:button.dataset.simulation === 'true'}))));
