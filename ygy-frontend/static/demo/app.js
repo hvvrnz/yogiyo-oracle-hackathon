@@ -3,8 +3,9 @@ let datasetsLoaded = false;
 Yogiyo.el('backendDocsLink').href = Yogiyo.apiUrl('/docs');
 
 async function loadDatasets() {
-  const payload = await Yogiyo.apiClient.demo.datasets();
   const select = Yogiyo.el('datasetSelect');
+  if (!select) { datasetsLoaded = true; return; }
+  const payload = await Yogiyo.apiClient.demo.datasets();
   select.innerHTML = payload.datasets.map(item => `<option value="${Yogiyo.escape(item.dataset_id)}" ${item.dataset_id === payload.active_dataset_id ? 'selected' : ''}>${Yogiyo.escape(item.name)}</option>`).join('');
   datasetsLoaded = true;
 }
@@ -37,7 +38,7 @@ async function post(request) {
   } catch (error) { alert(error.message); }
 }
 
-Yogiyo.el('applyDataset').addEventListener('click', async () => {
+Yogiyo.el('applyDataset')?.addEventListener('click', async () => {
   const datasetId = Yogiyo.el('datasetSelect').value;
   if (!datasetId) return;
   await post(() => Yogiyo.apiClient.demo.dataset({dataset_id: datasetId}));
