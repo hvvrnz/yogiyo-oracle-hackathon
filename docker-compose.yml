@@ -13,6 +13,9 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       CLUSTER_ID: Xnog186iTUaU8wynoDWTVg
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     restart: always
 
   redis:
@@ -20,4 +23,10 @@ services:
     container_name: ygy-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data:/data
     restart: always
+
+volumes:
+  kafka-data:
+  redis-data:
