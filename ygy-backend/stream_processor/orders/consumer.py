@@ -2,12 +2,11 @@
 # 메시지를 구독해서 읽는 Consumer이기에, 멈추고 싶으면 Ctrl+C로 종료
 import json
 import time
+from itertools import combinations
 from kafka import KafkaConsumer
-from common.geo import haversine
-from common.config import (
-    FOOD_CATEGORY_URGENCY, UrgencyLevel,
-    AVG_SPEED_KMH, URGENCY_MISMATCH_PENALTY_KM, MAX_CLUSTER_SIZE
-)
+from stream_processor.orders.clustering.scoring import cluster_score
+from stream_processor.orders.clustering.grouping import form_clusters
+from stream_processor.orders.timing import still_has_time
 
 WINDOW_SECONDS = 30
 
@@ -20,83 +19,63 @@ consumer = KafkaConsumer(
 )
 
 
-def get_urgency(category):
-    return FOOD_CATEGORY_URGENCY.get(category, UrgencyLevel.MODERATE)
-
-
-def cluster_score(order, other):
-    """
-    두 주문을 묶었을 때의 점수를 계산. 낮을수록 좋은 조합.
-    모든 요소를 km 단위로 환산해서 더하므로, 임의 가중치 없이
-    단순 합산이 가능함.
-    """
-    store_distance = haversine(order["store_lat"], order["store_lng"],
-                                other["store_lat"], other["store_lng"])
-    delivery_distance = haversine(order["delivery_lat"], order["delivery_lng"],
-                                   other["delivery_lat"], other["delivery_lng"])
-
-    cross_distance_1 = haversine(order["store_lat"], order["store_lng"],
-                                  other["delivery_lat"], other["delivery_lng"])
-    cross_distance_2 = haversine(other["store_lat"], other["store_lng"],
-                                  order["delivery_lat"], order["delivery_lng"])
-    cross_distance = (cross_distance_1 + cross_distance_2) / 2
-
-    cook_time_diff_min = abs(order["base_cooking_min"] - other["base_cooking_min"])
-    cook_time_diff_km_equiv = (cook_time_diff_min / 60) * AVG_SPEED_KMH
-
-    order_urgency = get_urgency(order.get("category", ""))
-    other_urgency = get_urgency(other.get("category", ""))
-    urgency_penalty = 0 if order_urgency == other_urgency else URGENCY_MISMATCH_PENALTY_KM
-
-    score = store_distance + delivery_distance + cross_distance + cook_time_diff_km_equiv + urgency_penalty
-    return score
-
-
-def form_clusters(orders, max_size=MAX_CLUSTER_SIZE):
-    clusters = []
-    used = set()
-
-    for order in orders:
-        if order["order_id"] in used:
-            continue
-
-        candidates = [
-            (other, cluster_score(order, other))
-            for other in orders
-            if other["order_id"] != order["order_id"] and other["order_id"] not in used
-        ]
-        candidates.sort(key=lambda x: x[1])
-
-        best_matches = [c[0] for c in candidates[:max_size - 1]]
-        group = [order] + best_matches
-        clusters.append(group)
-        used.update(o["order_id"] for o in group)
-
-    return clusters
+def print_cluster_detail(i, cluster):
+    print(f"\n--- 클러스터 {i} ---")
+    for o in cluster:
+        print(f"  주문{o['order_id']}: {o['store_name']} "
+              f"(매장 {o['store_lat']:.4f},{o['store_lng']:.4f}) "
+              f"카테고리={o.get('category','?')} "
+              f"조리시간={o['base_cooking_min']}분 "
+              f"배달지({o['delivery_lat']:.4f},{o['delivery_lng']:.4f})")
+    if len(cluster) > 1:
+        for a, b in combinations(cluster, 2):
+            sc = cluster_score(a, b)
+            print(f"  score(주문{a['order_id']}, 주문{b['order_id']}) = {sc:.2f}")
 
 
 if __name__ == "__main__":
-    print("주문 수신 대기 중...")
+    print("=" * 60)
+    print("  실속배달 — 조리시간 인지 배차 시퀀싱 데모")
+    print("=" * 60)
+    print("\n주문 수신 대기 중...\n")
     buffer = []
     window_start = time.time()
 
     while True:
-        records = consumer.poll(timeout_ms=1000)  # 1초만 기다리고, 메시지 없어도 넘어감
+        records = consumer.poll(timeout_ms=1000)
 
         for topic_partition, messages in records.items():
             for message in messages:
                 order = message.value
+                print(f"🍚 주문 접수: [{order['order_id']}] {order['store_name']} "
+                      f"({order.get('category','?')}, 조리 {order['base_cooking_min']}분)")
                 buffer.append(order)
-                print(f"버퍼에 주문 추가: order_id={order['order_id']} (현재 버퍼 크기: {len(buffer)})")
 
         if time.time() - window_start >= WINDOW_SECONDS:
             if buffer:
-                print(f"\n=== {WINDOW_SECONDS}초 경과, 클러스터링 시작 (버퍼 {len(buffer)}건) ===")
-                clusters = form_clusters(buffer)
+                print(f"\n{'─'*60}")
+                print(f"⏱  30초 경과 — 배차 후보 매칭 시작 (대기 중 주문 {len(buffer)}건)")
+                print(f"{'─'*60}")
+
+                clusters, unmatched = form_clusters(buffer)
+
                 for i, cluster in enumerate(clusters, 1):
-                    order_ids = [o["order_id"] for o in cluster]
-                    print(f"클러스터 {i}: 주문 {order_ids}")
-                buffer = []
-            else:
-                print(f"({WINDOW_SECONDS}초 경과, 버퍼 비어있음 — 클러스터링 생략)")
+                    names = ', '.join(o['store_name'] for o in cluster)
+                    print(f"\n✅ 묶음 #{i} 확정: {names}")
+                    print(f"   주문번호: {[o['order_id'] for o in cluster]}")
+
+                still_waiting = [o for o in unmatched if still_has_time(o)]
+                expired = [o for o in unmatched if not still_has_time(o)]
+
+                for o in expired:
+                    print(f"\n🏠 한집배달: [{o['order_id']}] {o['store_name']} "
+                          f"— 조리시간 임박, 더 기다릴 수 없어 단건 배차")
+
+                if still_waiting:
+                    names = ', '.join(f"[{o['order_id']}]{o['store_name']}" for o in still_waiting)
+                    print(f"\n⏳ 매칭 대기 중: {names}")
+                    print(f"   → 아직 조리시간 여유 있음, 다음 30초에 새 주문과 재매칭 시도")
+
+                buffer = still_waiting
+                print(f"\n{'='*60}\n")
             window_start = time.time()
