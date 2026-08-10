@@ -1,9 +1,6 @@
 from itertools import combinations
-from common.config import MAX_CLUSTER_SIZE
+from common.config import MAX_CLUSTER_SIZE, MAX_ACCEPTABLE_SCORE
 from stream_processor.orders.clustering.scoring import group_score
-
-MAX_ACCEPTABLE_SCORE = 15  # ⭐ 초기 추정값, 추후 튜닝 필요 
-
 
 def form_clusters(orders, max_size=MAX_CLUSTER_SIZE):
     """

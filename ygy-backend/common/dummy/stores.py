@@ -1,4 +1,5 @@
 # 더미 매장 데이터 — 클러스터링 로직 검증용 (다양한 지역/카테고리/조리시간 분포)
+from common.geo import get_region
 
 DUMMY_STORES = [
     # --- 강남 권역 ---
@@ -51,3 +52,6 @@ DUMMY_STORES = [
     {"store_id": 31, "name": "요기요 편의점 건대점", "category": "음료_상온", "lat": 37.5000, "lng": 127.0500, "base_cooking_min": 1},
     {"store_id": 31, "name": "요기요 디저트 송파점", "category": "디저트_상온", "lat": 37.5280, "lng": 129.9200, "base_cooking_min": 1},
 ]
+
+for store in DUMMY_STORES:
+    store["region"] = get_region(store["lat"], store["lng"])
