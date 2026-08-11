@@ -1,5 +1,14 @@
 let autoMoveTimer;
 
+function configureDemoMode() {
+  const isMock = Yogiyo.useMock;
+  Yogiyo.el('demoModeDescription').textContent = isMock
+    ? '브라우저 mock 상태 기반 통합 시연입니다. 고객·사장님·라이더 화면이 같은 시연 상태를 공유합니다.'
+    : '하나의 FastAPI 서버와 공통 상태를 고객·사장님·라이더 화면이 WebSocket으로 공유합니다.';
+  Yogiyo.el('backendDocsLink').hidden = isMock;
+  Yogiyo.el('connectionText').textContent = isMock ? '브라우저 mock 상태 준비 중' : '서버 연결 중';
+}
+
 function stopAutoMove() {
   if (autoMoveTimer) window.clearInterval(autoMoveTimer);
   autoMoveTimer = undefined;
@@ -36,7 +45,9 @@ async function loadDemo() {
     Yogiyo.el('summaryRider').textContent = Object.entries(state.riders).map(([id,rider]) => `${id} ${rider.status}`).join(' · ');
     Yogiyo.el('summaryVersion').textContent = state.version;
     Yogiyo.el('eventList').innerHTML = state.events.length ? state.events.map(item => `<div class="event"><code>${Yogiyo.escape(item.type)}</code><span>${Yogiyo.escape(item.message)}</span><time>${Yogiyo.fmtTime(item.occurred_at)}</time></div>`).join('') : '<div class="event"><span>새 시나리오를 시작하세요.</span></div>';
-    Yogiyo.el('connectionText').textContent = `실시간 연결 · v${state.version}`;
+    Yogiyo.el('connectionText').textContent = Yogiyo.useMock
+      ? `브라우저 mock 상태 · v${state.version}`
+      : `실시간 연결 · v${state.version}`;
     syncAutoMove(state);
   } catch (error) {
     Yogiyo.el('connectionText').textContent = error.message;
@@ -113,6 +124,7 @@ Yogiyo.el('newOrder').addEventListener('click', () => addNewOrder().catch(error 
 document.querySelectorAll('[data-strategy]').forEach(button => button.addEventListener('click', async () => { try { Yogiyo.toast((await Yogiyo.apiClient.demo.strategy({strategy:button.dataset.strategy})).message); await loadDemo(); } catch (error) { Yogiyo.toast(error.message); } }));
 document.querySelectorAll('[data-weather]').forEach(button => button.addEventListener('click', async () => { try { Yogiyo.toast((await Yogiyo.apiClient.demo.weather({condition:button.dataset.weather})).message); await loadDemo(); } catch (error) { Yogiyo.toast(error.message); } }));
 Yogiyo.el('autoMove').addEventListener('click', async () => { try { const state=await Yogiyo.apiClient.demo.state(); Yogiyo.toast((await Yogiyo.apiClient.demo.simulation({running:!state.simulation_running})).message); if (state.simulation_running) stopAutoMove(); await loadDemo(); } catch (error) { Yogiyo.toast(error.message); } });
+configureDemoMode();
 Yogiyo.websocket('demo','console',loadDemo);
 window.addEventListener('beforeunload',stopAutoMove,{once:true});
 (async () => { if (Yogiyo.useMock) await Yogiyo.apiClient.demo.reset(); await loadDemo(); })();
