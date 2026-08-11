@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './styles/common.css';
 
 import homeTemplate from '../../static/index.html?raw';
+import landingScript from '../../static/landing/app.js?raw';
 import customerTemplate from '../../static/customer/index.html?raw';
 import merchantTemplate from '../../static/merchant/index.html?raw';
 import riderTemplate from '../../static/rider/index.html?raw';
@@ -14,7 +15,7 @@ import riderScript from '../../static/rider/app.js?raw';
 import demoScript from '../../static/demo/app.js?raw';
 
 const pageByPath = {
-  '/': { template: homeTemplate, title: '요기요 AI 조리·배달 동기화 데모' },
+  '/': { template: homeTemplate, script: landingScript, title: '요기요 AI 조리·배달 동기화 데모' },
   '/customer': { template: customerTemplate, script: customerScript, title: '요기요 AI 실속배달 · 고객' },
   '/merchant': { template: merchantTemplate, script: merchantScript, title: '요기요 AI 조리·배달 동기화 · 사장님' },
   '/rider': { template: riderTemplate, script: riderScript, title: '요기요 AI 조리·배달 · 라이더' },

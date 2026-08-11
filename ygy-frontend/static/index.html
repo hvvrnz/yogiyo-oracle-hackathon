@@ -13,18 +13,14 @@
   <main class="landing">
     <section class="top">
       <div class="intro">
-        <div class="kicker">요기요 X 오라클 해커톤 · 팀 낭만젊음사랑</div>
+        <div class="kicker" id="landingKicker">요기요 X 오라클 해커톤 · 브라우저 mock 통합 시연</div>
         <h1>AI 조리·배달 동기화 및 동적 배칭 추천 시스템</h1>
-        <p>고객에게는 도착시간과 묶음 이유를, 사장님에게는 조리 완료 목표와 라이더 도착시각을, 라이더에게는 효율적인 수익과 이동 순서를 실시간으로 제공합니다.</p>
-        <div class="chip-row"><span class="chip">최대 3건 배칭</span><span class="chip">90개 유효 경로 비교</span><span class="chip">품질·ETA 가드레일</span><span class="chip">실시간 WebSocket</span><span class="chip">2가지 경로 전략</span><span class="chip">SVG 경로 지도</span></div>
+        <p id="landingDescription">브라우저 mock 상태로 고객·사장님·라이더 화면을 함께 시연합니다. 주문·조리·배차·픽업·배달 진행에 따라 ETA와 역할별 화면이 갱신됩니다.</p>
+        <div class="chip-row" id="landingChips"><span class="chip">최대 3건 배칭</span><span class="chip">좌표 기반 ETA</span><span class="chip">품질·ETA 가드레일</span><span class="chip">브라우저 mock 상태</span><span class="chip">2가지 경로 전략</span><span class="chip">SVG 경로 지도</span></div>
       </div>
       <aside class="mini-panel">
-        <h2>데이터 구성</h2>
-        <div class="data-line"><strong>공공데이터포털</strong><span>음식점명·업종·주소·위경도</span></div>
-        <div class="data-line"><strong>카카오모빌리티</strong><span>도로 거리·예상 시간·경로 좌표 연동 지점</span></div>
-        <div class="data-line"><strong>시연용 경로 지도</strong><span>개인정보를 노출하지 않는 SVG 경로·상태 표현</span></div>
-        <div class="data-line"><strong>기상청</strong><span>실시간 날씨 및 이동 지연 보정 연동 지점</span></div>
-        <div class="data-line"><strong>시연용 데이터</strong><span>주문 발생, 조리 진행, 고객 주소, 라이더 이동</span></div>
+        <h2 id="landingDataTitle">시연 데이터 구성</h2>
+        <div id="landingDataLines"><div class="data-line"><strong>브라우저 mock 상태</strong><span>주문, 조리, 배차, 라이더 상태를 같은 브라우저에서 공유</span></div><div class="data-line"><strong>좌표 기반 시연 지도</strong><span>강남·역삼·선릉 권역과 매장을 고정 좌표로 표시</span></div><div class="data-line"><strong>시연용 ETA 계산</strong><span>위도·경도 거리, 조리시간, 날씨 보정으로 예상 시간을 계산</span></div><div class="data-line"><strong>시연 시나리오</strong><span>단일·2건·3건 배차, 조리 지연, 날씨, 경로 전략을 제어</span></div><div class="data-line"><strong>실연동 준비</strong><span>REST·WebSocket 데이터 계약을 통해 서버 응답으로 교체 가능</span></div></div>
       </aside>
     </section>
 
@@ -36,13 +32,9 @@
     </section>
 
     <section class="architecture">
-      <h2>하나의 서버, 세 역할, 하나의 상태</h2>
-      <div class="flow">
-        <div class="flow-node"><strong>고객·사장님·라이더</strong>REST + WebSocket</div><div class="arrow">→</div>
-        <div class="flow-node"><strong>FastAPI</strong>인증·명령·상태 전달</div><div class="arrow">→</div>
-        <div class="flow-node"><strong>Redis / Kafka / Oracle</strong>실서비스 교체 경계</div>
-      </div>
-      <p class="foot">현재 패키지는 외부 키 없이 동작하는 통합 POC이며, 같은 데이터 계약을 유지한 채 실제 OCI·카카오·기상청 서비스로 교체하도록 설계했습니다.</p>
+      <h2 id="landingArchitectureTitle">한 브라우저 상태, 세 역할, 하나의 시연</h2>
+      <div class="flow" id="landingFlow"><div class="flow-node"><strong>고객·사장님·라이더</strong>역할별 화면과 통합 콘솔</div><div class="arrow">→</div><div class="flow-node"><strong>브라우저 mock 엔진</strong>주문·조리·배차·ETA 계산</div><div class="arrow">→</div><div class="flow-node"><strong>localStorage</strong>같은 브라우저의 탭·iframe 상태 공유</div></div>
+      <p class="foot" id="landingFoot">현재 패키지는 외부 키 없이 동작하는 통합 POC입니다. 실제 서버 연동 전 화면과 시연 흐름을 검증하는 용도입니다.</p>
     </section>
   </main>
 </body>
