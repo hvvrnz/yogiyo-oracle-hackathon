@@ -43,20 +43,48 @@ window.Yogiyo = (() => {
   const advance = (minutes=1) => { mock.demo.simulation_clock = new Date(new Date(clock()).getTime() + minutes * 60000).toISOString(); };
   const event = (type, message, minutes=1) => { advance(minutes); mock.demo.version += 1; mock.demo.events.unshift({type,message,occurred_at:clock()}); persist(); };
   const weather = () => mock.demo.weather === 'RAIN'
-    ? {condition:'RAIN',label:'비',temperature_c:21,advisory:'강수로 이동 시간이 늘어날 수 있어요.',travel_delay_min:5}
-    : {condition:'CLEAR',label:'맑음',temperature_c:25,advisory:'원활한 배달 환경이에요.',travel_delay_min:0};
+    ? {condition:'RAIN',label:'비',temperature_c:21,advisory:'강수로 이동 시간이 늘어날 수 있어요.',travel_delay_min:5,travel_speed_kmh:16}
+    : {condition:'CLEAR',label:'맑음',temperature_c:25,advisory:'원활한 배달 환경이에요.',travel_delay_min:0,travel_speed_kmh:24};
   const qualityLimitFor = order => ({'S-001':25,'S-002':18,'S-003':22}[order.store_id] || 20);
   const activeOrders = () => Object.values(mock.orders).filter(order => !['DELIVERED'].includes(order.status));
   const statusLabel = status => ({NEW:'신규 주문',ACCEPTED:'주문 수락',MATCHING:'AI 추천 배달 분석 중',COOKING:'조리 중',READY:'조리 완료',PICKED_UP:'픽업 완료',DELIVERED:'배달 완료'}[status] || status);
   const setStatus = (order, status) => { order.status = status; order.status_label = statusLabel(status); };
   const packageForOrder = order => mock.packages[order.package_id] || null;
-  const routeFor = orders => {
-    const pickups = orders.map((order, index) => ({status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.stores[order.store_id].name,address:'매장 위치',distance_km:Number((1.1 + index * .3).toFixed(1)),duration_min:5,type:'PICKUP',lat:order.store_lat,lng:order.store_lng}));
-    const deliveries = orders.map((order, index) => ({status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.customers[order.customer_id].display_name,address:'고객 배송지',distance_km:Number((1.4 + index * .2).toFixed(1)),duration_min:7,type:'DELIVERY',lat:order.customer_lat,lng:order.customer_lng}));
+  const haversineKm = (from, to) => {
+    const radians = value => value * Math.PI / 180;
+    const earthRadiusKm = 6371;
+    const latDelta = radians(to.lat - from.lat);
+    const lngDelta = radians(to.lng - from.lng);
+    const a = Math.sin(latDelta / 2) ** 2
+      + Math.cos(radians(from.lat)) * Math.cos(radians(to.lat)) * Math.sin(lngDelta / 2) ** 2;
+    return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+  const travelDurationMin = distanceKm => Math.max(1, Math.ceil(distanceKm / weather().travel_speed_kmh * 60));
+  const estimatedRiderFor = orders => {
+    const firstStore = mock.stores[orders[0].store_id];
+    return Object.values(mock.riders)
+      .filter(rider => rider.status !== 'ASSIGNED')
+      .sort((left, right) => haversineKm(left, firstStore) - haversineKm(right, firstStore))[0]
+      || Object.values(mock.riders)[0];
+  };
+  const routeFor = (orders, rider=estimatedRiderFor(orders)) => {
+    const pickups = orders.map(order => ({status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.stores[order.store_id].name,address:'매장 위치',type:'PICKUP',lat:order.store_lat,lng:order.store_lng}));
+    const deliveries = orders.map(order => ({status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.customers[order.customer_id].display_name,address:'고객 배송지',type:'DELIVERY',lat:order.customer_lat,lng:order.customer_lng}));
     const steps = mock.demo.route_strategy === 'MIXED' ? orders.flatMap((_, index) => [pickups[index], deliveries[index]]) : [...pickups, ...deliveries];
-    return steps.map((step, index) => ({...step, sequence:index + 1}));
+    let previousPoint = rider;
+    return steps.map((step, index) => {
+      const distance_km = Number(haversineKm(previousPoint, step).toFixed(2));
+      previousPoint = step;
+      return {...step, sequence:index + 1, distance_km, duration_min:travelDurationMin(distance_km)};
+    });
+  };
+  const refreshPackageMetrics = pkg => {
+    pkg.route_steps.forEach(step => { step.duration_min = travelDurationMin(step.distance_km); });
+    pkg.total_distance_km = Number(pkg.route_steps.reduce((sum, step) => sum + step.distance_km, 0).toFixed(2));
+    pkg.package_revenue = Math.round(pkg.route_steps.filter(step => step.type === 'DELIVERY').reduce((sum, step) => sum + 3000 + Math.max(0, step.distance_km - 1) * 500, 0));
   };
   const recalcEta = pkg => {
+    refreshPackageMetrics(pkg);
     let minutes = weather().travel_delay_min;
     const pickupAt = {};
     pkg.route_steps.forEach(step => {
@@ -90,7 +118,7 @@ window.Yogiyo = (() => {
       // rider is excluded from new packages.
       offers:Object.fromEntries(Object.keys(mock.riders).filter(riderId => mock.riders[riderId].status !== 'ASSIGNED').map(riderId => [riderId,{status:'OFFERED',offered_at:clock(),responded_at:null}])),
       bundle_reasons:isBundle ? [`${bundleSize}개 주문의 조리 완료 예상 시각 차이가 허용 범위 안입니다.`,`${bundleSize}개 매장과 고객 위치의 이동 동선이 겹칩니다.`,`${bundleSize}개 주문 모두 음식 품질 제한 시간을 충족합니다.`] : [orders[0].delivery_preference === 'SINGLE' ? '고객이 단일 배달을 선택했습니다.' : '현재 AI 추천 주문이 한 건이라 개별 배달로 진행합니다.'],
-      route_steps, estimated_duration_min:0, total_distance_km:Number(route_steps.reduce((sum, step) => sum + step.distance_km,0).toFixed(1)), package_revenue:Math.round(route_steps.filter(step=>step.type==='DELIVERY').reduce((sum,step)=>sum+3000+Math.max(0,step.distance_km-1)*500,0)), hourly_revenue:0, route_strategy_label:routeStrategy().label, route_strategy_description:routeStrategy().description};
+      route_steps, estimated_duration_min:0, total_distance_km:0, package_revenue:0, hourly_revenue:0, route_strategy_label:routeStrategy().label, route_strategy_description:routeStrategy().description};
     mock.packages[id] = pkg;
     orders.forEach(order => { order.package_id=id; order.resolved_delivery_type=type; order.resolved_delivery_label=labels[type]; order.status='MATCHING'; order.status_label='라이더 배차 제안 중'; });
     Object.keys(pkg.offers).forEach(riderId => { mock.riders[riderId].status='OFFERED'; mock.riders[riderId].status_label='새 배차 제안 확인 중'; });
@@ -188,6 +216,7 @@ window.Yogiyo = (() => {
         pkg.offers[riderId] = {...pkg.offers[riderId], status:'ACCEPTED', responded_at:clock()};
         pkg.assigned_rider_id = riderId;
         pkg.status = 'ASSIGNED';
+        pkg.route_steps = routeFor(pkg.order_ids.map(orderId => mock.orders[orderId]), rider);
         pkg.route_steps.find(step => step.status === 'PENDING').is_current = true;
         pkg.order_ids.forEach(id => mock.orders[id].rider_id = riderId);
 
@@ -203,6 +232,7 @@ window.Yogiyo = (() => {
         rider.active_package_id = packageId;
         rider.status_label = '배차 배정 완료';
         Object.keys(mock.riders).filter(id => id !== riderId).forEach(id => syncRiderOfferStatus(id, {waitingWhenEmpty:true}));
+        recalcEta(pkg);
         event('rider.accepted',`${riderId}가 ${packageId}를 수락하고 중복 제안을 정리했습니다.`);
         return {message:'배차를 수락했습니다.'};
       }
