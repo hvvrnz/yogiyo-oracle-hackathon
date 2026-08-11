@@ -369,6 +369,7 @@ window.Yogiyo = (() => {
     const sheet = el('bottomSheet');
     if (!sheet) return;
     sheetTrigger = trigger instanceof HTMLElement ? trigger : null;
+    sheet.removeAttribute('inert');
     backdrop?.classList.add('open');
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
@@ -380,6 +381,7 @@ window.Yogiyo = (() => {
     backdrop?.classList.remove('open');
     sheet?.classList.remove('open');
     sheet?.setAttribute('aria-hidden', 'true');
+    sheet?.setAttribute('inert', '');
     const trigger = sheetTrigger;
     sheetTrigger = null;
     if (trigger?.isConnected) window.setTimeout(() => trigger.focus(), 0);

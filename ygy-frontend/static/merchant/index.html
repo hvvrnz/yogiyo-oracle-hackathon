@@ -16,7 +16,7 @@
       <div class="mobile-scroll">
         <section class="section">
           <div class="card">
-            <div class="row"><div><span class="badge good"><span class="dot"></span>영업 중</span><div class="order-menu">오늘의 조리 현황</div><div class="order-id" id="congestion">매장 혼잡도 확인 중</div></div><button class="icon-button" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
+            <div class="row"><div><span class="badge good"><span class="dot"></span>영업 중</span><div class="order-menu">오늘의 조리 현황</div><div class="order-id" id="congestion">매장 혼잡도 확인 중</div></div><button class="icon-button" aria-label="통합 시연으로 이동" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
             <div class="metric-grid" style="margin-top:15px">
               <div class="metric"><span class="metric-label">신규 주문</span><strong id="newCount">0</strong><small>건</small></div>
               <div class="metric"><span class="metric-label">조리 중</span><strong id="cookingCount">0</strong><small>건</small></div>
@@ -65,9 +65,9 @@
       </div>
 
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>▤</strong><span>주문</span></div><div class="nav-item"><strong>◷</strong><span>조리</span></div><div class="nav-item"><strong>⌁</strong><span>통계</span></div></nav>
-      <div id="toast" class="toast"></div>
+      <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
       <div id="sheetBackdrop" class="sheet-backdrop"></div>
-      <section id="bottomSheet" class="bottom-sheet" aria-modal="true" aria-labelledby="sheetHeadline" aria-hidden="true" role="dialog">
+      <section id="bottomSheet" class="bottom-sheet" aria-modal="true" aria-labelledby="sheetHeadline" aria-hidden="true" inert role="dialog">
         <div class="sheet-handle"></div><h2 class="sheet-title" id="sheetHeadline">추천 근거</h2><p class="sheet-summary" id="sheetSummary"></p><div class="reason-list" id="sheetReasons"></div><div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>운영 안내</strong><span id="sheetNote"></span></div></div><button class="ghost-button full" style="margin-top:14px" id="sheetClose">확인</button>
       </section>
     </main>

@@ -21,7 +21,8 @@ function syncAutoMove(state) {
     try {
       const latest = await Yogiyo.apiClient.demo.state();
       if (!latest.simulation_running) return stopAutoMove();
-      await Yogiyo.apiClient.demo.nextStep();
+      const result = await Yogiyo.apiClient.demo.nextStep();
+      Yogiyo.el('simulationAnnouncement').textContent = `자동 시연: ${result.message}`;
       await loadDemo();
     } catch (error) {
       stopAutoMove();
