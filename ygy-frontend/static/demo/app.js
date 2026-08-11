@@ -6,7 +6,7 @@ function stopAutoMove() {
 }
 
 function syncAutoMove(state) {
-  Yogiyo.el('autoMove').textContent = state.simulation_running ? '위치 자동 이동 일시정지' : '위치 자동 이동 시작';
+  Yogiyo.el('autoMove').textContent = state.simulation_running ? '자동 시연 일시정지' : '자동 시연 시작';
   if (!state.simulation_running || autoMoveTimer) return;
   autoMoveTimer = window.setInterval(async () => {
     try {

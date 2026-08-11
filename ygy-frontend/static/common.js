@@ -181,16 +181,59 @@ window.Yogiyo = (() => {
     event('demo.strategy_changed',`${info.label} 전략을 적용했습니다.`);
     return {message:`${info.label} 전략을 적용했습니다.`};
   };
+  const moveRiderToward = (rider, target, ratio=.55) => {
+    rider.lat += (target.lat - rider.lat) * ratio;
+    rider.lng += (target.lng - rider.lng) * ratio;
+  };
+  const startAutomatedScenario = () => {
+    [['C-001','S-001'],['C-002','S-002'],['C-003','S-003']].forEach(([customerId, storeId]) => {
+      const created = mockApi('/api/orders', {body:JSON.stringify({customer_id:customerId,store_id:storeId,delivery_preference:'AI_RECOMMENDED'})});
+      mockApi(`/api/merchant/orders/${created.order_id}/action`, {body:JSON.stringify({action:'accept'})});
+    });
+    dispatch();
+    event('demo.auto_scenario_started','자동 시연용 AI 추천 3건 주문을 만들고 배차를 제안했습니다.',0);
+  };
   const advanceSimulation = () => {
     advance(1);
-    Object.values(mock.riders).forEach(rider => { rider.lat += (Math.random() - .5) * .0008; rider.lng += (Math.random() - .5) * .0008; });
-    const cooking = Object.values(mock.orders).find(order => order.status === 'COOKING');
-    const matching = Object.values(mock.orders).find(order => order.status === 'MATCHING');
-    if (cooking) { setStatus(cooking,'READY'); cooking.ready_at=clock(); cooking.remaining_cooking_min=0; }
-    else if (matching) { setStatus(matching,'COOKING'); matching.cooking_started_at=clock(); }
-    recalcAllPackages();
-    event('demo.next_step',cooking ? `${cooking.order_id} 조리가 완료되고 가상 시각과 라이더 위치를 1분 진행했습니다.` : matching ? `${matching.order_id} 조리를 시작하고 가상 시각과 라이더 위치를 1분 진행했습니다.` : '가상 시각과 라이더 위치를 1분 진행했습니다.',0);
-    return {message:'다음 시연 단계를 진행했습니다.'};
+    const offeredPackage = Object.values(mock.packages).find(pkg => Object.values(pkg.offers).some(offer => offer.status === 'OFFERED'));
+    if (offeredPackage) {
+      const riderId = Object.entries(offeredPackage.offers).find(([, offer]) => offer.status === 'OFFERED')[0];
+      mockApi(`/api/rider/${riderId}/packages/${offeredPackage.package_id}/offer-response`, {body:JSON.stringify({action:'accept'})});
+      return {message:`${riderId}가 AI 추천 배차를 수락했습니다.`};
+    }
+    const activePackage = Object.values(mock.packages).find(pkg => ['ASSIGNED','IN_PROGRESS'].includes(pkg.status));
+    if (activePackage) {
+      const step = activePackage.route_steps.find(item => item.is_current);
+      const rider = mock.riders[activePackage.assigned_rider_id];
+      const order = step && mock.orders[step.order_id];
+      if (!step || !rider || !order) throw new Error('자동 시연에 필요한 현재 경로 정보를 찾지 못했습니다.');
+      moveRiderToward(rider, step);
+      if (step.type === 'PICKUP') {
+        if (order.status === 'MATCHING') {
+          mockApi(`/api/merchant/orders/${order.order_id}/action`, {body:JSON.stringify({action:'start'})});
+          return {message:`${order.order_id} 조리를 시작하고 라이더가 픽업 매장으로 이동했습니다.`};
+        }
+        if (order.status === 'COOKING') {
+          mockApi(`/api/merchant/orders/${order.order_id}/action`, {body:JSON.stringify({action:'ready'})});
+          return {message:`${order.order_id} 조리가 완료되어 픽업 준비가 됐습니다.`};
+        }
+        mockApi(`/api/rider/${rider.rider_id}/orders/${order.order_id}/pickup`, {body:'{}'});
+        return {message:`${order.order_id} 픽업을 완료하고 다음 경로로 이동합니다.`};
+      }
+      mockApi(`/api/rider/${rider.rider_id}/orders/${order.order_id}/deliver`, {body:'{}'});
+      return {message:`${order.order_id} 배달을 완료하고 다음 경로로 이동합니다.`};
+    }
+    if (activeOrders().some(order => !order.package_id)) {
+      const result = dispatch();
+      return {message:result.message};
+    }
+    if (Object.values(mock.packages).some(pkg => pkg.status === 'COMPLETED')) {
+      mock.demo.simulation_running = false;
+      event('demo.auto_completed','모든 주문의 픽업과 배달이 완료되어 자동 시연을 멈췄습니다.',0);
+      return {message:'자동 시연이 모든 주문 배달까지 완료됐습니다.'};
+    }
+    startAutomatedScenario();
+    return {message:'자동 시연용 AI 추천 3건 주문과 배차 제안을 만들었습니다.'};
   };
   const orderForCustomer = customerId => Object.values(mock.orders).filter(order => order.customer_id === customerId).sort((a,b) => b.created_at.localeCompare(a.created_at))[0];
   const customerView = customerId => {
