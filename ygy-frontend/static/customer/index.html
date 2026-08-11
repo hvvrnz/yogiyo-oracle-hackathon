@@ -55,7 +55,7 @@
           <div class="card">
             <div class="metric-grid">
               <div class="metric"><span class="metric-label">조리 완료 편차</span><strong id="readyGap">-분</strong><small>세 주문 기준</small></div>
-              <div class="metric"><span class="metric-label">겹치는 동선</span><strong id="routeOverlap">-%</strong><small>이동 방향</small></div>
+              <div class="metric"><span class="metric-label">경로 절감</span><strong id="routeOverlap">-%</strong><small>단건 배달 대비</small></div>
               <div class="metric"><span class="metric-label">내 음식 보관</span><strong id="bagTime">-분</strong><small id="bagLimit">제한 -분</small></div>
             </div>
             <div class="route-strategy-box"><strong id="routeStrategyLabel">경로 전략 확인 중</strong><span id="routeStrategyDescription">현재 픽업·배달 방식을 확인하고 있어요.</span></div>
@@ -81,7 +81,7 @@
             <div class="row"><span class="label">예상 가방 체류시간</span><span class="value" id="qualityBag">-분</span></div>
             <div class="row"><span class="label">음식별 품질 제한</span><span class="value" id="qualityLimit">-분</span></div>
             <div class="row"><span class="label">제한까지 남은 여유</span><span class="value" id="qualityMargin">-분</span></div>
-            <div class="notice good" style="margin-top:14px"><span>✓</span><div><strong>품질 가드레일을 통과했어요</strong><span>제한을 넘는 경로는 묶음 후보에서 제외합니다.</span></div></div>
+            <div class="notice good" id="qualityNotice" style="margin-top:14px"><span id="qualityNoticeIcon">✓</span><div><strong id="qualityNoticeTitle">품질 가드레일을 통과했어요</strong><span id="qualityNoticeDescription">현재 경로의 예상 가방 체류시간이 음식별 제한 안에 있습니다.</span></div></div>
           </div>
         </section>
 
