@@ -5,7 +5,9 @@ import json
 import time
 import random
 from kafka import KafkaProducer
-from common.dummy.stores import DUMMY_STORES as stores
+from common.dummy.stores import DUMMY_STORES as stores, get_random_menu
+from common.config import DELIVERY_DISTANCE_RANGE_DEGREES
+
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8') #직렬화
@@ -20,9 +22,11 @@ def generate_dummy_order(order_id):
         "store_lat": store["lat"], # 위도
         "store_lng": store["lng"], # 경도
         "category": store["category"], # 음식 카테고리
+        "region": store["region"], # ← 클러스터링 권역 필터에 필요
+        "menu_name": get_random_menu(store["category"]),
         "base_cooking_min": store["base_cooking_min"], # 사장님이 설정한 기본 조리시간(분)
-        "delivery_lat": store["lat"] + random.uniform(-0.01, 0.01),
-        "delivery_lng": store["lng"] + random.uniform(-0.01, 0.01),
+        "delivery_lat": store["lat"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES), # 배달지 위도 (매장 근처의 랜덤 위치) 
+        "delivery_lng": store["lng"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES), # 배달지 경도 (매장 근처의 랜덤 위치)
         "created_at": time.time() # 주문 접수 시각
     }
     # random.uniform(-0.01, 0.01) — -0.01에서 0.01 사이의 무작위 소수를 하나 뽑음 (위경도 단위로 약 1km 이내 정도의 작은 오차)

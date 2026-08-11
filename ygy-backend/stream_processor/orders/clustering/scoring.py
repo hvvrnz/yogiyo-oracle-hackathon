@@ -21,6 +21,10 @@ def remaining_cook_time(order):
 
 
 def cluster_score(order, other):
+    # 서로 다른 권역이면 애초에 묶일 수 없음 (매우 큰 페널티로 사실상 배제)
+    if order.get("region") != other.get("region"):
+        return float('inf')
+        
     store_distance = haversine(order["store_lat"], order["store_lng"],
                                 other["store_lat"], other["store_lng"])
     delivery_distance = haversine(order["delivery_lat"], order["delivery_lng"],

@@ -52,17 +52,20 @@ CREATE TABLE riders (
 
 -- 패키지 (묶음)
 CREATE TABLE packages (
-    package_id     NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    rider_id       NUMBER REFERENCES riders(rider_id),
-    status         VARCHAR2(20) DEFAULT 'MATCHING',
-    bundle_size    NUMBER,
-    route_strategy VARCHAR2(20),
-    selected_route_score NUMBER,
-    candidate_route_count NUMBER,
-    created_at     TIMESTAMP DEFAULT SYSTIMESTAMP,
-    offered_at     TIMESTAMP,
-    accepted_at    TIMESTAMP,
-    completed_at   TIMESTAMP
+    package_id       NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    rider_id         VARCHAR2(50),
+    status           VARCHAR2(20) DEFAULT 'MATCHING',
+    bundle_size      NUMBER,
+    score            NUMBER,
+    package_revenue  NUMBER,
+    hourly_revenue   NUMBER,
+    order_ids        JSON,
+    route_detail     JSON,
+    score_detail     JSON,
+    created_at       TIMESTAMP DEFAULT SYSTIMESTAMP,
+    offered_at       TIMESTAMP,
+    accepted_at      TIMESTAMP,
+    completed_at     TIMESTAMP
 );
 
 -- 주문
