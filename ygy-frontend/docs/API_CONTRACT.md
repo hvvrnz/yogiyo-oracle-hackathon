@@ -99,22 +99,11 @@
 - `headline`, `summary`, `note`, `source`
 - `reasons[]`: `title`, `description`, `metric`
 
-## 지도
-
-### `GET /api/config/maps`
-
-- `provider`: `demo | naver | google`
-- `client_key`
-- `has_credentials`
-- `fallback_provider`
-
-키가 없거나 요청이 실패하면 프론트 자체 시연용 지도로 자동 전환합니다.
-
 ## 통합 시연
 
 ### 조회
 
-- `GET /api/state`: `version`, `simulation_clock`, `orders`, `packages`, `riders`, `events[] {type, message, occurred_at}`
+- `GET /api/state`: `version`, `simulation_clock`, `route_strategy`, `simulation_running`, `orders`, `packages`, `riders`, `events[] {type, message, occurred_at}`
 
 `packages`는 복수 package ID 키를 사용하고, `riders`는 적어도 `R-001`, `R-002`, `R-003`의 상태를 ID 키로 반환한다.
 
@@ -123,4 +112,7 @@
 ### 명령
 
 - `POST /api/demo/weather`: `{"condition":"RAIN | CLEAR"}`
+- `POST /api/demo/strategy`: `{"strategy":"MIXED | PICKUPS_FIRST"}`. 제안 중인 패키지의 경로 순서와 ETA를 다시 계산한다.
+- `POST /api/demo/next-step`: 가상 시각을 1분 진행하고, 라이더 위치와 조리 상태를 한 단계 갱신한다.
+- `POST /api/demo/simulation`: `{"running":true | false}`. mock 통합 시연은 `true`일 때 3초마다 다음 단계를 진행한다.
 - 빈 JSON 객체로 호출: `/api/demo/dispatch-calculate`, `/api/demo/reset`

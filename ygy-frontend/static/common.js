@@ -33,7 +33,7 @@ window.Yogiyo = (() => {
       'R-002': {rider_id:'R-002',display_name:'서연 라이더',vehicle:'오토바이',lat:37.503,lng:127.021,status:'AVAILABLE',status_label:'운행 가능',active_package_id:null},
       'R-003': {rider_id:'R-003',display_name:'도윤 라이더',vehicle:'전기자전거',lat:37.491,lng:127.031,status:'AVAILABLE',status_label:'운행 가능',active_package_id:null},
     },
-    demo: {version:1, weather:'CLEAR', simulation_clock:'2026-08-07T12:00:00.000Z', events:[]},
+    demo: {version:1, weather:'CLEAR', simulation_clock:'2026-08-07T12:00:00.000Z', route_strategy:'PICKUPS_FIRST', simulation_running:false, events:[]},
   });
   const mock = makeMock();
   const hydrate = () => { try { const saved = JSON.parse(localStorage.getItem(storageKey)); if (saved?.orders && saved?.packages && saved?.demo) Object.assign(mock, saved); } catch {} };
@@ -50,9 +50,10 @@ window.Yogiyo = (() => {
   const setStatus = (order, status) => { order.status = status; order.status_label = statusLabel(status); };
   const packageForOrder = order => mock.packages[order.package_id] || null;
   const routeFor = orders => {
-    const pickups = orders.map((order, index) => ({sequence:index+1,status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.stores[order.store_id].name,address:'매장 위치',distance_km:Number((1.1 + index * .3).toFixed(1)),duration_min:5,type:'PICKUP',lat:order.store_lat,lng:order.store_lng}));
-    const deliveries = orders.map((order, index) => ({sequence:pickups.length+index+1,status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.customers[order.customer_id].display_name,address:'고객 배송지',distance_km:Number((1.4 + index * .2).toFixed(1)),duration_min:7,type:'DELIVERY',lat:order.customer_lat,lng:order.customer_lng}));
-    return [...pickups, ...deliveries];
+    const pickups = orders.map((order, index) => ({status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.stores[order.store_id].name,address:'매장 위치',distance_km:Number((1.1 + index * .3).toFixed(1)),duration_min:5,type:'PICKUP',lat:order.store_lat,lng:order.store_lng}));
+    const deliveries = orders.map((order, index) => ({status:'PENDING',is_current:false,order_id:order.order_id,destination:mock.customers[order.customer_id].display_name,address:'고객 배송지',distance_km:Number((1.4 + index * .2).toFixed(1)),duration_min:7,type:'DELIVERY',lat:order.customer_lat,lng:order.customer_lng}));
+    const steps = mock.demo.route_strategy === 'MIXED' ? orders.flatMap((_, index) => [pickups[index], deliveries[index]]) : [...pickups, ...deliveries];
+    return steps.map((step, index) => ({...step, sequence:index + 1}));
   };
   const recalcEta = pkg => {
     let minutes = weather().travel_delay_min;
@@ -64,7 +65,11 @@ window.Yogiyo = (() => {
       if (step.type === 'DELIVERY') order.eta_at = new Date(new Date(clock()).getTime() + minutes * 60000).toISOString();
       step.eta_label = new Date(new Date(clock()).getTime() + minutes * 60000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
     });
+    pkg.estimated_duration_min = Math.round(minutes);
   };
+  const routeStrategy = () => mock.demo.route_strategy === 'MIXED'
+    ? {label:'혼합 최적화 경로',description:'각 주문의 조리 완료 시점에 맞춰 픽업과 배달을 교차합니다.'}
+    : {label:'전체 픽업 후 배달',description:'모든 매장을 먼저 방문한 뒤 고객 배송을 진행합니다.'};
   const makePackage = (orders, type) => {
     const id = `PKG-${String(Object.keys(mock.packages).length + 1).padStart(3,'0')}`;
     const route_steps = routeFor(orders); const isBundle = type.startsWith('AI_BUNDLE_'); const bundleSize = orders.length;
@@ -73,7 +78,7 @@ window.Yogiyo = (() => {
       // rider is excluded from new packages.
       offers:Object.fromEntries(Object.keys(mock.riders).filter(riderId => mock.riders[riderId].status !== 'ASSIGNED').map(riderId => [riderId,{status:'OFFERED',offered_at:clock(),responded_at:null}])),
       bundle_reasons:isBundle ? [`${bundleSize}개 주문의 조리 완료 예상 시각 차이가 허용 범위 안입니다.`,`${bundleSize}개 매장과 고객 위치의 이동 동선이 겹칩니다.`,`${bundleSize}개 주문 모두 음식 품질 제한 시간을 충족합니다.`] : [orders[0].delivery_preference === 'SINGLE' ? '고객이 단일 배달을 선택했습니다.' : '현재 AI 추천 주문이 한 건이라 개별 배달로 진행합니다.'],
-      route_steps, estimated_duration_min:route_steps.reduce((sum, step) => sum + step.duration_min, 0) + weather().travel_delay_min, total_distance_km:Number(route_steps.reduce((sum, step) => sum + step.distance_km,0).toFixed(1)), package_revenue:orders.reduce((sum, order) => sum + order.amount, 0), hourly_revenue:isBundle ? 28500 : 21000, route_strategy_label:isBundle ? `AI ${bundleSize}건 묶음 최적화` : '개별 최적 경로', route_strategy_description:isBundle ? `조리 시간, 매장 위치, 고객 위치를 반영한 ${bundleSize}건 묶음 배차입니다.` : '한 주문만 처리하는 개별 배달 경로입니다.'};
+      route_steps, estimated_duration_min:0, total_distance_km:Number(route_steps.reduce((sum, step) => sum + step.distance_km,0).toFixed(1)), package_revenue:orders.reduce((sum, order) => sum + order.amount, 0), hourly_revenue:isBundle ? 28500 : 21000, route_strategy_label:routeStrategy().label, route_strategy_description:routeStrategy().description};
     mock.packages[id] = pkg;
     orders.forEach(order => { order.package_id=id; order.resolved_delivery_type=type; order.resolved_delivery_label=labels[type]; order.status='MATCHING'; order.status_label='라이더 배차 제안 중'; });
     Object.keys(pkg.offers).forEach(riderId => { mock.riders[riderId].status='OFFERED'; mock.riders[riderId].status_label='새 배차 제안 확인 중'; });
@@ -87,6 +92,30 @@ window.Yogiyo = (() => {
     for (let index=0; index<ai.length; index+=3) { const group=ai.slice(index,index+3); const type=group.length === 3 ? 'AI_BUNDLE_3' : group.length === 2 ? 'AI_BUNDLE_2' : 'SINGLE_DELIVERY'; created.push(makePackage(group, type)); }
     event('dispatch.calculated', created.length ? `${created.length}개 패키지를 모든 가용 라이더에게 동시에 제안했습니다.` : '배차 계산할 수락 주문이 없습니다.');
     return {message:created.length ? 'AI 배차 계산을 완료했습니다.' : '배차 대기 주문이 없습니다.', package_ids:Object.keys(mock.packages)};
+  };
+  const recalcAllPackages = () => Object.values(mock.packages).filter(pkg => pkg.status !== 'COMPLETED').forEach(recalcEta);
+  const setRouteStrategy = strategy => {
+    mock.demo.route_strategy = strategy === 'MIXED' ? 'MIXED' : 'PICKUPS_FIRST';
+    const info = routeStrategy();
+    Object.values(mock.packages).filter(pkg => pkg.status === 'OFFERED').forEach(pkg => {
+      pkg.route_steps = routeFor(pkg.order_ids.map(orderId => mock.orders[orderId]));
+      pkg.route_strategy_label = info.label;
+      pkg.route_strategy_description = info.description;
+      recalcEta(pkg);
+    });
+    event('demo.strategy_changed',`${info.label} 전략을 적용했습니다.`);
+    return {message:`${info.label} 전략을 적용했습니다.`};
+  };
+  const advanceSimulation = () => {
+    advance(1);
+    Object.values(mock.riders).forEach(rider => { rider.lat += (Math.random() - .5) * .0008; rider.lng += (Math.random() - .5) * .0008; });
+    const cooking = Object.values(mock.orders).find(order => order.status === 'COOKING');
+    const matching = Object.values(mock.orders).find(order => order.status === 'MATCHING');
+    if (cooking) { setStatus(cooking,'READY'); cooking.ready_at=clock(); cooking.remaining_cooking_min=0; }
+    else if (matching) { setStatus(matching,'COOKING'); matching.cooking_started_at=clock(); }
+    recalcAllPackages();
+    event('demo.next_step',cooking ? `${cooking.order_id} 조리가 완료되고 가상 시각과 라이더 위치를 1분 진행했습니다.` : matching ? `${matching.order_id} 조리를 시작하고 가상 시각과 라이더 위치를 1분 진행했습니다.` : '가상 시각과 라이더 위치를 1분 진행했습니다.',0);
+    return {message:'다음 시연 단계를 진행했습니다.'};
   };
   const orderForCustomer = customerId => Object.values(mock.orders).filter(order => order.customer_id === customerId).sort((a,b) => b.created_at.localeCompare(a.created_at))[0];
   const customerView = customerId => {
@@ -107,7 +136,7 @@ window.Yogiyo = (() => {
     const readiness=Object.values(mock.orders).filter(order => primary.order_ids.includes(order.order_id)).map(order => ({status:order.status,status_label:order.status_label,store_name:mock.stores[order.store_id].name,remaining_min:order.remaining_cooking_min || 0,ready_at:order.ready_at || '조리 완료 대기'}));
     return {rider,package:primary,packages,steps:primary.route_steps,store_readiness:readiness,weather:weather()};
   };
-  const state = () => ({version:mock.demo.version,simulation_clock:clock(),orders:mock.orders,packages:mock.packages,riders:mock.riders,events:mock.demo.events});
+  const state = () => ({version:mock.demo.version,simulation_clock:clock(),route_strategy:mock.demo.route_strategy,simulation_running:mock.demo.simulation_running,orders:mock.orders,packages:mock.packages,riders:mock.riders,events:mock.demo.events});
   const mockApi = (path, options={}) => {
     const pathname=new URL(path,location.origin).pathname; const body=options.body?JSON.parse(options.body):{};
     if (pathname === '/api/orders') { const store=mock.stores[body.store_id || 'S-001']; const customerId=body.customer_id || 'C-001'; const existing=activeOrders().find(order=>order.customer_id===customerId); if(existing) throw new Error('진행 중인 주문이 이미 있습니다.'); const menu=menuFor(body.store_id || 'S-001'); const id=`O-${1001+Object.keys(mock.orders).length}`; const preference=body.delivery_preference || 'AI_RECOMMENDED'; const customer=mock.customers[customerId]; const order={order_id:id,customer_id:customerId,store_id:body.store_id || 'S-001',delivery_preference:preference,delivery_preference_label:labels[preference],resolved_delivery_type:null,resolved_delivery_label:null,package_id:null,rider_id:null,status:'NEW',status_label:'신규 주문',created_at:clock(),accepted_at:null,cooking_started_at:null,ready_at:null,picked_up_at:null,delivered_at:null,eta_at:null,predicted_cooking_min:store.base_cooking_min,remaining_cooking_min:store.base_cooking_min,store_lat:store.lat,store_lng:store.lng,customer_lat:customer.lat,customer_lng:customer.lng,menu_summary:menu.summary,items:body.items?.length?body.items:menu.items,amount:menu.amount,request_note:'문 앞에 놓아주세요.'}; mock.orders[id]=order; store.order_ids.unshift(id); event('order.created',`${store.name}에 ${labels[preference]} ${id} 주문이 접수되었습니다.`); return {message:'주문이 접수되었습니다.',order_id:id}; }
@@ -115,13 +144,15 @@ window.Yogiyo = (() => {
     if (/^\/api\/merchant\/(S-)/.test(pathname)) return merchantView(pathname.split('/').pop());
     if (/^\/api\/rider\/R-\d+$/.test(pathname)) return riderView(pathname.split('/').pop());
     if (pathname === '/api/state') return state();
-    if (pathname === '/api/config/maps') return {provider:'demo',client_key:'',has_credentials:false,fallback_provider:'demo'};
     if (/^\/api\/merchant\/orders\/[^/]+\/action$/.test(pathname)) { const order=mock.orders[pathname.split('/')[4]]; if(!order) throw new Error('주문을 찾을 수 없습니다.'); if(body.action==='accept'){setStatus(order,'MATCHING');order.accepted_at=clock();} if(body.action==='start'){setStatus(order,'COOKING');order.cooking_started_at=clock();} if(body.action==='ready'){setStatus(order,'READY');order.ready_at=clock();order.remaining_cooking_min=0;} if(body.action==='delay'){order.remaining_cooking_min+=Number(body.delay_min||5);order.predicted_cooking_min+=Number(body.delay_min||5);} event('merchant.action',`${order.order_id} ${order.status_label}`); return {message:'주문 상태를 반영했습니다.'}; }
     if (pathname === '/api/demo/dispatch-calculate') return dispatch();
     if (/^\/api\/rider\/R-\d+\/packages\/PKG-\d+\/offer-response$/.test(pathname)) { const [, , , riderId,, packageId]=pathname.split('/'); const pkg=mock.packages[packageId]; if(!pkg || pkg.offers[riderId]?.status!=='OFFERED') throw new Error('이미 다른 라이더가 수락했어요.'); if(body.action==='accept'){pkg.offers[riderId]={...pkg.offers[riderId],status:'ACCEPTED',responded_at:clock()};pkg.assigned_rider_id=riderId;pkg.status='ASSIGNED';pkg.route_steps.find(step=>step.status==='PENDING').is_current=true;pkg.order_ids.forEach(id=>mock.orders[id].rider_id=riderId);Object.keys(pkg.offers).filter(id=>id!==riderId).forEach(id=>{if(pkg.offers[id].status==='OFFERED')pkg.offers[id].status='CANCELLED';mock.riders[id].status='WAITING';mock.riders[id].status_label='다른 라이더가 먼저 수락했어요 · 다른 배차를 찾고 있어요';});mock.riders[riderId].status='ASSIGNED';mock.riders[riderId].active_package_id=packageId;mock.riders[riderId].status_label='배차 배정 완료';event('rider.accepted',`${riderId}가 ${packageId}를 먼저 수락했습니다.`);return {message:'배차를 수락했습니다.'};} pkg.offers[riderId].status='DECLINED';pkg.offers[riderId].responded_at=clock();mock.riders[riderId].status='AVAILABLE';mock.riders[riderId].status_label='운행 가능';event('rider.declined',`${riderId}가 배차를 거절했습니다.`);return {message:'배차를 거절했습니다.'}; }
     if (/^\/api\/rider\/R-\d+\/orders\/O-\d+\/(pickup|deliver)$/.test(pathname)) { const parts=pathname.split('/');const riderId=parts[3],orderId=parts[5],action=parts[6];const order=mock.orders[orderId],pkg=packageForOrder(order),step=pkg?.route_steps.find(s=>s.order_id===orderId && s.type===(action==='pickup'?'PICKUP':'DELIVERY'));if(!pkg||pkg.assigned_rider_id!==riderId||!step?.is_current)throw new Error('현재 진행 순서가 아닌 주문입니다.');if(action==='pickup'&&order.status!=='READY')throw new Error('조리 완료 후 픽업할 수 있습니다.');if(action==='deliver'&&order.status!=='PICKED_UP')throw new Error('픽업 완료 후 배달할 수 있습니다.');step.status='COMPLETED';step.is_current=false;if(action==='pickup'){setStatus(order,'PICKED_UP');order.picked_up_at=clock();}else{setStatus(order,'DELIVERED');order.delivered_at=clock();}advance(step.duration_min);const next=pkg.route_steps.find(s=>s.status==='PENDING');if(next){next.is_current=true;pkg.status='IN_PROGRESS';}else{pkg.status='COMPLETED';mock.riders[riderId].status='AVAILABLE';mock.riders[riderId].active_package_id=null;mock.riders[riderId].status_label='운행 가능';}recalcEta(pkg);event(`rider.${action}`,`${orderId} ${action==='pickup'?'픽업':'배달'} 완료`,0);return {message:action==='pickup'?'픽업을 완료했습니다.':'배달을 완료했습니다.'}; }
     if (pathname === '/api/demo/reset') { Object.assign(mock,makeMock()); persist(); return {message:'새 시연 상태로 초기화했습니다.'}; }
-    if (pathname === '/api/demo/weather') { mock.demo.weather=body.condition==='RAIN'?'RAIN':'CLEAR';event('weather.changed',`${weather().label} 시나리오를 적용했습니다.`);return {message:'날씨를 변경했습니다.'}; }
+    if (pathname === '/api/demo/weather') { mock.demo.weather=body.condition==='RAIN'?'RAIN':'CLEAR';recalcAllPackages();event('weather.changed',`${weather().label} 시나리오를 적용하고 모든 ETA를 다시 계산했습니다.`);return {message:'날씨와 ETA를 변경했습니다.'}; }
+    if (pathname === '/api/demo/strategy') return setRouteStrategy(body.strategy);
+    if (pathname === '/api/demo/next-step') return advanceSimulation();
+    if (pathname === '/api/demo/simulation') { mock.demo.simulation_running=Boolean(body.running);event('demo.simulation',mock.demo.simulation_running?'라이더 위치 자동 이동을 시작했습니다.':'라이더 위치 자동 이동을 일시정지했습니다.',0);return {message:mock.demo.simulation_running?'자동 이동을 시작했습니다.':'자동 이동을 일시정지했습니다.'}; }
     if (pathname === '/api/explanations/customer' || /^\/api\/explanations\//.test(pathname)) return {headline:'AI 추천 근거',summary:'조리 시간, 매장 위치, 고객 위치와 품질 제한을 함께 반영합니다.',note:'시연용 mock 데이터입니다.',source:'mock',reasons:[{title:'2~3건 조건',description:'AI 추천 주문은 점수가 허용될 때 2건 또는 3건으로 묶습니다.',metric:'최대 3건'},{title:'이동 동선',description:'매장과 고객 위치를 반영합니다.',metric:'경로 최적화'},{title:'음식 품질',description:'예상 가방 체류시간을 확인합니다.',metric:'품질 기준'}]};
     throw new Error(`지원하지 않는 mock API: ${pathname}`);
   };
@@ -133,7 +164,7 @@ window.Yogiyo = (() => {
     });
   };
   const api = async (path, options={}) => { if(useMock) return clone(mockApi(path,options)); const response=await fetch(`${apiBaseUrl}${path}`,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||data.message||'요청을 처리하지 못했습니다.');return data; };
-  const apiClient = Object.freeze({customer:{get:id=>api(endpoint('customer','/api/customer/:customerId',{customerId:id}))},orders:{create:body=>api(endpoint('orders','/api/orders'),{method:'POST',body:JSON.stringify(body)})},merchant:{get:id=>api(endpoint('merchant','/api/merchant/:storeId',{storeId:id})),orderAction:(id,body)=>api(endpoint('merchantOrderAction','/api/merchant/orders/:orderId/action',{orderId:id}),{method:'POST',body:JSON.stringify(body)})},rider:{get:id=>api(endpoint('rider','/api/rider/:riderId',{riderId:id})),offerResponse:(riderId,packageId,body)=>api(endpoint('riderOfferResponse','/api/rider/:riderId/packages/:packageId/offer-response',{riderId,packageId}),{method:'POST',body:JSON.stringify(body)}),pickup:(riderId,orderId)=>api(endpoint('riderPickup','/api/rider/:riderId/orders/:orderId/pickup',{riderId,orderId}),{method:'POST',body:'{}'}),deliver:(riderId,orderId)=>api(endpoint('riderDeliver','/api/rider/:riderId/orders/:orderId/deliver',{riderId,orderId}),{method:'POST',body:'{}'})},explanation:(role,id)=>api(endpoint('explanation','/api/explanations/:role/:entityId',{role,entityId:id})),maps:{config:()=>api(endpoint('mapsConfig','/api/config/maps'))},demo:{state:()=>api(endpoint('demoState','/api/state')),dispatchCalculate:()=>api(endpoint('demoDispatchCalculate','/api/demo/dispatch-calculate'),{method:'POST',body:'{}'}),reset:()=>api(endpoint('demoReset','/api/demo/reset'),{method:'POST',body:'{}'}),weather:body=>api(endpoint('demoWeather','/api/demo/weather'),{method:'POST',body:JSON.stringify(body)})}});
+  const apiClient = Object.freeze({customer:{get:id=>api(endpoint('customer','/api/customer/:customerId',{customerId:id}))},orders:{create:body=>api(endpoint('orders','/api/orders'),{method:'POST',body:JSON.stringify(body)})},merchant:{get:id=>api(endpoint('merchant','/api/merchant/:storeId',{storeId:id})),orderAction:(id,body)=>api(endpoint('merchantOrderAction','/api/merchant/orders/:orderId/action',{orderId:id}),{method:'POST',body:JSON.stringify(body)})},rider:{get:id=>api(endpoint('rider','/api/rider/:riderId',{riderId:id})),offerResponse:(riderId,packageId,body)=>api(endpoint('riderOfferResponse','/api/rider/:riderId/packages/:packageId/offer-response',{riderId,packageId}),{method:'POST',body:JSON.stringify(body)}),pickup:(riderId,orderId)=>api(endpoint('riderPickup','/api/rider/:riderId/orders/:orderId/pickup',{riderId,orderId}),{method:'POST',body:'{}'}),deliver:(riderId,orderId)=>api(endpoint('riderDeliver','/api/rider/:riderId/orders/:orderId/deliver',{riderId,orderId}),{method:'POST',body:'{}'})},explanation:(role,id)=>api(endpoint('explanation','/api/explanations/:role/:entityId',{role,entityId:id})),demo:{state:()=>api(endpoint('demoState','/api/state')),dispatchCalculate:()=>api(endpoint('demoDispatchCalculate','/api/demo/dispatch-calculate'),{method:'POST',body:'{}'}),reset:()=>api(endpoint('demoReset','/api/demo/reset'),{method:'POST',body:'{}'}),weather:body=>api(endpoint('demoWeather','/api/demo/weather'),{method:'POST',body:JSON.stringify(body)}),strategy:body=>api(endpoint('demoStrategy','/api/demo/strategy'),{method:'POST',body:JSON.stringify(body)}),nextStep:()=>api(endpoint('demoNextStep','/api/demo/next-step'),{method:'POST',body:'{}'}),simulation:body=>api(endpoint('demoSimulation','/api/demo/simulation'),{method:'POST',body:JSON.stringify(body)})}});
   const qs=(name,fallback)=>new URLSearchParams(location.search).get(name)||fallback; const el=id=>document.getElementById(id); const money=value=>`${Number(value||0).toLocaleString('ko-KR')}원`; const fmtTime=value=>value?new Date(value).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):'-'; const escape=(value='')=>String(value).replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
   const toast=message=>{const node=el('toast');if(!node)return;node.textContent=message;node.classList.add('show');clearTimeout(node._timer);node._timer=setTimeout(()=>node.classList.remove('show'),2600);}; const setConnection=online=>{const node=el('connection');if(!node)return;node.classList.toggle('online',online);const label=node.querySelector('span');if(label)label.textContent=online?'실시간 연결':'재연결 중';};
   const cleanups=[];

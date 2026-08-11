@@ -12,7 +12,7 @@
 - `/rider?riderId=R-001`: 라이더 배차·수익·픽업/배달 경로 화면
 - `/demo`: 고객·사장님·라이더 통합 시연 및 시나리오 제어 화면
 
-화면 마크업, 스타일, 지도 fallback, 사용자 액션 구조는 기존 `ygy-frontend` 구현을 유지합니다. FastAPI 연동 시 사용할 REST·WebSocket 계약은 [docs/API_CONTRACT.md](docs/API_CONTRACT.md)에 정리되어 있습니다.
+화면 마크업, 스타일, 개인정보를 노출하지 않는 SVG 시연용 경로 지도, 사용자 액션 구조는 기존 `ygy-frontend` 구현을 유지합니다. FastAPI 연동 시 사용할 REST·WebSocket 계약은 [docs/API_CONTRACT.md](docs/API_CONTRACT.md)에 정리되어 있습니다.
 분리 기준과 기능별 소스 구성은 [docs/FRONTEND_SCOPE.md](docs/FRONTEND_SCOPE.md)에서 확인할 수 있습니다.
 
 ## 요구 환경
@@ -84,7 +84,6 @@ ygy-frontend/
 ├── static/
 │   ├── common.css
 │   ├── common.js
-│   ├── maps.js
 │   ├── index.html
 │   ├── customer/
 │   ├── merchant/

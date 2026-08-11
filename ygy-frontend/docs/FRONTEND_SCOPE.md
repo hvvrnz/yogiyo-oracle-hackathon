@@ -16,7 +16,7 @@ React 진입점은 역할별 화면을 새로 그리지 않고 기존 HTML을 �
 - 주문/조리/배차 상태 표시 및 역할별 액션
 - REST 오류 처리, 토스트, 추천 설명 bottom sheet
 - WebSocket 연결 상태, 재연결, ping/pong, 상태 갱신
-- 네이버/구글 지도 SDK 선택과 외부 지도 실패 시 SVG fallback
+- 개인정보를 노출하지 않는 SVG 시연용 경로 지도
 - 쿼리 매개변수 `customerId`, `storeId`, `riderId`
 - 개발 프록시와 분리 배포용 API/WebSocket Origin 설정
 
@@ -39,7 +39,6 @@ React 진입점은 역할별 화면을 새로 그리지 않고 기존 HTML을 �
 1. `frontend/src/main.jsx`가 URL 경로에 해당하는 HTML 템플릿을 선택합니다.
 2. 공통 CSS와 템플릿의 인라인 스타일로 원본 화면을 재현합니다.
 3. `static/common.js`가 API 주소, 공통 UI와 WebSocket을 구성합니다.
-4. 지도 화면은 `static/maps.js`를 초기화합니다.
+4. 역할별 화면은 `static/common.js`의 SVG 경로 지도를 갱신합니다.
 5. 역할별 `app.js`가 백엔드 상태를 조회하고 DOM을 갱신합니다.
 6. WebSocket 이벤트가 오면 해당 REST 조회를 다시 실행해 최신 상태를 반영합니다.
-
