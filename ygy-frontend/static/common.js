@@ -347,7 +347,79 @@ window.Yogiyo = (() => {
   const toast=message=>{const node=el('toast');if(!node)return;node.textContent=message;node.classList.add('show');clearTimeout(node._timer);node._timer=setTimeout(()=>node.classList.remove('show'),2600);}; const setConnection=online=>{const node=el('connection');if(!node)return;node.classList.toggle('online',online);const label=node.querySelector('span');if(label)label.textContent=online?'실시간 연결':'재연결 중';};
   const cleanups=[];
   const websocket=(role,entityId,onUpdate)=>{if(useMock){setConnection(true);const listener=e=>{if(e.key===storageKey&&e.newValue){hydrate();onUpdate({type:'mock_state_updated',role,entityId});}};window.addEventListener('storage',listener);const stop=()=>window.removeEventListener('storage',listener);cleanups.push(stop);return stop;} const path=endpoint('websocket','/ws/:role/:entityId',{role,entityId});const origin=wsBaseUrl ? wsBaseUrl.replace(/^http:/,'ws:').replace(/^https:/,'wss:') : `${location.protocol==='https:'?'wss':'ws'}://${location.host}`;let socket;let retryTimer;let pingTimer;let stopped=false;let attempts=0;const connect=()=>{if(stopped)return;setConnection(false);socket=new WebSocket(`${origin}${path}`);socket.onopen=()=>{attempts=0;setConnection(true);pingTimer=window.setInterval(()=>{if(socket.readyState===WebSocket.OPEN)socket.send('ping');},20000);};socket.onmessage=event=>{let message;try{message=JSON.parse(event.data);}catch{message=event.data;}if(message?.type==='pong'||message==='pong')return;onUpdate(message);};socket.onerror=()=>socket.close();socket.onclose=()=>{window.clearInterval(pingTimer);if(stopped)return;setConnection(false);const delay=Math.min(1000*2**attempts,30000);attempts+=1;retryTimer=window.setTimeout(connect,delay);};};const stop=()=>{stopped=true;window.clearTimeout(retryTimer);window.clearInterval(pingTimer);socket?.close();};cleanups.push(stop);connect();return stop;};
-  const openSheet=()=>{el('sheetBackdrop')?.classList.add('open');el('bottomSheet')?.classList.add('open');};const closeSheet=()=>{el('sheetBackdrop')?.classList.remove('open');el('bottomSheet')?.classList.remove('open');};
+  const pendingButtons = new WeakSet();
+  const withPending = async (button, task) => {
+    if (!button || pendingButtons.has(button)) return;
+    const wasDisabled = button.disabled;
+    pendingButtons.add(button);
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    try { return await task(); }
+    finally {
+      pendingButtons.delete(button);
+      button.disabled = wasDisabled;
+      button.removeAttribute('aria-busy');
+    }
+  };
+  let sheetTrigger = null;
+  const focusableInSheet = sheet => [...sheet.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+    .filter(node => !node.hidden && node.getAttribute('aria-hidden') !== 'true');
+  const openSheet = (trigger=document.activeElement) => {
+    const backdrop = el('sheetBackdrop');
+    const sheet = el('bottomSheet');
+    if (!sheet) return;
+    sheetTrigger = trigger instanceof HTMLElement ? trigger : null;
+    backdrop?.classList.add('open');
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden', 'false');
+    window.setTimeout(() => (el('sheetClose') || focusableInSheet(sheet)[0])?.focus(), 0);
+  };
+  const closeSheet = () => {
+    const backdrop = el('sheetBackdrop');
+    const sheet = el('bottomSheet');
+    backdrop?.classList.remove('open');
+    sheet?.classList.remove('open');
+    sheet?.setAttribute('aria-hidden', 'true');
+    const trigger = sheetTrigger;
+    sheetTrigger = null;
+    if (trigger?.isConnected) window.setTimeout(() => trigger.focus(), 0);
+  };
+  const bindSheet = () => {
+    const backdrop = el('sheetBackdrop');
+    const closeButton = el('sheetClose');
+    const sheet = el('bottomSheet');
+    if (!sheet || sheet.dataset.accessibilityBound === 'true') return;
+    sheet.dataset.accessibilityBound = 'true';
+    closeButton?.addEventListener('click', closeSheet);
+    backdrop?.addEventListener('click', closeSheet);
+    const onKeydown = event => {
+      if (!sheet.classList.contains('open')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSheet();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = focusableInSheet(sheet);
+      if (!focusable.length) { event.preventDefault(); return; }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !sheet.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !sheet.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeydown);
+    cleanups.push(() => {
+      closeButton?.removeEventListener('click', closeSheet);
+      backdrop?.removeEventListener('click', closeSheet);
+      document.removeEventListener('keydown', onKeydown);
+      delete sheet.dataset.accessibilityBound;
+    });
+  };
   const renderRouteMap = (containerId, points=[], rider) => {
     const root = el(containerId);
     if (!root) return;
@@ -405,5 +477,5 @@ window.Yogiyo = (() => {
     }
   };
   const dispose=()=>{while(cleanups.length)cleanups.pop()();};
-  return {qs,el,money,fmtTime,escape,api,apiUrl:path=>`${apiBaseUrl}${path}`,apiClient,defaultIds:ids,toast,websocket,openSheet,closeSheet,renderRouteMap,useMock,labels,dispose};
+  return {qs,el,money,fmtTime,escape,api,apiUrl:path=>`${apiBaseUrl}${path}`,apiClient,defaultIds:ids,toast,websocket,withPending,openSheet,closeSheet,bindSheet,renderRouteMap,useMock,labels,dispose};
 })();
