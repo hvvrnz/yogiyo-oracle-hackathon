@@ -71,5 +71,5 @@ React 프론트엔드에서 역할별(고객/사장님/라이더) 화면 표시
 
 | 이름 | 역할 |
 | --- | --- |
-| 황윤정 | 백엔드 · 인프라 · 배차 알고리즘 (OCI, Kafka, correction_factor, Sequencing Engine) |
+| 황윤정 | 백엔드 · 인프라 · 배차 알고리즘 · 실시간 스트림 처리 · 조리시간 예측 보정 (FastAPI, OCI, Kafka, Redis, ADB, Vector Search, Sequencing Engine) |
 | 박준영 | 프론트엔드 설계 및 구현 · 고객/사장님/라이더 역할별 화면 UI/UX · 실시간 데이터 연동 (React, 웹소켓) · LLM 기반 배차 설명 설계 및 구현 (OCI Generative AI, 프롬프트, 응답 API) |
