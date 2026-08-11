@@ -7,16 +7,16 @@
 - 프론트엔드: React/Vite 진입점, 역할별 HTML·JavaScript, 공통 CSS, 지도 렌더러, 정적 아이콘
 - 백엔드: FastAPI 라우터, WebSocket, 인메모리 상태, 배차·경로 최적화, 더미 데이터, 배치와 외부 서비스 연동
 
-React 진입점은 역할별 화면을 새로 그리지 않고 기존 HTML을 템플릿으로 읽어 본문과 인라인 스타일을 삽입합니다. 그 후 공통 브라우저 코드와 역할별 코드를 실행해 REST·WebSocket 기반 상호작용을 연결합니다.
+React 진입점은 역할별 화면을 React 컴포넌트로 새로 그리지 않고 기존 HTML을 템플릿으로 읽어 본문과 인라인 스타일을 삽입합니다. 그 후 공통 브라우저 코드와 역할별 코드를 전역 범위에서 실행해 mock 또는 REST·WebSocket 기반 상호작용을 연결합니다. 즉 React는 Vite 진입점·페이지 셸이며, 화면 상태 갱신은 `static/`의 DOM 코드가 담당합니다.
 
 ## 포함한 프론트엔드 기능
 
 - 시작 화면과 고객·사장님·라이더·통합 시연 화면
 - 반응형 모바일 셸과 데스크톱 통합 콘솔
 - 주문/조리/배차 상태 표시 및 역할별 액션
-- REST 오류 처리, 토스트, 추천 설명 bottom sheet
+- localStorage 기반 mock 상태·탭/iframe 동기화, REST 오류 처리, 토스트, 추천 설명 bottom sheet
 - WebSocket 연결 상태, 재연결, ping/pong, 상태 갱신
-- 네이버/구글 지도 SDK 선택과 외부 지도 실패 시 SVG fallback
+- 개인정보를 노출하지 않는 SVG 시연용 경로 지도
 - 쿼리 매개변수 `customerId`, `storeId`, `riderId`
 - 개발 프록시와 분리 배포용 API/WebSocket Origin 설정
 
@@ -38,8 +38,7 @@ React 진입점은 역할별 화면을 새로 그리지 않고 기존 HTML을 �
 
 1. `frontend/src/main.jsx`가 URL 경로에 해당하는 HTML 템플릿을 선택합니다.
 2. 공통 CSS와 템플릿의 인라인 스타일로 원본 화면을 재현합니다.
-3. `static/common.js`가 API 주소, 공통 UI와 WebSocket을 구성합니다.
-4. 지도 화면은 `static/maps.js`를 초기화합니다.
-5. 역할별 `app.js`가 백엔드 상태를 조회하고 DOM을 갱신합니다.
-6. WebSocket 이벤트가 오면 해당 REST 조회를 다시 실행해 최신 상태를 반영합니다.
-
+3. `static/common.js`가 mock 상태 또는 API 주소, 공통 UI와 WebSocket을 구성합니다.
+4. 역할별 화면은 `static/common.js`의 SVG 경로 지도를 갱신합니다.
+5. 역할별 `app.js`와 랜딩의 `static/landing/app.js`가 화면 상태를 읽어 DOM을 갱신합니다.
+6. mock은 브라우저 저장소 이벤트, 실제 연동은 WebSocket 이벤트가 오면 해당 조회를 다시 실행해 최신 상태를 반영합니다.

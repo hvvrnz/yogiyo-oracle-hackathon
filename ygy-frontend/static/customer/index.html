@@ -26,7 +26,7 @@
           <div class="card">
             <div class="section-title-row"><h2>배송 방식 선택</h2><span>주문 전 필수</span></div>
             <label class="row" style="margin-top:10px"><span><input type="radio" name="deliveryPreference" value="SINGLE"> <strong>단일 배달</strong><br><small>다른 주문과 묶지 않고 개별 배달합니다.</small></span></label>
-            <label class="row" style="margin-top:10px"><span><input type="radio" name="deliveryPreference" value="AI_RECOMMENDED" checked> <strong>AI 추천 배달</strong><br><small>정확히 3건일 때만 묶고, 1~2건은 개별 배달합니다.</small></span></label>
+            <label class="row" style="margin-top:10px"><span><input type="radio" name="deliveryPreference" value="AI_RECOMMENDED" checked> <strong>AI 추천 배달</strong><br><small>동선·조리시간 점수가 맞는 2~3건 주문을 함께 배달합니다.</small></span></label>
           </div>
         </section>
         <section class="section">
@@ -55,7 +55,7 @@
           <div class="card">
             <div class="metric-grid">
               <div class="metric"><span class="metric-label">조리 완료 편차</span><strong id="readyGap">-분</strong><small>세 주문 기준</small></div>
-              <div class="metric"><span class="metric-label">겹치는 동선</span><strong id="routeOverlap">-%</strong><small>이동 방향</small></div>
+              <div class="metric"><span class="metric-label">경로 절감</span><strong id="routeOverlap">-%</strong><small>단건 배달 대비</small></div>
               <div class="metric"><span class="metric-label">내 음식 보관</span><strong id="bagTime">-분</strong><small id="bagLimit">제한 -분</small></div>
             </div>
             <div class="route-strategy-box"><strong id="routeStrategyLabel">경로 전략 확인 중</strong><span id="routeStrategyDescription">현재 픽업·배달 방식을 확인하고 있어요.</span></div>
@@ -70,8 +70,8 @@
         <section class="section">
           <div class="section-title-row"><h2>실시간 배달 경로</h2><span id="riderStep">라이더 탐색 중</span></div>
           <div class="card map-card">
-            <div class="map-head"><span class="badge info">개인정보 보호 지도</span><span class="subtext" data-map-provider-status>지도 준비 중</span></div>
-            <div class="map-canvas" id="customerMap"><svg class="route-svg" viewBox="0 0 100 100"></svg><div class="map-legend">분홍: 고객님 · 검정: 매장 · 파랑: 라이더</div></div>
+            <div class="map-head"><span class="badge info">개인정보 보호 지도</span><span class="subtext">좌표 기반 SVG 경로</span></div>
+            <div class="map-canvas" id="customerMap"><svg class="route-svg" viewBox="0 0 100 100"></svg><div class="map-legend">권역·매장 고정 · 분홍: 고객님 · 파랑: 라이더</div></div>
           </div>
         </section>
 
@@ -81,7 +81,7 @@
             <div class="row"><span class="label">예상 가방 체류시간</span><span class="value" id="qualityBag">-분</span></div>
             <div class="row"><span class="label">음식별 품질 제한</span><span class="value" id="qualityLimit">-분</span></div>
             <div class="row"><span class="label">제한까지 남은 여유</span><span class="value" id="qualityMargin">-분</span></div>
-            <div class="notice good" style="margin-top:14px"><span>✓</span><div><strong>품질 가드레일을 통과했어요</strong><span>제한을 넘는 경로는 묶음 후보에서 제외합니다.</span></div></div>
+            <div class="notice good" id="qualityNotice" style="margin-top:14px"><span id="qualityNoticeIcon">✓</span><div><strong id="qualityNoticeTitle">품질 가드레일을 통과했어요</strong><span id="qualityNoticeDescription">현재 경로의 예상 가방 체류시간이 음식별 제한 안에 있습니다.</span></div></div>
           </div>
         </section>
 
@@ -96,9 +96,9 @@
       </div>
 
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>▣</strong><span>주문</span></div><div class="nav-item"><strong>♡</strong><span>찜</span></div><div class="nav-item"><strong>☻</strong><span>마이</span></div></nav>
-      <div id="toast" class="toast"></div>
+      <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
       <div id="sheetBackdrop" class="sheet-backdrop"></div>
-      <section id="bottomSheet" class="bottom-sheet" aria-modal="true" role="dialog">
+      <section id="bottomSheet" class="bottom-sheet" aria-modal="true" aria-labelledby="sheetHeadline" aria-hidden="true" inert role="dialog">
         <div class="sheet-handle"></div>
         <h2 class="sheet-title" id="sheetHeadline">추천 사유를 준비하고 있어요</h2>
         <p class="sheet-summary" id="sheetSummary"></p>
@@ -108,7 +108,6 @@
       </section>
     </main>
   </div>
-  <script src="/static/maps.js"></script>
   <script src="/static/common.js"></script>
   <script src="/static/customer/app.js"></script>
 </body>
