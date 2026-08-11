@@ -66,6 +66,7 @@ function Screen({ page }) {
     execute(page.script);
     return () => {
       // Each route is a separate document navigation. Clearing globals prevents stale map state on HMR.
+      window.Yogiyo?.dispose?.();
       delete window.Yogiyo;
       delete window.YogiyoMaps;
     };

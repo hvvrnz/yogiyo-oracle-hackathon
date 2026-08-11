@@ -23,7 +23,7 @@ function renderCustomer(view) {
   Yogiyo.el('resolvedDelivery').textContent = order.resolved_delivery_label ? `실제 배차 · ${order.resolved_delivery_label}` : '실제 배차 · AI 배차 계산 대기';
   Yogiyo.el('assignedRider').textContent = rider.assigned ? `배정 라이더 · ${rider.display_name}` : '배정 라이더 · 탐색 중';
   Yogiyo.el('readyGap').textContent = `${pkg.ready_gap_min || 0}분`;
-  Yogiyo.el('routeOverlap').textContent = pkg.delivery_type === 'AI_BUNDLE_3' ? '동선 분석' : '-';
+  Yogiyo.el('routeOverlap').textContent = String(pkg.delivery_type || '').startsWith('AI_BUNDLE_') ? '동선 분석' : '-';
   Yogiyo.el('bagTime').textContent = `${order.bag_time_min}분`; Yogiyo.el('bagLimit').textContent = `제한 ${order.bag_time_limit_min}분`;
   Yogiyo.el('routeStrategyLabel').textContent = `현재 방식 · ${pkg.route_strategy_label}`;
   Yogiyo.el('routeStrategyDescription').textContent = pkg.route_strategy_description;

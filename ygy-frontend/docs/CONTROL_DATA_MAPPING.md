@@ -25,7 +25,7 @@
 
 | 버튼 | 변경되는 값 | 요청 데이터 | 갱신에 필요한 응답 데이터 |
 | --- | --- | --- | --- |
-| 3건 묶음 수락 | 배차 상태, 현재 단계, 액션 버튼, 지도 | `riderId`, `action: "accept"` | `rider`, `package`, `steps[]` |
+| AI 묶음 수락(2~3건) | 배차 상태, 현재 단계, 액션 버튼, 지도 | `riderId`, `action: "accept"` | `rider`, `package`, `steps[]` |
 | 거절 | 재배차 상태, 제안 차수, 후보 라이더 안내 | `riderId`, `action: "reject"` | `package.offerAttempt`, `wasRejected`, `offeredRider*`, `reassignmentNote` |
 | 현재 단계 완료 | 타임라인 완료 표시, 다음 단계, 배달 완료 상태 | `riderId`, `action: "completeStep"` | `package.currentStep`, `package.status`, `steps[]` |
 | 추천 근거 | bottom sheet 내용 | `role: "rider"`, `entityId: riderId` | `headline`, `summary`, `reasons[]`, `note` |

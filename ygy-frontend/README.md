@@ -58,7 +58,7 @@ VITE_WS_BASE_URL=wss://api.example.com \
 npm run build
 ```
 
-이 경우 백엔드에서 프론트 도메인에 대한 CORS 허용이 필요합니다. 배포 서버는 `/customer`, `/merchant`, `/rider`, `/demo` 요청을 모두 `index.html`로 되돌리는 SPA fallback도 설정해야 합니다.
+이 경우 백엔드에서 프론트 도메인에 대한 CORS 허용이 필요합니다. WebSocket은 `VITE_WS_BASE_URL`을 우선 사용하며, 연결이 끊기면 최대 30초 간격으로 재연결하고 20초마다 `ping`을 보냅니다. 배포 서버는 `/customer`, `/merchant`, `/rider`, `/demo` 요청을 모두 `index.html`로 되돌리는 SPA fallback도 설정해야 합니다.
 
 FastAPI가 아래 데이터 계약에 맞춰 JSON을 내려주면 역할별 화면 코드는 그대로 사용할 수 있습니다. 계약 키가 확정되기 전까지는 [제어·데이터 목록](docs/CONTROL_DATA_MAPPING.md)의 임시 제안 키를 사용합니다.
 
@@ -67,7 +67,7 @@ FastAPI가 아래 데이터 계약에 맞춰 JSON을 내려주면 역할별 화�
 화면의 HTML/CSS는 표시 구조와 문구를 하드코딩해 둔 상태이며, 주문·매장·라이더처럼 변하는 값은 공통 API 경계를 통해 주입합니다. 현재 그 경계는 mock 데이터를 반환하고, FastAPI 연동 시 같은 요청 경계에서 실제 JSON 응답을 반환합니다.
 
 - API 주소와 기본 화면 ID는 `VITE_API_BASE_URL`, `VITE_WS_BASE_URL`, `VITE_DEFAULT_*` 설정으로 바꿉니다.
-- 표준 계약과 경로만 다르면 `VITE_API_PATHS` JSON으로 바꿉니다. 예: `{"customer":"/v1/customers/:customerId/orders/current"}`
+- 표준 계약과 경로만 다르면 `VITE_API_PATHS` JSON으로 바꿉니다. 경로의 `:customerId`, `:storeId`, `:riderId`, `:orderId`, `:packageId`, `:role`, `:entityId`는 호출 시 실제 값으로 치환됩니다. 예: `{"customer":"/v1/customers/:customerId/orders/current","websocket":"/v1/ws/:role/:entityId"}`. 지원 키 전체는 [`.env.example`](.env.example)에 적었습니다.
 - 응답 키까지 다르면 `static/common.js`의 API 응답 경계에 매핑을 추가합니다. 역할별 화면 파일은 가능한 그대로 유지합니다.
 - mock 데이터와 제어 로직은 `static/common.js`의 `mock`, `mockApi()`에 있으며, FastAPI 연동 완료 후 제거 대상입니다.
 

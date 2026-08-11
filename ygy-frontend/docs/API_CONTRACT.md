@@ -7,7 +7,7 @@
 - REST 응답 형식: `application/json`
 - 성공한 명령 응답: 최소 `{"message": "..."}`
 - 실패 응답: `{"detail": "..."}` 또는 `{"message": "..."}`
-- WebSocket 경로: `/ws/{role}/{entity_id}`
+- WebSocket 경로: 기본 `/ws/{role}/{entity_id}`. 배포 환경에서 경로가 다르면 프론트의 `VITE_API_PATHS.websocket`에 `:role`, `:entityId` 자리표시자를 사용해 변경한다.
 - 클라이언트는 20초마다 문자열 `ping`을 전송하며 서버는 `{"type":"pong"}`으로 응답
 - `pong` 이외의 메시지가 오면 해당 역할 화면이 REST 조회를 다시 수행
 - 통합 시연은 동시에 `C-001`, `S-001~S-003`, `R-001~R-003`을 조회한다. 각 ID는 독립 엔터티이며, 다른 ID의 데이터를 대신 반환하면 안 된다.
@@ -24,10 +24,10 @@
 ### 배송 선택과 배차 결과
 
 - 주문에는 `delivery_preference`, `delivery_preference_label`, `resolved_delivery_type`, `resolved_delivery_label`, `package_id`, `rider_id`를 포함한다.
-- `resolved_delivery_type`은 배차 계산 전 `null`이고, 이후 `SINGLE_DELIVERY | AI_BUNDLE_3`이다.
+- `resolved_delivery_type`은 배차 계산 전 `null`이고, 이후 `SINGLE_DELIVERY | AI_BUNDLE_2 | AI_BUNDLE_3`이다.
 - `SINGLE` 주문은 언제나 `SINGLE_DELIVERY`로 처리한다.
-- `AI_RECOMMENDED` 주문은 정확히 3건일 때만 하나의 `AI_BUNDLE_3`가 된다. 1건과 2건(또는 3건을 뺀 나머지 1~2건)은 각각 별도의 `SINGLE_DELIVERY` 패키지가 된다. 2건 묶음은 존재하지 않는다.
-- 주문 수락 후 배차 계산 전 상태는 `MATCHING`이며 UI에는 “AI 추천 배달 분석 중”, 현재 AI 추천 주문 수, 3건 조건 안내를 표시한다.
+- `AI_RECOMMENDED` 주문은 클러스터 점수가 허용 범위 안일 때 2건 `AI_BUNDLE_2` 또는 3건 `AI_BUNDLE_3`으로 처리한다. 1건만 남거나 적합한 클러스터가 없으면 `SINGLE_DELIVERY`로 처리한다. 최대 묶음 크기는 3건이다.
+- 주문 수락 후 배차 계산 전 상태는 `MATCHING`이며 UI에는 “AI 추천 배달 분석 중”, 현재 AI 추천 주문 수, 2~3건 조건 안내를 표시한다.
 
 ### `GET /api/customer/{customer_id}`
 
