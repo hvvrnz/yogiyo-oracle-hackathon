@@ -31,6 +31,20 @@ def print_all_regions_nearby_riders(top_n=5, riders=DUMMY_RIDERS):
             name = rider_lookup.get(rider_id, "이름없음")
             print(f"🏍️  {rider_id} ({name}): {float(distance):.2f}km")
 
+def get_rider_position(rider_id):
+    result = r.geopos(RIDER_GEO_KEY, rider_id)
+    if result and result[0]:
+        lng, lat = result[0]
+        return (float(lat), float(lng))
+    return None
+
+def get_rider_info(rider_id, riders=DUMMY_RIDERS):
+    # rider_id로 해당 라이더의 이름, 권역 등 상세 정보를 조회
+    for rider in riders:
+        if rider["rider_id"] == rider_id:
+            return rider
+    return None
+
 if __name__ == "__main__":
     register_riders()
     print_all_regions_nearby_riders()
