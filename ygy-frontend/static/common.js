@@ -19,6 +19,14 @@ window.Yogiyo = (() => {
     'C-002': {display_name:'고객 B', lat:37.494, lng:127.035},
     'C-003': {display_name:'고객 C', lat:37.490, lng:127.029},
   };
+  const serviceMap = Object.freeze({
+    bounds: {min_lat:37.488, max_lat:37.506, min_lng:127.018, max_lng:127.038},
+    regions: [
+      {label:'강남역 권역', points:[{lat:37.506,lng:127.029},{lat:37.506,lng:127.038},{lat:37.498,lng:127.038},{lat:37.498,lng:127.030}]},
+      {label:'역삼 권역', points:[{lat:37.503,lng:127.021},{lat:37.503,lng:127.030},{lat:37.494,lng:127.031},{lat:37.494,lng:127.021}]},
+      {label:'선릉 권역', points:[{lat:37.496,lng:127.021},{lat:37.496,lng:127.030},{lat:37.488,lng:127.032},{lat:37.488,lng:127.021}]},
+    ],
+  });
   const customerStoreIds = {'C-001':'S-001','C-002':'S-002','C-003':'S-003'};
   const menuFor = storeId => ({
     'S-001': {summary:'반반치킨 · 콜라', amount:23900, items:[{name:'반반치킨',quantity:1},{name:'콜라',quantity:1}]},
@@ -265,7 +273,62 @@ window.Yogiyo = (() => {
   const cleanups=[];
   const websocket=(role,entityId,onUpdate)=>{if(useMock){setConnection(true);const listener=e=>{if(e.key===storageKey&&e.newValue){hydrate();onUpdate({type:'mock_state_updated',role,entityId});}};window.addEventListener('storage',listener);const stop=()=>window.removeEventListener('storage',listener);cleanups.push(stop);return stop;} const path=endpoint('websocket','/ws/:role/:entityId',{role,entityId});const origin=wsBaseUrl ? wsBaseUrl.replace(/^http:/,'ws:').replace(/^https:/,'wss:') : `${location.protocol==='https:'?'wss':'ws'}://${location.host}`;let socket;let retryTimer;let pingTimer;let stopped=false;let attempts=0;const connect=()=>{if(stopped)return;setConnection(false);socket=new WebSocket(`${origin}${path}`);socket.onopen=()=>{attempts=0;setConnection(true);pingTimer=window.setInterval(()=>{if(socket.readyState===WebSocket.OPEN)socket.send('ping');},20000);};socket.onmessage=event=>{let message;try{message=JSON.parse(event.data);}catch{message=event.data;}if(message?.type==='pong'||message==='pong')return;onUpdate(message);};socket.onerror=()=>socket.close();socket.onclose=()=>{window.clearInterval(pingTimer);if(stopped)return;setConnection(false);const delay=Math.min(1000*2**attempts,30000);attempts+=1;retryTimer=window.setTimeout(connect,delay);};};const stop=()=>{stopped=true;window.clearTimeout(retryTimer);window.clearInterval(pingTimer);socket?.close();};cleanups.push(stop);connect();return stop;};
   const openSheet=()=>{el('sheetBackdrop')?.classList.add('open');el('bottomSheet')?.classList.add('open');};const closeSheet=()=>{el('sheetBackdrop')?.classList.remove('open');el('bottomSheet')?.classList.remove('open');};
-  const renderRouteMap=(containerId,points,rider)=>{const root=el(containerId);if(!root||!points?.length)return;root.querySelector('.route-svg')?.remove();root.querySelectorAll('.map-pin.dynamic').forEach(node=>node.remove());const all=[...points,...(rider?[rider]:[])],lats=all.map(p=>p.lat),lngs=all.map(p=>p.lng),minLat=Math.min(...lats),maxLat=Math.max(...lats),minLng=Math.min(...lngs),maxLng=Math.max(...lngs),project=p=>({x:12+(p.lng-minLng)/Math.max(.0001,maxLng-minLng)*76,y:84-(p.lat-minLat)/Math.max(.0001,maxLat-minLat)*68}),positions=points.map(project),d=positions.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' '),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('class','route-svg');svg.setAttribute('viewBox','0 0 100 100');svg.innerHTML=`<path d="${d}" fill="none" stroke="#ff2f6e" stroke-width="3"/>`;root.appendChild(svg);points.forEach((point,index)=>{const pos=project(point),pin=document.createElement('div');pin.className=`map-pin dynamic ${point.type==='PICKUP'?'store':''}`;pin.style.left=`${pos.x}%`;pin.style.top=`${pos.y}%`;pin.innerHTML=`<span>${point.type==='PICKUP'?'가':index+1}</span>`;root.appendChild(pin);});};
+  const renderRouteMap = (containerId, points=[], rider) => {
+    const root = el(containerId);
+    if (!root) return;
+    root.querySelector('.route-svg')?.remove();
+    root.querySelectorAll('.map-pin.dynamic').forEach(node => node.remove());
+    const {min_lat, max_lat, min_lng, max_lng} = serviceMap.bounds;
+    const project = point => ({
+      x: Math.max(5, Math.min(95, 5 + (point.lng - min_lng) / (max_lng - min_lng) * 90)),
+      y: Math.max(5, Math.min(95, 95 - (point.lat - min_lat) / (max_lat - min_lat) * 90)),
+    });
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'route-svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    const svgNode = (name, attributes={}) => {
+      const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+      Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, String(value)));
+      return node;
+    };
+    serviceMap.regions.forEach(region => {
+      const polygon = svgNode('polygon', {class:'map-zone', points:region.points.map(point => { const pos = project(point); return `${pos.x},${pos.y}`; }).join(' ')});
+      const center = region.points.reduce((sum, point) => ({lat:sum.lat + point.lat / region.points.length, lng:sum.lng + point.lng / region.points.length}), {lat:0,lng:0});
+      const label = svgNode('text', {class:'map-zone-label', x:project(center).x, y:project(center).y});
+      label.textContent = region.label;
+      svg.append(polygon, label);
+    });
+    Object.values(stores).forEach(store => {
+      const pos = project(store);
+      const marker = svgNode('circle', {class:'map-store-anchor', cx:pos.x, cy:pos.y, r:2.6});
+      const label = svgNode('text', {class:'map-store-label', x:pos.x + 3.5, y:pos.y - 2.5});
+      label.textContent = store.category;
+      svg.append(marker, label);
+    });
+    if (points.length) {
+      const d = points.map((point, index) => { const pos = project(point); return `${index ? 'L' : 'M'} ${pos.x} ${pos.y}`; }).join(' ');
+      svg.append(svgNode('path', {class:'map-route-line', d, fill:'none'}));
+    }
+    root.appendChild(svg);
+    points.forEach((point, index) => {
+      const pos = project(point);
+      const pin = document.createElement('div');
+      pin.className = `map-pin dynamic ${point.type === 'PICKUP' ? 'store' : ''}`;
+      pin.style.left = `${pos.x}%`;
+      pin.style.top = `${pos.y}%`;
+      pin.innerHTML = `<span>${point.type === 'PICKUP' ? '가' : index + 1}</span>`;
+      root.appendChild(pin);
+    });
+    if (rider?.lat != null && rider?.lng != null) {
+      const pos = project(rider);
+      const pin = document.createElement('div');
+      pin.className = 'map-pin dynamic rider';
+      pin.style.left = `${pos.x}%`;
+      pin.style.top = `${pos.y}%`;
+      pin.innerHTML = '<span>🏍</span>';
+      root.appendChild(pin);
+    }
+  };
   const dispose=()=>{while(cleanups.length)cleanups.pop()();};
   return {qs,el,money,fmtTime,escape,api,apiUrl:path=>`${apiBaseUrl}${path}`,apiClient,defaultIds:ids,toast,websocket,openSheet,closeSheet,renderRouteMap,useMock,labels,dispose};
 })();

@@ -168,6 +168,11 @@ a { color: inherit; text-decoration: none; }
 .map-canvas::before { width:180px; height:38px; left:-25px; top:70px; }
 .map-canvas::after { width:230px; height:34px; right:-48px; bottom:44px; transform:rotate(17deg); }
 .route-svg { position:absolute; inset:0; width:100%; height:100%; z-index:2; }
+.map-zone { fill:rgba(255,255,255,.42); stroke:#cbd1d7; stroke-width:.45; stroke-dasharray:1.4 1.1; }
+.map-zone-label { fill:#7a818b; font-size:3.2px; font-weight:800; text-anchor:middle; paint-order:stroke; stroke:#f2f5f6; stroke-width:1.2px; stroke-linejoin:round; }
+.map-route-line { stroke:#ff2f6e; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.map-store-anchor { fill:#303039; stroke:white; stroke-width:1; }
+.map-store-label { fill:#303039; font-size:3px; font-weight:800; paint-order:stroke; stroke:white; stroke-width:1px; stroke-linejoin:round; }
 .map-pin { position:absolute; z-index:4; width:31px; height:31px; border-radius:50% 50% 50% 10%; transform:translate(-50%,-50%) rotate(-45deg); display:grid; place-items:center; color:white; background:var(--brand); box-shadow:0 5px 14px rgba(0,0,0,.2); }
 .map-pin span { transform:rotate(45deg); font-size:11px; font-weight:800; }
 .map-pin.store { background:#303039; }
