@@ -1,6 +1,7 @@
 const customerId = Yogiyo.qs('customerId', Yogiyo.defaultIds.customer);
 const storeForCustomer = {'C-001':'S-001','C-002':'S-002','C-003':'S-003'};
 let currentView;
+let previousRouteSignature;
 
 async function loadCustomer() {
   try { currentView = await Yogiyo.apiClient.customer.get(customerId); renderCustomer(currentView); }
@@ -29,6 +30,9 @@ function renderCustomer(view) {
   Yogiyo.el('routeStrategyDescription').textContent = pkg.route_strategy_description;
   Yogiyo.el('riderStep').textContent = rider.current_step_label;
   Yogiyo.el('qualityBag').textContent = `${order.bag_time_min}분`; Yogiyo.el('qualityLimit').textContent = `${order.bag_time_limit_min}분`; Yogiyo.el('qualityMargin').textContent = `${order.quality_margin_min}분`;
+  const qualityBadge=Yogiyo.el('qualityBadge'); qualityBadge.textContent=order.quality_guard_passed?'기준 통과':'품질 주의'; qualityBadge.className=`badge ${order.quality_guard_passed?'good':'warn'}`;
+  const routeSignature=`${pkg.package_id||'none'}:${pkg.route_strategy_label||'-'}:${route.map(step=>`${step.order_id}-${step.type}-${step.sequence}`).join('|')}`;
+  const routeChanged=Boolean(previousRouteSignature&&previousRouteSignature!==routeSignature); Yogiyo.el('routeChangeSection').hidden=!routeChanged; Yogiyo.el('routeChangeNote').textContent=routeChanged?`${pkg.route_strategy_label} 기준으로 ETA와 배달 순서를 다시 계산했습니다.`:''; previousRouteSignature=routeSignature;
   Yogiyo.el('weatherIcon').textContent = weather.condition === 'RAIN' ? '🌧️' : '☀️'; Yogiyo.el('weatherTitle').textContent = `${weather.label} · ${weather.temperature_c}℃`; Yogiyo.el('weatherAdvisory').textContent = weather.advisory; Yogiyo.el('temperature').textContent = `${weather.temperature_c}°`;
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount); Yogiyo.el('itemsCard').innerHTML = order.items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.name)}</span><span class="value">${item.quantity}개</span></div>`).join('') || '<div class="subtext">주문 생성 후 메뉴가 표시됩니다.</div>';
   Yogiyo.renderRouteMap('customerMap', route, rider.assigned ? rider : null);

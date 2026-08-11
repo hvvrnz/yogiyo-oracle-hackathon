@@ -45,6 +45,7 @@ window.Yogiyo = (() => {
   const weather = () => mock.demo.weather === 'RAIN'
     ? {condition:'RAIN',label:'비',temperature_c:21,advisory:'강수로 이동 시간이 늘어날 수 있어요.',travel_delay_min:5}
     : {condition:'CLEAR',label:'맑음',temperature_c:25,advisory:'원활한 배달 환경이에요.',travel_delay_min:0};
+  const qualityLimitFor = order => ({'S-001':25,'S-002':18,'S-003':22}[order.store_id] || 20);
   const activeOrders = () => Object.values(mock.orders).filter(order => !['DELIVERED'].includes(order.status));
   const statusLabel = status => ({NEW:'신규 주문',ACCEPTED:'주문 수락',MATCHING:'AI 추천 배달 분석 중',COOKING:'조리 중',READY:'조리 완료',PICKED_UP:'픽업 완료',DELIVERED:'배달 완료'}[status] || status);
   const setStatus = (order, status) => { order.status = status; order.status_label = statusLabel(status); };
@@ -57,15 +58,26 @@ window.Yogiyo = (() => {
   };
   const recalcEta = pkg => {
     let minutes = weather().travel_delay_min;
+    const pickupAt = {};
     pkg.route_steps.forEach(step => {
       const order = mock.orders[step.order_id];
       if (!order || step.status === 'COMPLETED') return;
       if (step.type === 'PICKUP' && order.status !== 'READY') minutes += Math.max(0, order.remaining_cooking_min || 0);
       minutes += step.duration_min;
+      if (step.type === 'PICKUP') pickupAt[order.order_id] = minutes;
       if (step.type === 'DELIVERY') order.eta_at = new Date(new Date(clock()).getTime() + minutes * 60000).toISOString();
+      if (step.type === 'DELIVERY') {
+        const bagTime = Math.max(0, Math.round(minutes - (pickupAt[order.order_id] ?? 0)));
+        const limit = qualityLimitFor(order);
+        order.bag_time_min = bagTime;
+        order.bag_time_limit_min = limit;
+        order.quality_margin_min = limit - bagTime;
+        order.quality_guard_passed = bagTime <= limit;
+      }
       step.eta_label = new Date(new Date(clock()).getTime() + minutes * 60000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
     });
     pkg.estimated_duration_min = Math.round(minutes);
+    pkg.hourly_revenue = pkg.estimated_duration_min > 0 ? Math.round(pkg.package_revenue / pkg.estimated_duration_min * 60) : 0;
   };
   const routeStrategy = () => mock.demo.route_strategy === 'MIXED'
     ? {label:'혼합 최적화 경로',description:'각 주문의 조리 완료 시점에 맞춰 픽업과 배달을 교차합니다.'}
@@ -78,7 +90,7 @@ window.Yogiyo = (() => {
       // rider is excluded from new packages.
       offers:Object.fromEntries(Object.keys(mock.riders).filter(riderId => mock.riders[riderId].status !== 'ASSIGNED').map(riderId => [riderId,{status:'OFFERED',offered_at:clock(),responded_at:null}])),
       bundle_reasons:isBundle ? [`${bundleSize}개 주문의 조리 완료 예상 시각 차이가 허용 범위 안입니다.`,`${bundleSize}개 매장과 고객 위치의 이동 동선이 겹칩니다.`,`${bundleSize}개 주문 모두 음식 품질 제한 시간을 충족합니다.`] : [orders[0].delivery_preference === 'SINGLE' ? '고객이 단일 배달을 선택했습니다.' : '현재 AI 추천 주문이 한 건이라 개별 배달로 진행합니다.'],
-      route_steps, estimated_duration_min:0, total_distance_km:Number(route_steps.reduce((sum, step) => sum + step.distance_km,0).toFixed(1)), package_revenue:orders.reduce((sum, order) => sum + order.amount, 0), hourly_revenue:isBundle ? 28500 : 21000, route_strategy_label:routeStrategy().label, route_strategy_description:routeStrategy().description};
+      route_steps, estimated_duration_min:0, total_distance_km:Number(route_steps.reduce((sum, step) => sum + step.distance_km,0).toFixed(1)), package_revenue:Math.round(route_steps.filter(step=>step.type==='DELIVERY').reduce((sum,step)=>sum+3000+Math.max(0,step.distance_km-1)*500,0)), hourly_revenue:0, route_strategy_label:routeStrategy().label, route_strategy_description:routeStrategy().description};
     mock.packages[id] = pkg;
     orders.forEach(order => { order.package_id=id; order.resolved_delivery_type=type; order.resolved_delivery_label=labels[type]; order.status='MATCHING'; order.status_label='라이더 배차 제안 중'; });
     Object.keys(pkg.offers).forEach(riderId => { mock.riders[riderId].status='OFFERED'; mock.riders[riderId].status_label='새 배차 제안 확인 중'; });
@@ -125,11 +137,16 @@ window.Yogiyo = (() => {
     const pkg = packageForOrder(order); const rider = pkg && mock.riders[pkg.assigned_rider_id];
     const eta = order.eta_at ? new Date(order.eta_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}) : '배차 계산 중';
     const message = order.status === 'MATCHING' && !pkg ? `AI 추천 배달 분석 중 · 현재 AI 추천 주문: ${activeOrders().filter(item => item.delivery_preference === 'AI_RECOMMENDED' && !item.package_id).length}건 · 2~3건 묶음 조건을 확인하고 있어요.` : String(order.resolved_delivery_type || '').startsWith('AI_BUNDLE_') ? `AI 추천 결과: 조리 시간, 매장 위치, 고객 위치를 반영한 ${pkg.order_ids.length}건 묶음 배차입니다.` : order.resolved_delivery_type ? 'AI 추천 결과: 현재 묶음 조건이 충족되지 않아 개별 배달로 배정합니다.' : order.status_label;
-    return {order:{...order,eta_window:order.status === 'DELIVERED' ? '배달 완료' : eta,current_message:message,delivery_sequence:pkg ? pkg.order_ids.indexOf(order.order_id)+1 : '-',eta_updated_label:`${new Date(clock()).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false})} 기준`,remaining_min:order.status === 'DELIVERED'?0:Math.max(0,Math.round((new Date(order.eta_at || clock())-new Date(clock()))/60000)),progress_index:{NEW:0,ACCEPTED:1,MATCHING:1,COOKING:2,READY:3,PICKED_UP:4,DELIVERED:6}[order.status] ?? 0,bag_time_min:11,bag_time_limit_min:20,quality_margin_min:9,quality_guard_passed:true},store:mock.stores[order.store_id],package:pkg || {ready_gap_min:0,route_overlap_pct:0,route_strategy_label:'배차 분석 대기',route_strategy_description:'주문 수락 후 배차 계산을 실행합니다.',bundle_reasons:[]},rider:{assigned:Boolean(rider),current_step_label:rider ? `${rider.display_name} 배정 완료` : '라이더 배차를 기다리고 있어요',...(rider || {})},weather:weather(),route:(pkg?.route_steps || []).map(step => ({...step,is_own:step.order_id === order.order_id && step.type === 'DELIVERY'}))};
+    const qualityLimit = order.bag_time_limit_min ?? qualityLimitFor(order);
+    const bagTime = order.bag_time_min ?? 0;
+    return {order:{...order,eta_window:order.status === 'DELIVERED' ? '배달 완료' : eta,current_message:message,delivery_sequence:pkg ? pkg.order_ids.indexOf(order.order_id)+1 : '-',eta_updated_label:`${new Date(clock()).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false})} 기준`,remaining_min:order.status === 'DELIVERED'?0:Math.max(0,Math.round((new Date(order.eta_at || clock())-new Date(clock()))/60000)),progress_index:{NEW:0,ACCEPTED:1,MATCHING:1,COOKING:2,READY:3,PICKED_UP:4,DELIVERED:6}[order.status] ?? 0,bag_time_min:bagTime,bag_time_limit_min:qualityLimit,quality_margin_min:order.quality_margin_min ?? qualityLimit-bagTime,quality_guard_passed:order.quality_guard_passed ?? bagTime<=qualityLimit},store:mock.stores[order.store_id],package:pkg || {ready_gap_min:0,route_overlap_pct:0,route_strategy_label:'배차 분석 대기',route_strategy_description:'주문 수락 후 배차 계산을 실행합니다.',bundle_reasons:[]},rider:{assigned:Boolean(rider),current_step_label:rider ? `${rider.display_name} 배정 완료` : '라이더 배차를 기다리고 있어요',...(rider || {})},weather:weather(),route:(pkg?.route_steps || []).map(step => ({...step,is_own:step.order_id === order.order_id && step.type === 'DELIVERY'}))};
   };
   const merchantView = storeId => {
     const store=mock.stores[storeId]; if (!store) throw new Error('존재하지 않는 매장입니다.'); const orders=store.order_ids.map(id => mock.orders[id]).filter(Boolean); const pkg=orders.map(packageForOrder).find(Boolean); const rider=pkg && mock.riders[pkg.assigned_rider_id];
-    return {store:{...store,prediction_accuracy_pct:92,congestion:'보통'},summary:{new_count:orders.filter(o=>o.status==='NEW').length,cooking_count:orders.filter(o=>['COOKING','MATCHING','ACCEPTED'].includes(o.status)).length,ready_count:orders.filter(o=>o.status==='READY').length},orders,rider:{assigned:Boolean(rider),arrival_label:rider?`${rider.display_name} 매장 이동 중`:'라이더 배차 제안 중',remaining_min:rider?5:null,distance_km:rider?1.2:null,context:rider?`${rider.display_name}가 해당 주문을 배정받았습니다.`:'수락 후 AI 배차 계산을 실행하세요.'},package:pkg || {status_label:'배차 분석 대기',bundle_size:0,route_strategy_label:'-',ready_gap_min:0,total_wait_min:0,selected_route_reason:'수락한 주문의 고객 배송 선택을 분석합니다.'},weather:weather()};
+    const delayMinutes=orders.reduce((sum,order)=>sum+Math.max(0,(order.predicted_cooking_min||store.base_cooking_min)-store.base_cooking_min),0);
+    const predictionAccuracy=Math.max(70,96-delayMinutes);
+    const congestion=orders.length>=3?'혼잡':orders.length>=2?'보통':'여유';
+    return {store:{...store,prediction_accuracy_pct:predictionAccuracy,congestion},summary:{new_count:orders.filter(o=>o.status==='NEW').length,cooking_count:orders.filter(o=>['COOKING','MATCHING','ACCEPTED'].includes(o.status)).length,ready_count:orders.filter(o=>o.status==='READY').length},orders,rider:{assigned:Boolean(rider),arrival_label:rider?`${rider.display_name} 매장 이동 중`:'라이더 배차 제안 중',remaining_min:rider?5:null,distance_km:rider?1.2:null,context:rider?`${rider.display_name}가 해당 주문을 배정받았습니다.`:'수락 후 AI 배차 계산을 실행하세요.'},package:pkg || {status_label:'배차 분석 대기',bundle_size:0,route_strategy_label:'-',ready_gap_min:0,total_wait_min:0,selected_route_reason:'수락한 주문의 고객 배송 선택을 분석합니다.'},weather:weather()};
   };
   const riderView = riderId => {
     const rider=mock.riders[riderId]; if (!rider) throw new Error('존재하지 않는 라이더입니다.'); const offered=Object.values(mock.packages).filter(pkg => pkg.offers[riderId]?.status === 'OFFERED'); const assigned=Object.values(mock.packages).filter(pkg => pkg.assigned_rider_id === riderId && pkg.status !== 'COMPLETED'); const packages=[...assigned,...offered].map(pkg => ({...pkg,can_accept:pkg.offers[riderId]?.status==='OFFERED',accepted:pkg.assigned_rider_id===riderId,current_step:pkg.route_steps.find(step=>step.is_current) || null})); const primary=packages[0] || {status:'AVAILABLE',status_label:rider.status==='WAITING'?'다른 라이더가 먼저 수락했어요 · 다른 배차를 찾고 있어요':'새 배차를 기다리고 있어요',delivery_type_label:'-',order_ids:[],bundle_reasons:[],estimated_duration_min:0,total_distance_km:0,package_revenue:0,hourly_revenue:0,route_steps:[],can_accept:false,accepted:false};
@@ -144,7 +161,7 @@ window.Yogiyo = (() => {
     if (/^\/api\/merchant\/(S-)/.test(pathname)) return merchantView(pathname.split('/').pop());
     if (/^\/api\/rider\/R-\d+$/.test(pathname)) return riderView(pathname.split('/').pop());
     if (pathname === '/api/state') return state();
-    if (/^\/api\/merchant\/orders\/[^/]+\/action$/.test(pathname)) { const order=mock.orders[pathname.split('/')[4]]; if(!order) throw new Error('주문을 찾을 수 없습니다.'); if(body.action==='accept'){setStatus(order,'MATCHING');order.accepted_at=clock();} if(body.action==='start'){setStatus(order,'COOKING');order.cooking_started_at=clock();} if(body.action==='ready'){setStatus(order,'READY');order.ready_at=clock();order.remaining_cooking_min=0;} if(body.action==='delay'){order.remaining_cooking_min+=Number(body.delay_min||5);order.predicted_cooking_min+=Number(body.delay_min||5);} event('merchant.action',`${order.order_id} ${order.status_label}`); return {message:'주문 상태를 반영했습니다.'}; }
+    if (/^\/api\/merchant\/orders\/[^/]+\/action$/.test(pathname)) { const order=mock.orders[pathname.split('/')[4]]; if(!order) throw new Error('주문을 찾을 수 없습니다.'); if(body.action==='accept'){setStatus(order,'MATCHING');order.accepted_at=clock();} if(body.action==='start'){setStatus(order,'COOKING');order.cooking_started_at=clock();} if(body.action==='ready'){setStatus(order,'READY');order.ready_at=clock();order.remaining_cooking_min=0;} if(body.action==='delay'){order.remaining_cooking_min+=Number(body.delay_min||5);order.predicted_cooking_min+=Number(body.delay_min||5);} recalcAllPackages(); event('merchant.action',`${order.order_id} ${order.status_label} · 관련 ETA를 다시 계산했습니다.`); return {message:'주문 상태와 ETA를 반영했습니다.'}; }
     if (pathname === '/api/demo/dispatch-calculate') return dispatch();
     if (/^\/api\/rider\/R-\d+\/packages\/PKG-\d+\/offer-response$/.test(pathname)) { const [, , , riderId,, packageId]=pathname.split('/'); const pkg=mock.packages[packageId]; if(!pkg || pkg.offers[riderId]?.status!=='OFFERED') throw new Error('이미 다른 라이더가 수락했어요.'); if(body.action==='accept'){pkg.offers[riderId]={...pkg.offers[riderId],status:'ACCEPTED',responded_at:clock()};pkg.assigned_rider_id=riderId;pkg.status='ASSIGNED';pkg.route_steps.find(step=>step.status==='PENDING').is_current=true;pkg.order_ids.forEach(id=>mock.orders[id].rider_id=riderId);Object.keys(pkg.offers).filter(id=>id!==riderId).forEach(id=>{if(pkg.offers[id].status==='OFFERED')pkg.offers[id].status='CANCELLED';mock.riders[id].status='WAITING';mock.riders[id].status_label='다른 라이더가 먼저 수락했어요 · 다른 배차를 찾고 있어요';});mock.riders[riderId].status='ASSIGNED';mock.riders[riderId].active_package_id=packageId;mock.riders[riderId].status_label='배차 배정 완료';event('rider.accepted',`${riderId}가 ${packageId}를 먼저 수락했습니다.`);return {message:'배차를 수락했습니다.'};} pkg.offers[riderId].status='DECLINED';pkg.offers[riderId].responded_at=clock();mock.riders[riderId].status='AVAILABLE';mock.riders[riderId].status_label='운행 가능';event('rider.declined',`${riderId}가 배차를 거절했습니다.`);return {message:'배차를 거절했습니다.'}; }
     if (/^\/api\/rider\/R-\d+\/orders\/O-\d+\/(pickup|deliver)$/.test(pathname)) { const parts=pathname.split('/');const riderId=parts[3],orderId=parts[5],action=parts[6];const order=mock.orders[orderId],pkg=packageForOrder(order),step=pkg?.route_steps.find(s=>s.order_id===orderId && s.type===(action==='pickup'?'PICKUP':'DELIVERY'));if(!pkg||pkg.assigned_rider_id!==riderId||!step?.is_current)throw new Error('현재 진행 순서가 아닌 주문입니다.');if(action==='pickup'&&order.status!=='READY')throw new Error('조리 완료 후 픽업할 수 있습니다.');if(action==='deliver'&&order.status!=='PICKED_UP')throw new Error('픽업 완료 후 배달할 수 있습니다.');step.status='COMPLETED';step.is_current=false;if(action==='pickup'){setStatus(order,'PICKED_UP');order.picked_up_at=clock();}else{setStatus(order,'DELIVERED');order.delivered_at=clock();}advance(step.duration_min);const next=pkg.route_steps.find(s=>s.status==='PENDING');if(next){next.is_current=true;pkg.status='IN_PROGRESS';}else{pkg.status='COMPLETED';mock.riders[riderId].status='AVAILABLE';mock.riders[riderId].active_package_id=null;mock.riders[riderId].status_label='운행 가능';}recalcEta(pkg);event(`rider.${action}`,`${orderId} ${action==='pickup'?'픽업':'배달'} 완료`,0);return {message:action==='pickup'?'픽업을 완료했습니다.':'배달을 완료했습니다.'}; }
