@@ -1,36 +1,83 @@
-# 참고: 이 프로그램은 끝나지 않고 계속 새 주문을 생성해서 Kafka로 전송하는 프로그램으로 구현 되어있다. 무한 반복(while True)
-# 따라서 멈추고 싶으면 Ctrl+C로 종료한다. 
-
+from kafka import KafkaProducer
 import json
 import time
 import random
-from kafka import KafkaProducer
-from common.dummy.stores import DUMMY_STORES as stores, get_random_menu
-from common.config import DELIVERY_DISTANCE_RANGE_DEGREES
+from common.dummy.stores import DUMMY_STORES as stores
+from common.rounding import round_to_unit
+from common.config.menu_data import CATEGORY_MENU_PRICE_RANGE, SIDE_MENUS
+from common.config import (
+    CATEGORY_COOK_TIME_RANGE, COOK_TIME_STEP_MINUTES,
+    COOK_TIME_MIN, COOK_TIME_MAX, DELIVERY_DISTANCE_RANGE_DEGREES,
+    DELIVERY_FEE_BASE, CATEGORY_CORRECTION_FACTORS, DEFAULT_CORRECTION_FACTOR
+)
+
 
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
-    value_serializer=lambda v: json.dumps(v).encode('utf-8') #직렬화
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
+
+def round_to_step(value, step, min_val, max_val):
+    rounded = round(value / step) * step
+    return max(min_val, min(rounded, max_val))
+
+
+def generate_menu_items(store):
+    category = store["category"]
+    price_range = CATEGORY_MENU_PRICE_RANGE.get(category, (8000, 15000))
+    side_menus = SIDE_MENUS.get(category, [])
+
+    items = []
+    main_menu = random.choice(store["menu"])
+    items.append({
+        "menu": main_menu,
+        "qty": 1,
+        "price": round_to_unit(random.randint(*price_range), 1000),
+    })
+
+    side_count = random.randint(0, min(3, len(side_menus)))
+    for side in random.sample(side_menus, side_count):
+        items.append({
+            "menu": side,
+            "qty": random.randint(1, 2),
+            "price": round_to_unit(random.randint(2000, 6000), 1000),
+        })
+
+    return items
+
+
 def generate_dummy_order(order_id):
-    store = random.choice(stores) # 리스트(3개) 중에서 무작위로 하나를 골라서 store라는 변수에 저장
+    store = random.choice(stores)
+    cook_min_range = CATEGORY_COOK_TIME_RANGE.get(store["category"], (10, 20))
+    raw_cook_time = random.randint(*cook_min_range)
+    cook_time = round_to_step(raw_cook_time, COOK_TIME_STEP_MINUTES, COOK_TIME_MIN, COOK_TIME_MAX)
+
+    factor = CATEGORY_CORRECTION_FACTORS.get(store["category"], DEFAULT_CORRECTION_FACTOR)
+    predicted_cook_min = round(cook_time * factor, 1)
+
+    menu_items = generate_menu_items(store)
+    amount = sum(item["price"] * item["qty"] for item in menu_items)
+
     return {
         "order_id": order_id,
         "store_id": store["store_id"],
         "store_name": store["name"],
-        "store_lat": store["lat"], # 위도
-        "store_lng": store["lng"], # 경도
-        "category": store["category"], # 음식 카테고리
-        "region": store["region"], # ← 클러스터링 권역 필터에 필요
-        "menu_name": get_random_menu(store["category"]),
-        "base_cooking_min": store["base_cooking_min"], # 사장님이 설정한 기본 조리시간(분)
-        "delivery_lat": store["lat"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES), # 배달지 위도 (매장 근처의 랜덤 위치) 
-        "delivery_lng": store["lng"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES), # 배달지 경도 (매장 근처의 랜덤 위치)
-        "created_at": time.time() # 주문 접수 시각
+        "category": store["category"],
+        "region": store["region"],
+        "menu_name": menu_items[0]["menu"],
+        "menu_items": menu_items,
+        "amount": amount,
+        "delivery_fee": DELIVERY_FEE_BASE,
+        "store_lat": store["lat"],
+        "store_lng": store["lng"],
+        "base_cooking_min": cook_time,
+        "predicted_cook_min": predicted_cook_min,
+        "delivery_lat": store["lat"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES),
+        "delivery_lng": store["lng"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES),
+        "created_at": time.time()
     }
-    # random.uniform(-0.01, 0.01) — -0.01에서 0.01 사이의 무작위 소수를 하나 뽑음 (위경도 단위로 약 1km 이내 정도의 작은 오차)
-    # 매장의 좌표(store["lat"])에 그 무작위 값을 더해서, "매장에서 살짝 떨어진 어딘가"를 배달지로 설정 — 진짜 배달 지점 데이터가 없으니, 매장 근처의 그럴듯한 위치를 흉내
+
 
 if __name__ == "__main__":
     order_id = 1
@@ -40,7 +87,7 @@ if __name__ == "__main__":
             producer.send('order-events', order)
             print(f"주문 전송: {order}")
             order_id += 1
-            time.sleep(0.5)  # 0.5초마다 새 주문 하나씩 (원하는 속도로 조정 가능)
+            time.sleep(0.5)
     except KeyboardInterrupt:
         print("\nProducer 종료")
         producer.flush()

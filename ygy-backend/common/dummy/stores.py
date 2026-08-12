@@ -1,14 +1,11 @@
+import json
+import os
 import random
-from common.geo import get_region
+from common.config.menu_data import CATEGORY_MENUS
 from common.config import (
-    STORE_COUNT, SERVICE_REGIONS, STORE_NAME_PREFIXES,
-    CATEGORY_MENUS, CATEGORY_COOK_TIME_RANGE, COOK_TIME_STEP_MINUTES, COOK_TIME_MIN, COOK_TIME_MAX
+    STORE_COUNT, SERVICE_REGIONS, STORE_NAME_PREFIXES, STORE_MENU_COUNT_RANGE
 )
 
-# 사장님이 실제로 설정 가능한 5분 단위 값으로 반올림.
-def round_to_step(value, step, min_val, max_val):
-    rounded = round(value / step) * step
-    return max(min_val, min(rounded, max_val))
 
 def generate_stores(count=STORE_COUNT):
     stores = []
@@ -19,10 +16,11 @@ def generate_stores(count=STORE_COUNT):
         region_name = random.choice(region_names)
         region = SERVICE_REGIONS[region_name]
         category = random.choice(categories)
-        cook_min_range = CATEGORY_COOK_TIME_RANGE.get(category, (10, 20))
-        raw_cook_time = random.randint(*cook_min_range)
-        cook_time = round_to_step(raw_cook_time, COOK_TIME_STEP_MINUTES, COOK_TIME_MIN, COOK_TIME_MAX)
         signature_menu = random.choice(CATEGORY_MENUS[category])
+
+        all_menus = CATEGORY_MENUS.get(category, [])
+        menu_count = random.randint(*STORE_MENU_COUNT_RANGE)
+        store_menu = random.sample(all_menus, min(menu_count, len(all_menus)))
 
         stores.append({
             "store_id": i,
@@ -31,7 +29,7 @@ def generate_stores(count=STORE_COUNT):
             "region": region_name,
             "lat": region["lat"] + random.uniform(-0.01, 0.01),
             "lng": region["lng"] + random.uniform(-0.01, 0.01),
-            "base_cooking_min": cook_time,   # 사장님이 설정한 값 (5분 단위)
+            "menu": store_menu,
         })
     return stores
 
@@ -42,3 +40,13 @@ def get_random_menu(category):
 
 
 DUMMY_STORES = generate_stores()
+
+_CACHE_PATH = os.path.join(os.path.dirname(__file__), "stores_generated.json")
+
+if os.path.exists(_CACHE_PATH):
+    with open(_CACHE_PATH, "r", encoding="utf-8") as f:
+        DUMMY_STORES = json.load(f)
+else:
+    DUMMY_STORES = generate_stores()
+    with open(_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(DUMMY_STORES, f, ensure_ascii=False, indent=2)

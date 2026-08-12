@@ -1,3 +1,5 @@
+import os
+import json
 import random
 from common.config import RIDER_COUNT, SERVICE_REGIONS, REGION_RIDER_WEIGHTS, RIDER_NAME_PREFIXES, RIDER_NAME_SUFFIXES
 
@@ -20,5 +22,14 @@ def generate_riders(count=RIDER_COUNT):
         })
     return riders
 
-
 DUMMY_RIDERS = generate_riders()
+
+_CACHE_PATH = os.path.join(os.path.dirname(__file__), "riders_generated.json")
+
+if os.path.exists(_CACHE_PATH):
+    with open(_CACHE_PATH, "r", encoding="utf-8") as f:
+        DUMMY_RIDERS = json.load(f)
+else:
+    DUMMY_RIDERS = generate_riders()
+    with open(_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(DUMMY_RIDERS, f, ensure_ascii=False, indent=2)

@@ -1,10 +1,12 @@
 from common.geo import haversine
+from common.rounding import round_to_unit
+from sequencing_engine.handler.correction import predict_cook_time
 from common.config import (
     AVG_SPEED_KMH, BASE_DELIVERY_FEE, PER_KM_EXTRA_FEE,
     WEIGHT_FOOD_SITTING_TIME, WEIGHT_COURIER_WAIT_TIME,
     WEIGHT_BAG_TIME, WEIGHT_TOTAL_TIME
 )
-from sequencing_engine.handler.correction import predict_cook_time
+
 
 def travel_time_minutes(pos1, pos2):
     distance = haversine(pos1[0], pos1[1], pos2[0], pos2[1])
@@ -79,7 +81,8 @@ def calculate_route_score(route, orders_by_id, rider_start_pos):
 # 거리 기반 배달비 계산 (기본요금 + 1km 초과분에 대한 km당 추가요금)
 def calculate_order_fee(distance_km):
     extra_distance = max(distance_km - 1, 0)
-    return BASE_DELIVERY_FEE + (extra_distance * PER_KM_EXTRA_FEE)
+    fee = BASE_DELIVERY_FEE + (extra_distance * PER_KM_EXTRA_FEE)
+    return round_to_unit(fee, 100)
 
 
 # 묶음 안 각 주문의 실제 배달 거리를 기반으로 총 수익과 시간당 환산 수익을 계산.
