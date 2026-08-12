@@ -1,5 +1,6 @@
 import json
 from db.connection import get_connection
+from common.rounding import round_to_unit
 
 
 def insert_package(rider_id, package_type, order_ids, route_detail, score,
@@ -22,9 +23,9 @@ def insert_package(rider_id, package_type, order_ids, route_detail, score,
         "rider_id": rider_id,
         "package_type": package_type,
         "bundle_size": len(order_ids),
-        "score": score,
-        "package_revenue": package_revenue,
-        "hourly_revenue": hourly_revenue,
+        "score": round(score),
+        "package_revenue": round_to_unit(package_revenue, 100),
+        "hourly_revenue": round_to_unit(hourly_revenue, 100),
         "order_ids": json.dumps(order_ids),
         "route_detail": json.dumps(route_detail),
         "score_detail": json.dumps(score_detail),

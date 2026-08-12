@@ -1,6 +1,7 @@
 from common.config.common import AVG_SPEED_KMH
 
 RIDER_COUNT = 500
+RIDER_STATUS_KEY_PREFIX = "rider:status:"
 
 RIDER_NAME_PREFIXES = [
     "번개", "질주", "칼배달", "무사고", "야간", "터줏대감", "국룰", "전국구",
