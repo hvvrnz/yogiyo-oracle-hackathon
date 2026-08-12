@@ -1,6 +1,6 @@
 import redis
 from common.dummy.riders import DUMMY_RIDERS
-from common.config import RIDER_GEO_KEY, SERVICE_REGIONS
+from common.config import RIDER_GEO_KEY, SERVICE_REGIONS, RIDER_STATUS_KEY_PREFIX 
 
 r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
@@ -44,6 +44,17 @@ def get_rider_info(rider_id, riders=DUMMY_RIDERS):
         if rider["rider_id"] == rider_id:
             return rider
     return None
+
+def set_rider_busy(rider_id):
+    r.set(f"{RIDER_STATUS_KEY_PREFIX}{rider_id}", "BUSY", ex=3600)
+
+
+def set_rider_available(rider_id):
+    r.delete(f"{RIDER_STATUS_KEY_PREFIX}{rider_id}")
+
+
+def is_rider_available(rider_id):
+    return r.get(f"{RIDER_STATUS_KEY_PREFIX}{rider_id}") is None
 
 if __name__ == "__main__":
     register_riders()
