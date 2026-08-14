@@ -10,7 +10,7 @@
 - 요청·응답 본문은 JSON이며, 오류는 FastAPI의 `{"detail":"..."}` 형식이다.
 - `order_id`, `store_id`, `package_id`는 숫자이고 `rider_id`는 `rider_102` 형태 문자열이다.
 - `menu_items`, `order_ids`, `route_detail`, `score_detail`은 JSON 문자열 또는 JSON 값으로 올 수 있다. 프론트 `static/backend-client.js`가 배열·객체로 정규화한다.
-- 서버는 WebSocket을 제공하지 않는다. 전체 라이더 위치는 `GET /api/rider`를 5초 간격으로 폴링한다.
+- 서버는 WebSocket을 제공하지 않는다. 고객 화면은 담당 라이더 프로필을, 라이더 화면은 본인 프로필을 5초 간격으로 조회한다. 전체 목록 API는 역할별 화면에서 호출하지 않는다.
 
 ## 고객
 

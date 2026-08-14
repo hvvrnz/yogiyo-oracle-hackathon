@@ -8,7 +8,7 @@
 - 기본 ID: 주문 `118`, 매장 `781`, 라이더 `rider_102`
 - `menu_items`, `order_ids`, `route_detail`, `score_detail`은 문자열 JSON 또는 객체 모두를 정규화한다.
 - API 오류의 `detail`을 오류 카드·토스트로 표시하며, 조회 실패 화면에는 재시도 동작이 있다.
-- 라이더 화면의 전체 라이더 위치는 5초 폴링하고, 진행 중인 요청과 중복 호출하지 않는다. 고객 화면은 담당 라이더 프로필만 폴링한다.
+- 고객 화면은 담당 라이더 프로필만, 라이더 화면은 본인 프로필·패키지만 5초 폴링한다. 역할별 화면은 전체 라이더 목록을 호출하지 않는다.
 
 ## 고객 화면 (`/customer?orderId={order_id}`)
 
@@ -39,7 +39,7 @@
 | --- | --- | --- | --- |
 | 라이더 프로필 | `GET /api/rider/{rider_id}/profile` | 이름, 권역, 상태, 완료 건수, 좌표 | 선택 라이더 정보와 위치 렌더링 |
 | 배정 패키지 | `GET /api/rider/{rider_id}` | `packages[]`의 유형·상태·수익·주문 ID·경로·점수 | 패키지 목록과 경로 렌더링 |
-| 전체 라이더 지도 | `GET /api/rider` | 전체 라이더 좌표 | 5초 폴링, 선택 라이더 강조 |
+| 내 운행 지도 | `GET /api/rider/{rider_id}/profile`, `GET /api/rider/{rider_id}` | 본인 좌표, 패키지 경로 | 본인 위치와 배정 패키지 경로만 5초 갱신 |
 | 픽업 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/pickup` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |
 | 배달 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/complete` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |
 
