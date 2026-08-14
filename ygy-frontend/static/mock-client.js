@@ -116,5 +116,11 @@
       get: async packageId => clone(state.explanations[packageId] || null),
     }),
   });
-  Object.assign(window.Yogiyo, { apiClient: client, useMock: true, mockState: state, resetMock: () => { Object.assign(state, initialState()); save(); } });
+  Object.assign(window.Yogiyo, {
+    apiClient: client,
+    useMock: true,
+    mockState: state,
+    pollRiders: (onData, options) => window.Yogiyo.poll(() => client.riders.list(), onData, options),
+    resetMock: () => { Object.assign(state, initialState()); save(); },
+  });
 })();

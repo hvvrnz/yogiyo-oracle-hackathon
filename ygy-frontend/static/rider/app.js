@@ -1,6 +1,9 @@
 const initialRiderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let riderId = initialRiderId;
 let currentRider;
+let riderLocations = [];
+let stopRiderViewPolling;
+let stopRiderLocationPolling;
 
 const setContentVisible = visible => { Yogiyo.el('riderContent').hidden = !visible; };
 const showRiderFailure = (error, { action = false } = {}) => {
@@ -63,7 +66,11 @@ function renderRider({ profile, packages }) {
   Yogiyo.el('completedCount').textContent = `${Number(profile?.completed_order_count || 0)}건`;
   Yogiyo.el('riderPosition').textContent = position;
   Yogiyo.el('riderAvailability').textContent = profile?.status || '상태 정보 미제공';
-  Yogiyo.renderMap('riderMap', Yogiyo.mapData.fromRiderProfile(profile));
+  Yogiyo.renderMap('riderMap', Yogiyo.mapData.combine(
+    Yogiyo.mapData.fromRiders(riderLocations, { selectedRiderId: riderId }),
+    Yogiyo.mapData.fromRiderProfile({ ...profile, rider_id: riderId }),
+  ));
+  Yogiyo.el('riderLocationCount').textContent = riderLocations.length ? `전체 ${riderLocations.length}명 · 5초 갱신` : '내 위치 · 5초 갱신';
   Yogiyo.el('currentPackageSummary').textContent = currentPackage
     ? `패키지 ${currentPackage.package_id} · ${packageStatus(currentPackage.status)}`
     : '현재 패키지 정보가 없습니다.';
@@ -142,7 +149,11 @@ function bindRiderLookup() {
 }
 
 bindRiderLookup();
-Yogiyo.poll(fetchRiderView, view => {
+const updateRiderLocations = response => {
+  riderLocations = Array.isArray(response?.riders) ? response.riders : [];
+  if (currentRider) renderRider(currentRider);
+};
+stopRiderViewPolling = Yogiyo.poll(fetchRiderView, view => {
   renderRider(view);
   setConnection(true);
 }, { intervalMs: 5000, onError: error => {
@@ -150,3 +161,14 @@ Yogiyo.poll(fetchRiderView, view => {
   if (!currentRider) showRiderFailure(error);
   console.warn('rider polling failed', error);
 } });
+stopRiderLocationPolling = Yogiyo.pollRiders(updateRiderLocations, {
+  intervalMs: 5000,
+  onError: error => {
+    console.warn('rider location polling failed', error);
+    if (currentRider) Yogiyo.el('riderLocationCount').textContent = '전체 라이더 위치 갱신 실패 · 다시 시도 중';
+  },
+});
+window.addEventListener('beforeunload', () => {
+  stopRiderViewPolling?.();
+  stopRiderLocationPolling?.();
+}, { once: true });

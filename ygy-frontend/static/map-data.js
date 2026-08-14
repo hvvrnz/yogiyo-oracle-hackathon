@@ -14,9 +14,10 @@
   };
   const valid = value => value != null;
   const orderBySequence = points => points.slice().sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0));
+  const uniqueMarkers = markers => [...new Map(markers.filter(valid).map(item => [item.id, item])).values()];
 
   const createMapData = ({ markers = [], route = [] } = {}) => {
-    const normalizedMarkers = markers.filter(valid);
+    const normalizedMarkers = uniqueMarkers(markers);
     const normalizedRoute = orderBySequence(route.filter(valid));
     return Object.freeze({ markers: normalizedMarkers, route: normalizedRoute });
   };
@@ -50,9 +51,21 @@
       label: profile.name || profile.rider_id || '라이더',
       lat: profile.lat ?? profile.current_lat,
       lng: profile.lng ?? profile.current_lng,
+      meta: { selected: Boolean(profile.meta?.selected) },
     });
     return createMapData({ markers: [rider] });
   };
+
+  const fromRiders = (riders, { selectedRiderId } = {}) => createMapData({
+    markers: (Array.isArray(riders) ? riders : []).map(rider => marker({
+      id: `rider:${rider.rider_id || rider.id || 'unknown'}`,
+      kind: 'rider',
+      label: rider.name || rider.rider_id || '라이더',
+      lat: rider.lat ?? rider.current_lat,
+      lng: rider.lng ?? rider.current_lng,
+      meta: { selected: String(rider.rider_id || rider.id || '') === String(selectedRiderId || '') },
+    })),
+  });
 
   const fromStores = stores => createMapData({
     markers: (Array.isArray(stores) ? stores : []).map(store => marker({
@@ -136,10 +149,12 @@
     data.markers.forEach((item, index) => {
       const position = project(item);
       const pin = document.createElement('div');
-      pin.className = `map-pin dynamic ${item.kind === 'store' ? 'store' : item.kind === 'rider' ? 'rider' : ''}`;
+      const riderRole = item.kind === 'rider' ? (item.meta?.selected ? 'selected-rider' : 'other-rider') : '';
+      pin.className = `map-pin dynamic ${item.kind === 'store' ? 'store' : item.kind === 'rider' ? 'rider' : ''} ${riderRole}`;
       pin.style.left = `${position.x}%`;
       pin.style.top = `${position.y}%`;
       pin.setAttribute('aria-label', item.label);
+      pin.title = item.label;
       const icon = document.createElement('span');
       icon.textContent = item.kind === 'rider' ? '🏍' : item.kind === 'store' ? '가' : String(item.sequence || index + 1);
       pin.appendChild(icon);
@@ -159,6 +174,7 @@
     create: createMapData,
     fromCustomerOrder,
     fromRiderProfile,
+    fromRiders,
     fromStores,
     fromRouteDetail,
     combine,

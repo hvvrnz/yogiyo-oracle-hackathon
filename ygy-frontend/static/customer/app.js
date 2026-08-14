@@ -1,6 +1,8 @@
 const orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
 let currentOrder;
 let stopPolling;
+let stopRiderPolling;
+let riderLocations = [];
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'COMPLETED', 'CANCELLED']);
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
@@ -34,7 +36,7 @@ function menuSummary(items) {
   return items.map(item => `${item.menu}${item.qty > 1 ? ` ${item.qty}개` : ''}`).join(' · ') || '메뉴 정보 없음';
 }
 
-function renderUnavailableMetrics() {
+function renderUnavailableMetrics(riderCount = 0) {
   Yogiyo.el('deliveryPreference').textContent = '고객 선택 정보는 현재 API에서 제공되지 않아요';
   Yogiyo.el('resolvedDelivery').textContent = '패키지 상세 정보는 라이더 화면에서 확인할 수 있어요';
   Yogiyo.el('assignedRider').textContent = '라이더 정보는 현재 고객 API에서 제공되지 않아요';
@@ -44,7 +46,7 @@ function renderUnavailableMetrics() {
   Yogiyo.el('bagLimit').textContent = 'API 미제공';
   Yogiyo.el('routeStrategyLabel').textContent = '방문 순서는 라이더 화면에서 확인할 수 있어요';
   Yogiyo.el('routeStrategyDescription').textContent = '고객 API는 주문 ETA와 매장·배달지 좌표를 제공합니다.';
-  Yogiyo.el('riderStep').textContent = '라이더 정보 미제공';
+  Yogiyo.el('riderStep').textContent = riderCount ? `전체 라이더 ${riderCount}명 · 5초 갱신` : '라이더 위치 정보 없음';
   Yogiyo.el('qualityBag').textContent = '-';
   Yogiyo.el('qualityLimit').textContent = '-';
   Yogiyo.el('qualityMargin').textContent = '-';
@@ -67,7 +69,10 @@ function renderCustomer(order) {
   const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
   const etaLabel = order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
-  const map = Yogiyo.mapData.fromCustomerOrder(order);
+  const map = Yogiyo.mapData.combine(
+    Yogiyo.mapData.fromCustomerOrder(order),
+    Yogiyo.mapData.fromRiders(riderLocations),
+  );
 
   Yogiyo.el('orderId').textContent = `주문 ${order.order_id} · ${order.store_name}`;
   Yogiyo.el('etaWindow').textContent = etaLabel;
@@ -82,7 +87,7 @@ function renderCustomer(order) {
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
   Yogiyo.renderMap('customerMap', map);
-  renderUnavailableMetrics();
+  renderUnavailableMetrics(riderLocations.length);
 
   const cancelButton = Yogiyo.el('createOrderButton');
   const cancelBlocked = cancelBlockedStatuses.has(order.status);
@@ -137,6 +142,17 @@ Yogiyo.el('orderIdInput')?.addEventListener('keydown', event => {
 });
 Yogiyo.el('whyButton').addEventListener('click', () => Yogiyo.toast('현재 고객 API에는 패키지 ID가 없습니다.'));
 Yogiyo.bindSheet();
+const updateRiderLocations = response => {
+  riderLocations = Array.isArray(response?.riders) ? response.riders : [];
+  if (currentOrder) renderCustomer(currentOrder);
+};
+stopRiderPolling = Yogiyo.pollRiders(updateRiderLocations, {
+  intervalMs: 5000,
+  onError: error => {
+    console.warn('customer rider-location polling failed', error);
+    if (currentOrder) Yogiyo.el('riderStep').textContent = '라이더 위치 갱신 실패 · 다시 시도 중';
+  },
+});
 stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), renderCustomer, {
   intervalMs: 5000,
   onError: error => {
@@ -145,4 +161,7 @@ stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), renderC
     console.warn('customer polling failed', error);
   },
 });
-window.addEventListener('beforeunload', () => stopPolling?.(), { once: true });
+window.addEventListener('beforeunload', () => {
+  stopPolling?.();
+  stopRiderPolling?.();
+}, { once: true });
