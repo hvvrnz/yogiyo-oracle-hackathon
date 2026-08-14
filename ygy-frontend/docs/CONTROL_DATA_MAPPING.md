@@ -14,10 +14,10 @@
 
 | 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
-| 주문 조회 | `GET /api/customer/{order_id}` | 매장명·좌표, 배달 좌표, 메뉴, 금액, 상태, ETA | 주문 카드와 픽업지·배달지 지도 마커 렌더링 |
+| 주문 조회 | `GET /api/customer/{order_id}` | 매장명·좌표, 배달 좌표, 메뉴, 금액, 상태, ETA | 주문 카드와 픽업지·배달지 카카오맵 마커 렌더링(키 미설정 시 SVG fallback) |
 | 매장 식별 | `GET /api/stores` | 매장 ID, 이름, 좌표 | 주문 응답의 매장명·좌표와 대조해 매장 ID를 찾음 |
 | 담당 라이더 식별 | `GET /api/merchant/{store_id}` | 현재 주문의 `rider_id` | 같은 주문 ID를 찾아 담당 라이더를 식별 |
-| 담당 라이더 위치 | `GET /api/rider/{rider_id}/profile` | 이름, `lat`, `lng` | 담당 라이더 1명만 5초 폴링해 지도 갱신 |
+| 담당 라이더 위치 | `GET /api/rider/{rider_id}/profile` | 이름, `lat`, `lng` | 담당 라이더 1명만 5초 폴링해 카카오맵 마커 갱신(키 미설정 시 SVG fallback) |
 | 주문 취소 | `DELETE /api/customer/{order_id}` | `order_id`, `status` | 성공 후 주문 정보를 재조회 |
 | 취소 불가 안내 | `DELETE`의 `400` | `detail` | 고객센터 안내 오류 표시 |
 
@@ -39,7 +39,7 @@
 | --- | --- | --- | --- |
 | 라이더 프로필 | `GET /api/rider/{rider_id}/profile` | 이름, 권역, 상태, 완료 건수, 좌표 | 선택 라이더 정보와 위치 렌더링 |
 | 배정 패키지 | `GET /api/rider/{rider_id}` | `packages[]`의 유형·상태·수익·주문 ID·경로·점수 | 패키지 목록과 경로 렌더링 |
-| 내 운행 지도 | `GET /api/rider/{rider_id}/profile`, `GET /api/rider/{rider_id}` | 본인 좌표, 패키지 경로 | 본인 위치와 배정 패키지 경로만 5초 갱신 |
+| 내 운행 지도 | `GET /api/rider/{rider_id}/profile`, `GET /api/rider/{rider_id}` | 본인 좌표, 패키지 경로 | 본인 위치와 배정 패키지 경로만 5초 갱신하며 카카오맵에 표시(키 미설정 시 SVG fallback) |
 | 픽업 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/pickup` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |
 | 배달 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/complete` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |
 

@@ -13,7 +13,7 @@
 | 라이더 | `/rider?riderId=rider_102` | 프로필·패키지 조회, 패키지 픽업/완료 |
 | 통합 시연 | `/demo` | 고객 1개·사장님 3개·라이더 3개 패널의 실제 데이터 조회 |
 
-지도는 현재 좌표 기반 SVG 렌더러입니다. 고객 지도는 매장·배달지·담당 라이더를, 라이더 지도는 본인 위치와 배정 패키지 경로를 표시하며, 카카오맵 SDK 연결 전까지 fallback으로 사용합니다.
+지도는 `VITE_KAKAO_MAP_JS_KEY`가 설정되고 SDK 로드에 성공하면 카카오맵으로 표시합니다. 고객 지도는 매장·배달지·담당 라이더를, 라이더 지도는 본인 위치와 배정 패키지 경로를 표시합니다. 키가 없거나 SDK 로드에 실패하면 SVG fallback을 유지합니다.
 
 ## 요구 환경
 
@@ -48,6 +48,7 @@ VITE_BACKEND_PROXY_TARGET=http://127.0.0.1:8000
 VITE_DEFAULT_ORDER_ID=118
 VITE_DEFAULT_STORE_ID=781
 VITE_DEFAULT_RIDER_ID=rider_102
+VITE_KAKAO_MAP_JS_KEY=카카오맵_JavaScript_키
 ```
 
 | 변수 | 설명 |
@@ -58,6 +59,7 @@ VITE_DEFAULT_RIDER_ID=rider_102
 | `VITE_DEFAULT_ORDER_ID` | 고객 화면 기본 주문 ID |
 | `VITE_DEFAULT_STORE_ID` | 사장님 화면 기본 매장 ID |
 | `VITE_DEFAULT_RIDER_ID` | 라이더 화면 기본 라이더 ID |
+| `VITE_KAKAO_MAP_JS_KEY` | 카카오맵 Web(JavaScript) SDK 키. JavaScript SDK 허용 도메인 등록 필요 |
 
 실제 API 모드가 기본값입니다. 다른 Origin에 배포한다면 백엔드 CORS 허용이 필요합니다.
 

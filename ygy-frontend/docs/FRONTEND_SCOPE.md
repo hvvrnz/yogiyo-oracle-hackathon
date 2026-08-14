@@ -8,7 +8,8 @@
 - `static/common.js`: 공통 DOM 도구, 토스트, 상태 표시를 제공한다.
 - `static/backend-client.js`: 실제 FastAPI 요청, 오류 처리, 응답 정규화, 폴링을 담당한다.
 - `static/mock-client.js`: `VITE_USE_MOCK=true`일 때만 로드되는 개발용 mock 상태와 API 클라이언트다.
-- `static/map-data.js`: 매장·배달지·라이더 좌표를 공통 마커 데이터로 만들고 SVG 지도를 렌더링한다.
+- `static/map-data.js`: 매장·배달지·라이더 좌표를 공통 마커 데이터로 만들고, 카카오맵 또는 SVG fallback 렌더러에 전달한다.
+- `static/kakao-map.js`: 카카오맵 SDK를 한 번만 비동기로 로드하고 마커·경로를 렌더링한다.
 - `static/customer`, `static/merchant`, `static/rider`, `static/demo`: 역할별 화면 렌더링과 액션 처리 코드다.
 
 React는 역할별 화면을 새로 구현하는 계층이 아니라 Vite 진입점·정적 템플릿 로더 역할을 한다. 화면 갱신은 `static/`의 DOM 코드가 담당한다.
@@ -18,7 +19,7 @@ React는 역할별 화면을 새로 구현하는 계층이 아니라 Vite 진입
 - 고객 주문 조회·취소
 - 사장님 매장 주문 목록 조회·조리시간 수정
 - 라이더 프로필·배정 패키지 조회·패키지 픽업/완료
-- 고객의 매장·배달지·담당 라이더, 라이더 본인 위치·패키지 경로를 사용하는 SVG 지도
+- 고객의 매장·배달지·담당 라이더, 라이더 본인 위치·패키지 경로를 사용하는 카카오맵과 SVG fallback 지도
 - 고객 담당 라이더·라이더 본인 정보 5초 폴링
 - 404, 빈 데이터, 서버 오류, 재시도 안내
 - 고객 1개·사장님 3개·라이더 3개 실제 데이터 통합 시연
@@ -42,7 +43,7 @@ VITE_DEFAULT_RIDER_ID=rider_102
 
 ## 현재 제외하거나 미구현인 범위
 
-- 카카오맵 SDK 렌더러와 마커 클러스터링
+- 관제 화면을 추가할 경우의 전체 라이더 마커 클러스터링
 - 서버 측 LLM 설명 생성 API와 고객/라이더용 설명 표시 UI
 - 주문 생성, 배송 방식 선택, 배차 제안·수락·거절
 - 주문별 픽업·배달 상태 변경
@@ -53,7 +54,7 @@ VITE_DEFAULT_RIDER_ID=rider_102
 
 ## 지도 교체 경계
 
-현재 지도는 SVG fallback이다. 카카오맵으로 교체할 때에도 역할 화면은 `Yogiyo.mapData`로 만든 공통 데이터를 사용하고, `Yogiyo.renderMap` 구현만 카카오맵 렌더러로 대체하는 구조를 유지한다.
+`VITE_KAKAO_MAP_JS_KEY`가 설정되고 SDK 로드에 성공하면 카카오맵을 사용한다. 키가 없거나 SDK 로드에 실패하면 SVG fallback을 유지한다. 역할 화면은 계속 `Yogiyo.mapData` 공통 데이터를 사용한다.
 
 ## 백엔드와의 책임 분리
 

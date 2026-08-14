@@ -269,3 +269,7 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .state-card strong { display:block; font-size:14px; line-height:1.4; }
 .state-card p { margin:4px 0 12px; color:var(--muted); font-size:12px; line-height:1.5; }
 .state-retry { min-height:38px; padding:8px 12px; border-radius:12px; font-size:12px; }
+
+.map-canvas.kakao-map-active { background:#eef2f5; }
+.map-canvas.kakao-map-active::before, .map-canvas.kakao-map-active::after { display:none; }
+.kakao-map-layer { position:absolute; inset:0; z-index:1; }

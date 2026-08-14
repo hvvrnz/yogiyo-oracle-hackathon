@@ -180,5 +180,10 @@
     combine,
     pollRider,
   });
-  window.Yogiyo.renderMap = renderSvgMap;
+  const renderMap = (containerId, map) => {
+    if (window.Yogiyo.renderKakaoMap?.(containerId, map)) return;
+    renderSvgMap(containerId, map);
+  };
+  window.Yogiyo.renderSvgMap = renderSvgMap;
+  window.Yogiyo.renderMap = renderMap;
 })();

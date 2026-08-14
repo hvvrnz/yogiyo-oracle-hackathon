@@ -11,6 +11,7 @@ import demoTemplate from '../../static/demo/index.html?raw';
 import commonScript from '../../static/common.js?raw';
 import backendClientScript from '../../static/backend-client.js?raw';
 import mapDataScript from '../../static/map-data.js?raw';
+import kakaoMapScript from '../../static/kakao-map.js?raw';
 import customerScript from '../../static/customer/app.js?raw';
 import merchantScript from '../../static/merchant/app.js?raw';
 import riderScript from '../../static/rider/app.js?raw';
@@ -39,6 +40,7 @@ window.__YGY_CONFIG__ = Object.freeze({
   defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '118',
   defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '781',
   defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'rider_102',
+  kakaoMapJsKey: import.meta.env.VITE_KAKAO_MAP_JS_KEY || '',
   apiPaths: parseJson(import.meta.env.VITE_API_PATHS, {}),
 });
 
@@ -74,6 +76,9 @@ function Screen({ page }) {
       }
       if (disposed) return;
       execute(mapDataScript);
+      execute(kakaoMapScript);
+      await window.Yogiyo.configureKakaoMap?.();
+      if (disposed) return;
       execute(page.script);
     };
     boot();
