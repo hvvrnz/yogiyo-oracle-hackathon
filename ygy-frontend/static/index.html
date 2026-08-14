@@ -13,28 +13,28 @@
   <main class="landing">
     <section class="top">
       <div class="intro">
-        <div class="kicker" id="landingKicker">요기요 X 오라클 해커톤 · 브라우저 mock 통합 시연</div>
+        <div class="kicker" id="landingKicker">요기요 X 오라클 해커톤 · 실제 API 통합 시연</div>
         <h1>AI 조리·배달 동기화 및 동적 배칭 추천 시스템</h1>
-        <p id="landingDescription">브라우저 mock 상태로 고객·사장님·라이더 화면을 함께 시연합니다. 주문·조리·배차·픽업·배달 진행에 따라 ETA와 역할별 화면이 갱신됩니다.</p>
-        <div class="chip-row" id="landingChips"><span class="chip">최대 3건 배칭</span><span class="chip">좌표 기반 ETA</span><span class="chip">품질·ETA 가드레일</span><span class="chip">브라우저 mock 상태</span><span class="chip">2가지 경로 전략</span><span class="chip">SVG 경로 지도</span></div>
+        <p id="landingDescription">고객 주문 조회·취소, 사장님 조리시간 변경, 라이더 패키지 운행 처리를 제공된 FastAPI와 Oracle DB 데이터로 확인합니다.</p>
+        <div class="chip-row" id="landingChips"><span class="chip">Oracle DB 연동</span><span class="chip">실제 테스트 ID</span><span class="chip">5초 위치 폴링</span><span class="chip">좌표 기반 임시 지도</span></div>
       </div>
       <aside class="mini-panel">
-        <h2 id="landingDataTitle">시연 데이터 구성</h2>
-        <div id="landingDataLines"><div class="data-line"><strong>브라우저 mock 상태</strong><span>주문, 조리, 배차, 라이더 상태를 같은 브라우저에서 공유</span></div><div class="data-line"><strong>좌표 기반 시연 지도</strong><span>강남·역삼·선릉 권역과 매장을 고정 좌표로 표시</span></div><div class="data-line"><strong>시연용 ETA 계산</strong><span>위도·경도 거리, 조리시간, 날씨 보정으로 예상 시간을 계산</span></div><div class="data-line"><strong>시연 시나리오</strong><span>단일·2건·3건 배차, 조리 지연, 날씨, 경로 전략을 제어</span></div><div class="data-line"><strong>실연동 준비</strong><span>REST·WebSocket 데이터 계약을 통해 서버 응답으로 교체 가능</span></div></div>
+        <h2 id="landingDataTitle">연동 데이터 구성</h2>
+        <div id="landingDataLines"><div class="data-line"><strong>Oracle DB</strong><span>실제 주문·패키지·라이더 데이터를 조회</span></div><div class="data-line"><strong>Redis</strong><span>라이더 현재 위치를 5초 주기로 갱신</span></div><div class="data-line"><strong>좌표 데이터 계층</strong><span>카카오맵 교체 전 SVG 임시 렌더러에 연결</span></div><div class="data-line"><strong>FastAPI</strong><span>역할별 조회와 상태 변경 API를 제공</span></div></div>
       </aside>
     </section>
 
     <section class="role-grid">
-      <article class="role"><div class="role-icon">🍱</div><h3>고객 화면</h3><p>ETA, 주문 진행, 라이더 위치, 묶음 추천 사유, 음식 품질 가드레일을 확인합니다.</p><a href="/customer?customerId=C-001">고객 화면 열기 <span>→</span></a></article>
-      <article class="role"><div class="role-icon">🏪</div><h3>사장님 화면</h3><p>AI 조리 완료 목표, 조리 시작 권장시각, 라이더 도착 ETA와 지연 입력을 제공합니다.</p><a href="/merchant?storeId=S-001">사장님 화면 열기 <span>→</span></a></article>
-      <article class="role"><div class="role-icon">🛵</div><h3>라이더 화면</h3><p>패키지 수익, 매장 준비 상태와 혼합 최적화·전체 픽업 후 배달 순서를 표시합니다.</p><a href="/rider?riderId=R-001">라이더 화면 열기 <span>→</span></a></article>
-      <article class="role"><div class="role-icon">🎛️</div><h3>통합 시연</h3><p>세 역할 화면과 이벤트 로그를 한곳에서 보고 지연·날씨·배차 시나리오를 제어합니다.</p><a href="/demo">통합 시연 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🍱</div><h3>고객 화면</h3><p>실제 주문의 상태·매장·배달지 좌표와 주문 취소 기능을 확인합니다.</p><a href="/customer?orderId=118">고객 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🏪</div><h3>사장님 화면</h3><p>실제 매장 주문 목록과 사장님 조리시간 변경 기능을 제공합니다.</p><a href="/merchant?storeId=781">사장님 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🛵</div><h3>라이더 화면</h3><p>실제 배정 패키지와 라이더 위치, 패키지 단위 운행 처리를 표시합니다.</p><a href="/rider?riderId=rider_102">라이더 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🎛️</div><h3>통합 시연</h3><p>실제 DB의 역할별 조회 화면을 한곳에서 확인합니다.</p><a href="/demo">통합 시연 열기 <span>→</span></a></article>
     </section>
 
     <section class="architecture">
-      <h2 id="landingArchitectureTitle">한 브라우저 상태, 세 역할, 하나의 시연</h2>
-      <div class="flow" id="landingFlow"><div class="flow-node"><strong>고객·사장님·라이더</strong>역할별 화면과 통합 콘솔</div><div class="arrow">→</div><div class="flow-node"><strong>브라우저 mock 엔진</strong>주문·조리·배차·ETA 계산</div><div class="arrow">→</div><div class="flow-node"><strong>localStorage</strong>같은 브라우저의 탭·iframe 상태 공유</div></div>
-      <p class="foot" id="landingFoot">현재 패키지는 외부 키 없이 동작하는 통합 POC입니다. 실제 서버 연동 전 화면과 시연 흐름을 검증하는 용도입니다.</p>
+      <h2 id="landingArchitectureTitle">하나의 서버, 세 역할, 하나의 상태</h2>
+      <div class="flow" id="landingFlow"><div class="flow-node"><strong>고객·사장님·라이더</strong>실제 테스트 ID로 REST 조회</div><div class="arrow">→</div><div class="flow-node"><strong>FastAPI</strong>주문·조리시간·패키지 상태 변경</div><div class="arrow">→</div><div class="flow-node"><strong>Redis / Oracle</strong>위치·영구 데이터 저장</div></div>
+      <p class="foot" id="landingFoot">실제 API 데이터 계층을 유지한 채 카카오맵과 LLM 기능을 추가할 수 있도록 구성했습니다.</p>
     </section>
   </main>
 </body>

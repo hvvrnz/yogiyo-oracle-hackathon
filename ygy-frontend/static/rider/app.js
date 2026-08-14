@@ -1,17 +1,199 @@
-const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
-let previousRouteSignature;
-async function loadRider(){try{renderRider(await Yogiyo.apiClient.rider.get(riderId));}catch(error){Yogiyo.toast(error.message);}}
-function renderRider(view){
-  const {rider,package:pkg,packages,steps,store_readiness,weather}=view; Yogiyo.el('riderMeta').textContent=`${rider.display_name} · ${rider.vehicle} · ${rider.status_label}`; Yogiyo.el('packageState').textContent=`${pkg.delivery_type_label} · ${pkg.order_ids.length}건`; Yogiyo.el('hourlyRevenue').textContent=`시간당 ${Yogiyo.money(pkg.hourly_revenue)}`; Yogiyo.el('packageSummary').textContent=pkg.bundle_reasons?.[0]||pkg.status_label; Yogiyo.el('packageRevenue').textContent=`총 ${Yogiyo.money(pkg.package_revenue)}`; Yogiyo.el('durationChip').textContent=`약 ${pkg.estimated_duration_min}분`; Yogiyo.el('distanceChip').textContent=`${pkg.total_distance_km}km`; Yogiyo.el('waitMetric').textContent=`${pkg.total_wait_min || 0}분`; Yogiyo.el('overlapMetric').textContent=String(pkg.delivery_type || '').startsWith('AI_BUNDLE_')?`${pkg.route_saving_pct || 0}%`:'-'; Yogiyo.el('extraMetric').textContent=String(pkg.delivery_type || '').startsWith('AI_BUNDLE_')?`${pkg.additional_distance_km || 0}km`:'-'; Yogiyo.el('routeStrategyBadge').textContent=pkg.route_strategy_label||'배차 대기'; Yogiyo.el('routeStrategyDescription').textContent=pkg.route_strategy_description||'새 배차를 기다리고 있어요.'; Yogiyo.el('currentStepLabel').textContent=pkg.current_step ? `${pkg.current_step.sequence}번째 경로 진행` : pkg.can_accept ? '배차 제안을 수락해 주세요' : pkg.status_label; Yogiyo.el('routeCount').textContent=`${steps.length}단계`;
-  Yogiyo.el('storeReadiness').innerHTML=store_readiness.map(item=>`<div class="row"><span>${Yogiyo.escape(item.store_name)}</span><span class="value">${Yogiyo.escape(item.status_label)}</span></div>`).join('')||'<div class="subtext">배차 제안을 수락하면 주문 준비 상태가 표시됩니다.</div>';
-  Yogiyo.el('routeTimeline').innerHTML=steps.map(step=>`<div class="timeline-item ${step.is_current?'current':''} ${step.status==='COMPLETED'?'done':''}"><div class="timeline-dot">${step.status==='COMPLETED'?'✓':step.sequence}</div><div class="timeline-copy"><h3>${Yogiyo.escape(step.destination)}</h3><p>${step.type==='PICKUP'?'픽업':'배달'} · ${step.order_id} · ${step.duration_min}분</p></div><span class="timeline-time">${step.eta_label||'-'}</span></div>`).join(''); Yogiyo.renderRouteMap('riderMap',steps,rider);
-  Yogiyo.el('orderActionsSection').hidden=!pkg.accepted; Yogiyo.el('orderActions').innerHTML=steps.filter(step=>step.type==='PICKUP'||step.type==='DELIVERY').map(step=>{const orderReady=step.type==='PICKUP'?store_readiness.find(item=>item.store_name===step.destination)?.status==='READY':true;const enabled=step.is_current&&step.status!=='COMPLETED'&&orderReady;const action=step.type==='PICKUP'?'pickup':'deliver';return `<article class="card" style="margin-top:8px"><div class="row"><div><span class="badge ${step.status==='COMPLETED'?'good':'brand'}">${step.type==='PICKUP'?'픽업':'배달'}</span><div class="order-menu">${step.order_id}</div><div class="order-id">${Yogiyo.escape(step.destination)}</div></div><button class="${enabled?'primary-button':'ghost-button'}" data-order-action="${action}" data-order="${step.order_id}" ${enabled?'':'disabled'}>${step.status==='COMPLETED'?'완료':enabled?(action==='pickup'?'픽업 완료':'배달 완료'):(action==='pickup'?'조리/순서 대기':'픽업/순서 대기')}</button></div></article>`}).join('');Yogiyo.el('orderActions').querySelectorAll('[data-order-action]').forEach(button=>button.addEventListener('click',handleOrderAction));
-  Yogiyo.el('riderWeatherIcon').textContent=weather.condition==='RAIN'?'🌧️':'☀️';Yogiyo.el('riderWeatherTitle').textContent=`${weather.label} · 이동 보정 +${weather.travel_delay_min}분`;Yogiyo.el('riderWeatherAdvisory').textContent=weather.advisory;
-  const routeSignature=`${pkg.package_id||'none'}:${pkg.route_strategy_label||'-'}:${steps.map(step=>`${step.order_id}-${step.type}-${step.sequence}`).join('|')}`;const routeChanged=Boolean(previousRouteSignature&&previousRouteSignature!==routeSignature);Yogiyo.el('riderRouteChange').hidden=!routeChanged;Yogiyo.el('riderRouteNote').textContent=routeChanged?`${pkg.route_strategy_label} 기준으로 방문 순서와 예상 시간을 갱신했습니다.`:'';previousRouteSignature=routeSignature;
-  const reassigned=rider.status==='WAITING';Yogiyo.el('riderReassignment').hidden=!reassigned;Yogiyo.el('riderReassignmentNote').textContent=reassigned?'다른 라이더가 먼저 수락했습니다. 현재 제안이 정리되면 새 배차를 확인할 수 있습니다.':'';
-  const root=Yogiyo.el('riderActions');root.className='';root.innerHTML=packages.filter(item=>item.can_accept).map(item=>`<article class="card" style="margin-top:8px"><strong>${Yogiyo.escape(item.delivery_type_label)} · ${item.order_ids.length}건</strong><p class="subtext">고객 선택: ${String(item.delivery_type || '').startsWith('AI_BUNDLE_')?'AI 추천 배달':'단일 또는 AI 분석 후 개별 배달'} · ${item.estimated_duration_min}분 · ${item.total_distance_km}km</p><p class="subtext">${Yogiyo.escape(item.bundle_reasons?.[0]||'개별 배달')}</p><div class="button-row"><button class="danger-button" data-response="decline" data-package="${item.package_id}">거절</button><button class="primary-button" data-response="accept" data-package="${item.package_id}">수락</button></div></article>`).join('') || (pkg.accepted?'<button class="secondary-button full" disabled>배정된 배차를 주문별로 처리하세요</button>':'<button class="ghost-button full" disabled>다른 배차를 찾고 있어요</button>');root.querySelectorAll('[data-response]').forEach(button=>button.addEventListener('click',handleOffer));
+const initialRiderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
+let riderId = initialRiderId;
+let currentRider;
+let stopRiderViewPolling;
+let locationAddress;
+let locationAddressKey;
+let locationAddressRequestId = 0;
+
+const setContentVisible = visible => { Yogiyo.el('riderContent').hidden = !visible; };
+const showRiderFailure = (error, { action = false } = {}) => {
+  setConnection(false);
+  if (!currentRider) setContentVisible(false);
+  Yogiyo.renderLoadState('riderLoadState', {
+    title: action ? '패키지 상태를 변경하지 못했습니다.' : error?.status === 404 ? '라이더를 찾을 수 없습니다.' : '라이더 정보를 불러오지 못했습니다.',
+    description: action ? Yogiyo.errorMessage(error, '패키지 처리') : Yogiyo.errorMessage(error, '라이더'),
+    onRetry: () => loadRider(),
+  });
+};
+
+const packageStatusLabels = Object.freeze({
+  MATCHING: '배차 진행 중',
+  MATCHED: '배차 완료 · 픽업 대기',
+  PICKED_UP: '픽업 완료 · 배달 진행 중',
+  COMPLETED: '배달 완료',
+  CANCELLED: '취소됨',
+});
+
+const setConnection = online => {
+  const connection = Yogiyo.el('connection');
+  connection.classList.toggle('online', online);
+  connection.classList.toggle('offline', !online);
+  connection.querySelector('span').textContent = online ? '실시간 조회 중' : '연결 확인 필요';
+};
+
+const packageStatus = status => packageStatusLabels[status] || status || '상태 정보 없음';
+
+
+const coordinateKey = profile => {
+  const lat = Number(profile?.lat);
+  const lng = Number(profile?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(4)},${lng.toFixed(4)}` : null;
+};
+
+const coordinateLabel = profile => {
+  const lat = Number(profile?.lat);
+  const lng = Number(profile?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : null;
+};
+
+const resolveLocationAddress = profile => {
+  const nextKey = coordinateKey(profile);
+  if (nextKey === locationAddressKey) return;
+  locationAddressKey = nextKey;
+  locationAddress = undefined;
+  if (!nextKey) return;
+  const requestId = ++locationAddressRequestId;
+  Promise.resolve(Yogiyo.reverseGeocode?.(profile?.lat, profile?.lng))
+    .then(address => {
+      if (requestId !== locationAddressRequestId) return;
+      locationAddress = address || coordinateLabel(profile);
+      if (currentRider) renderRider(currentRider);
+    })
+    .catch(() => {
+      if (requestId !== locationAddressRequestId) return;
+      locationAddress = coordinateLabel(profile);
+      if (currentRider) renderRider(currentRider);
+    });
+};
+const routeSummary = route => {
+  if (!Array.isArray(route) || !route.length) return '방문 순서 정보 없음';
+  return route
+    .slice()
+    .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0))
+    .map(step => `주문 ${step.order_id ?? '-'} ${step.type === 'pickup' ? '픽업' : ['delivery', 'dropoff'].includes(step.type) ? '배달' : '경유'}`)
+    .join(' → ');
+};
+
+const packageAction = pkg => {
+  if (pkg.status === 'MATCHING' || pkg.status === 'MATCHED') return `<button class="primary-button full" data-package-action="pickup" data-package-id="${pkg.package_id}">패키지 픽업 완료</button>`;
+  if (pkg.status === 'PICKED_UP') return `<button class="primary-button full" data-package-action="complete" data-package-id="${pkg.package_id}">패키지 배달 완료</button>`;
+  return `<button class="ghost-button full" disabled>${Yogiyo.escape(packageStatus(pkg.status))}</button>`;
+};
+
+function renderRider({ profile, packages }) {
+  currentRider = { profile, packages };
+  setContentVisible(true);
+  Yogiyo.clearLoadState('riderLoadState');
+  const activePackages = packages.filter(pkg => !['COMPLETED', 'CANCELLED'].includes(pkg.status));
+  const currentPackage = activePackages[0] || packages[0];
+  const name = profile?.name || riderId;
+  resolveLocationAddress(profile);
+  const coordinate = coordinateLabel(profile);
+  const position = locationAddress || (coordinate ? '주소 확인 중' : '위치 정보 미제공');
+
+  Yogiyo.el('riderName').textContent = name;
+  Yogiyo.el('riderMeta').textContent = [profile?.region, profile?.status].filter(Boolean).join(' · ') || '라이더 정보를 확인 중';
+  Yogiyo.el('packageState').textContent = activePackages.length ? `진행 패키지 ${activePackages.length}건` : '진행 중인 패키지 없음';
+  Yogiyo.el('packageCount').textContent = `${packages.length}건`;
+  Yogiyo.el('completedCount').textContent = `${Number(profile?.completed_order_count || 0)}건`;
+  Yogiyo.el('riderPosition').textContent = position;
+  Yogiyo.el('riderAvailability').textContent = profile?.status || '상태 정보 미제공';
+  const routeMap = currentPackage ? Yogiyo.mapData.fromRouteDetail(currentPackage.route_detail) : Yogiyo.mapData.create();
+  Yogiyo.renderMap('riderMap', Yogiyo.mapData.combine(
+    routeMap,
+    Yogiyo.mapData.fromRiderProfile({ ...profile, rider_id: riderId, meta: { selected: true } }),
+  ));
+  Yogiyo.el('riderLocationCount').textContent = '내 위치 · 5초 갱신';
+  Yogiyo.el('currentPackageSummary').textContent = currentPackage
+    ? `패키지 ${currentPackage.package_id} · ${packageStatus(currentPackage.status)}`
+    : '현재 패키지 정보가 없습니다.';
+
+  Yogiyo.el('riderPackages').innerHTML = packages.map(pkg => {
+    const orderIds = Array.isArray(pkg.order_ids) && pkg.order_ids.length ? pkg.order_ids.join(', ') : '주문 ID 정보 없음';
+    const bundleSize = Number.isFinite(Number(pkg.bundle_size)) ? `${pkg.bundle_size}건 묶음` : '묶음 수 정보 없음';
+    const score = Number.isFinite(Number(pkg.score)) ? `매칭 점수 ${Number(pkg.score).toFixed(2)}` : '매칭 점수 미제공';
+    const revenue = Number.isFinite(Number(pkg.package_revenue)) ? `예상 매출 ${Yogiyo.money(pkg.package_revenue)}` : '예상 매출 미제공';
+    const hourlyRevenue = Number.isFinite(Number(pkg.hourly_revenue)) ? `시간당 ${Yogiyo.money(pkg.hourly_revenue)}` : '시간당 수익 미제공';
+    return `<article class="card order-card"><div class="row"><div><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span><div class="order-menu">${Yogiyo.escape(pkg.package_type || '패키지')}</div><div class="order-id">패키지 ${Yogiyo.escape(pkg.package_id)} · ${Yogiyo.escape(bundleSize)}</div></div><strong>${Yogiyo.escape(score)}</strong></div><div class="notice info" style="margin-top:14px"><span>🛵</span><div><strong>주문 ${Yogiyo.escape(orderIds)}</strong><span>${Yogiyo.escape(revenue)} · ${Yogiyo.escape(hourlyRevenue)}</span></div></div><div class="route-strategy-box" style="margin-top:14px"><strong>방문 순서</strong><span>${Yogiyo.escape(routeSummary(pkg.route_detail))}</span></div><div style="margin-top:14px">${packageAction(pkg)}</div></article>`;
+  }).join('') || '<div class="state-card empty"><div class="state-icon" aria-hidden="true">⌕</div><div><strong>배정된 패키지가 없습니다.</strong><p>현재 이 라이더에게 진행 중이거나 완료된 패키지가 없습니다.</p></div></div>';
+
+  Yogiyo.el('riderPackages').querySelectorAll('[data-package-action]').forEach(button => {
+    button.addEventListener('click', event => {
+      const { packageAction: action, packageId } = event.currentTarget.dataset;
+      updatePackage(action, Number(packageId), event.currentTarget);
+    });
+  });
 }
-async function handleOffer(event){const button=event.currentTarget;await Yogiyo.withPending(button,async()=>{try{const result=await Yogiyo.apiClient.rider.offerResponse(riderId,button.dataset.package,{action:button.dataset.response});Yogiyo.toast(result.message);await loadRider();}catch(error){Yogiyo.toast(error.message);}});}
-async function handleOrderAction(event){const button=event.currentTarget;await Yogiyo.withPending(button,async()=>{try{const result=button.dataset.orderAction==='pickup'?await Yogiyo.apiClient.rider.pickup(riderId,button.dataset.order):await Yogiyo.apiClient.rider.deliver(riderId,button.dataset.order);Yogiyo.toast(result.message);await loadRider();}catch(error){Yogiyo.toast(error.message);}});}
-async function showRiderExplanation(){try{Yogiyo.openSheet();const info=await Yogiyo.apiClient.explanation('rider',riderId);Yogiyo.el('sheetHeadline').textContent=info.headline;Yogiyo.el('sheetSummary').textContent=info.summary;Yogiyo.el('sheetReasons').innerHTML=info.reasons.map(reason=>`<div class="reason-item"><div class="reason-copy"><h3>${Yogiyo.escape(reason.title)}</h3><p>${Yogiyo.escape(reason.description)}</p></div><div class="reason-metric">${Yogiyo.escape(reason.metric)}</div></div>`).join('');Yogiyo.el('sheetNote').textContent=info.note;}catch(error){Yogiyo.closeSheet();Yogiyo.toast(error.message);}}
-Yogiyo.el('riderWhyButton').addEventListener('click',showRiderExplanation);Yogiyo.bindSheet();Yogiyo.websocket('rider',riderId,loadRider);loadRider();
+
+async function fetchRiderView() {
+  const profile = await Yogiyo.apiClient.riders.profile(riderId);
+  try {
+    const response = await Yogiyo.apiClient.riders.get(riderId);
+    return { profile: { ...profile, lat: response.current_lat ?? profile.lat, lng: response.current_lng ?? profile.lng }, packages: response.packages || [] };
+  } catch (error) {
+    if (error.status === 404) return { profile, packages: [] };
+    throw error;
+  }
+}
+
+async function loadRider() {
+  try {
+    renderRider(await fetchRiderView());
+    setConnection(true);
+  } catch (error) {
+    showRiderFailure(error);
+    Yogiyo.toast(error.message);
+  }
+}
+
+async function updatePackage(action, packageId, button) {
+  await Yogiyo.withPending(button, async () => {
+    try {
+      const response = action === 'pickup'
+        ? await Yogiyo.apiClient.riders.pickup(riderId, packageId)
+        : await Yogiyo.apiClient.riders.complete(riderId, packageId);
+      Yogiyo.toast(`패키지 ${response.package_id} 상태가 ${response.status}로 변경되었습니다.`);
+      await loadRider();
+    } catch (error) {
+      showRiderFailure(error, { action: true });
+      Yogiyo.toast(error.message);
+    }
+  });
+}
+
+function bindRiderLookup() {
+  const input = Yogiyo.el('riderIdInput');
+  const button = Yogiyo.el('loadRiderButton');
+  input.value = riderId;
+  const reload = () => {
+    const nextRiderId = input.value.trim();
+    if (!nextRiderId) {
+      Yogiyo.toast('라이더 ID를 입력해 주세요.');
+      return;
+    }
+    riderId = nextRiderId;
+    currentRider = undefined;
+    locationAddress = undefined;
+    locationAddressKey = undefined;
+    locationAddressRequestId += 1;
+    loadRider();
+  };
+  button.addEventListener('click', reload);
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') reload();
+  });
+}
+
+bindRiderLookup();
+stopRiderViewPolling = Yogiyo.poll(fetchRiderView, view => {
+  renderRider(view);
+  setConnection(true);
+}, { intervalMs: 5000, onError: error => {
+  setConnection(false);
+  if (!currentRider) showRiderFailure(error);
+  console.warn("rider polling failed", error);
+} });
+window.addEventListener('beforeunload', () => {
+  stopRiderViewPolling?.();
+}, { once: true });
