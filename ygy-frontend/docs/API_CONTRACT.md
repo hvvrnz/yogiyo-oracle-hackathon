@@ -1,118 +1,214 @@
-# 프론트엔드-백엔드 API 계약
+# 실제 FastAPI API 계약
 
-이 문서는 `ygy-frontend-only`가 화면을 정상 렌더링하기 위해 `ygy-backend`에 요구하는 계약입니다. JSON 키는 프론트에서 직접 참조하므로 이름을 그대로 유지해야 합니다.
+이 문서는 `ygy-frontend`가 `ygy-backend`에 호출하는 **현재 구현 기준 계약**이다. 원본 mock 시나리오의 WebSocket, 주문 생성, 배차 제안 수락, 자동 시연 API는 실제 백엔드에 존재하지 않으며 이 문서의 범위가 아니다.
+
+최종 확인 기준은 실행 중인 서버의 `/openapi.json`과 `ygy-backend/api/routers/` 소스다.
 
 ## 공통 규칙
 
-- REST 응답 형식: `application/json`
-- 성공한 명령 응답: 최소 `{"message": "..."}`
-- 실패 응답: `{"detail": "..."}` 또는 `{"message": "..."}`
-- WebSocket 경로: 기본 `/ws/{role}/{entity_id}`. 배포 환경에서 경로가 다르면 프론트의 `VITE_API_PATHS.websocket`에 `:role`, `:entityId` 자리표시자를 사용해 변경한다.
-- 클라이언트는 20초마다 문자열 `ping`을 전송하며 서버는 `{"type":"pong"}`으로 응답
-- `pong` 이외의 메시지가 오면 해당 역할 화면이 REST 조회를 다시 수행
-- 통합 시연은 동시에 `C-001`, `S-001~S-003`, `R-001~R-003`을 조회한다. 각 ID는 독립 엔터티이며, 다른 ID의 데이터를 대신 반환하면 안 된다.
-- 하나의 묶음 배차 상태가 변경되면 관련 고객·매장·라이더의 WebSocket 채널 모두에 갱신 이벤트를 발행한다.
+- 개발 환경 Base URL은 Vite 프록시를 통한 상대 경로 `/api`다. 다른 Origin으로 배포한다면 `VITE_API_BASE_URL`을 사용한다.
+- 요청·응답 본문은 JSON이며, 오류는 FastAPI의 `{"detail":"..."}` 형식이다.
+- `order_id`, `store_id`, `package_id`는 숫자이고 `rider_id`는 `rider_102` 형태 문자열이다.
+- `menu_items`, `order_ids`, `route_detail`, `score_detail`은 JSON 문자열 또는 JSON 값으로 올 수 있다. 프론트 `static/backend-client.js`가 배열·객체로 정규화한다.
+- 서버는 WebSocket을 제공하지 않는다. 고객 화면은 담당 라이더 프로필을, 라이더 화면은 본인 프로필을 5초 간격으로 조회한다. 전체 목록 API는 역할별 화면에서 호출하지 않는다.
 
 ## 고객
 
-### `POST /api/orders`
+### `GET /api/customer/{order_id}`
 
-- 요청: `customer_id`, `store_id`, `items[]`, `delivery_preference`
-- `delivery_preference`: `SINGLE | AI_RECOMMENDED`이며, 고객이 주문 시 반드시 선택한다.
-- 주문을 `NEW`로 생성하고 해당 고객·매장 채널에 갱신 이벤트를 발행한다.
+특정 주문의 고객용 정보와 픽업지·배달지 좌표를 조회한다.
 
-### 배송 선택과 배차 결과
+```json
+{
+  "order_id": 118,
+  "store_name": "매장명",
+  "store_lat": 37.5,
+  "store_lng": 127.0,
+  "delivery_lat": 37.5,
+  "delivery_lng": 127.0,
+  "menu_items": [{"menu":"메뉴", "qty":1, "price":12000}],
+  "amount": 12000,
+  "delivery_fee": 3000,
+  "status": "MATCHING",
+  "eta_min": 18
+}
+```
 
-- 주문에는 `delivery_preference`, `delivery_preference_label`, `resolved_delivery_type`, `resolved_delivery_label`, `package_id`, `rider_id`를 포함한다.
-- `resolved_delivery_type`은 배차 계산 전 `null`이고, 이후 `SINGLE_DELIVERY | AI_BUNDLE_2 | AI_BUNDLE_3`이다.
-- `SINGLE` 주문은 언제나 `SINGLE_DELIVERY`로 처리한다.
-- `AI_RECOMMENDED` 주문은 클러스터 점수가 허용 범위 안일 때 2건 `AI_BUNDLE_2` 또는 3건 `AI_BUNDLE_3`으로 처리한다. 1건만 남거나 적합한 클러스터가 없으면 `SINGLE_DELIVERY`로 처리한다. 최대 묶음 크기는 3건이다.
-- 주문 수락 후 배차 계산 전 상태는 `MATCHING`이며 UI에는 “AI 추천 배달 분석 중”, 현재 AI 추천 주문 수, 2~3건 조건 안내를 표시한다.
+- `eta_min`은 패키지 `route_detail`의 해당 주문 `dropoff` 단계에 값이 있을 때 반환하며, 없으면 `null`이다.
+- 주문이 없으면 `404`다.
+- 현재 응답에는 `package_id`, `rider_id`, `package_status`가 없다. 고객 화면은 매장 목록에서 매장 ID를 찾고, 해당 매장 주문 목록에서 같은 주문의 `rider_id`를 찾아 담당 라이더를 식별한다.
+- 담당 라이더를 식별한 뒤에는 `GET /api/rider/{rider_id}/profile`만 5초 간격으로 폴링한다.
 
-### `GET /api/customer/{customer_id}`
+### `DELETE /api/customer/{order_id}`
 
-- `order`: `order_id`, `eta_window`, `current_message`, `delivery_sequence`, `eta_updated_label`, `status`, `status_label`, `menu_summary`, `remaining_min`, `progress_index`, `bag_time_min`, `bag_time_limit_min`, `quality_margin_min`, `quality_guard_passed`, `amount`, `request_note`, `items[] {name, quantity}`
-- `store`: `name`
-- `package`: `package_id`, `delivery_type`, `delivery_type_label`, `order_ids[]`, `status`, `bundle_reasons[]`, `route_strategy_label`, `route_strategy_description`
-- `rider`: `assigned`, `current_step_label`, `lat`, `lng`
-- `weather`: `condition`, `label`, `temperature_c`, `advisory`
-- `route[]`: 지도 좌표 객체. 각 객체는 `lat`, `lng`, `type`, `label`, `is_own` 사용
+주문을 취소한다. 성공 응답은 `{"order_id":118,"status":"CANCELLED"}`다.
+
+- 패키지가 `PICKED_UP` 또는 `COMPLETED`이면 `400`과 고객센터 안내 메시지를 반환한다.
+- 배차 전 주문은 주문만 취소한다. `MATCHING` 패키지 주문은 패키지 정책에 따라 패키지 취소·재배정을 수행할 수 있다.
+- 실제 호출은 DB 상태를 변경한다.
 
 ## 사장님
 
 ### `GET /api/merchant/{store_id}`
 
-- `store`: `name`, `category`, `prediction_accuracy_pct`, `congestion`, `base_cooking_min`
-- `summary`: `new_count`, `cooking_count`, `ready_count`
-- `orders[]`: 주문 공통 필드, 특히 `delivery_preference`, `delivery_preference_label`, `resolved_delivery_type`, `resolved_delivery_label`, `package_id`, `rider_id`, 시간 필드
-- `rider`: `assigned`, `arrival_label`, `remaining_min`, `distance_km`, `context`
-- `package`: `package_id`, `delivery_type`, `delivery_type_label`, `order_ids[]`, `status`, `assigned_rider_id`, `offers`, `bundle_reasons[]`, `route_steps[]`, `route_strategy_label`
-- `weather`: `condition`, `label`, `temperature_c`, `advisory`
-
-`store_id`는 사장님이 운영하는 단일 매장을 뜻한다. 통합 시연의 기본 매핑은 `S-001=치킨`, `S-002=버거`, `S-003=한식`이며, 응답의 `orders[]`에는 해당 매장 주문만 포함한다.
-
-### `POST /api/merchant/orders/{order_id}/action`
+특정 매장의 최근 주문 최대 20건을 조회한다.
 
 ```json
-{"action": "accept | start | ready | delay", "delay_min": 0}
+{
+  "store_id": 781,
+  "orders": [{
+    "order_id": 118,
+    "menu_items": [{"menu":"메뉴", "qty":1, "price":12000}],
+    "amount": 12000,
+    "status": "MATCHING",
+    "owner_cook_min": 20,
+    "predicted_cook_min": 18,
+    "package_id": 740,
+    "route_detail": [],
+    "rider_id": "rider_102"
+  }]
+}
 ```
 
-`delay`인 경우 화면은 `delay_min`으로 5 또는 10을 전송합니다.
+- 주문 내역이 없으면 `404`다.
+- `route_detail`에는 `pickup`·`dropoff` 단계의 방문 순서·좌표가 포함될 수 있다.
 
-### `POST /api/demo/dispatch-calculate`
+### `PUT /api/merchant/orders/{order_id}/cook-time`
 
-수락된 주문을 대상으로 배송 선택과 위의 정확히-3건 규칙을 적용해 패키지를 생성한다. 조리 완료는 배차 생성 조건이 아니며, `READY`는 픽업 활성화 조건일 뿐이다.
+사장님 설정 조리시간을 수정한다.
+
+```json
+{"owner_cook_min": 25}
+```
+
+성공 응답은 `{"order_id":118,"updated_owner_cook_min":25}`다. 주문이 없으면 `404`다.
+
+- 프론트는 5분 단위 입력을 제공한다.
+- 현재 서버는 최소값·5분 단위 제약을 검증하지 않으므로 서버 측 보강이 권장된다.
+- 실제 호출은 DB 상태를 변경한다.
 
 ## 라이더
 
-### `GET /api/rider/{rider_id}`
+### `GET /api/rider`
 
-- `rider`: `display_name`, `vehicle`, `status_label`, `lat`, `lng`
-- `packages[]`: 각 항목은 `package_id`, `delivery_type`, `delivery_type_label`, `order_ids[]`, `status`, `offers`, `bundle_reasons[]`, `estimated_duration_min`, `total_distance_km`, `package_revenue`, `hourly_revenue`, `route_steps[]`, `current_step`, `accepted`, `can_accept`
-- `steps[]`: `sequence`, `status`, `is_current`, `destination`, `address`, `distance_km`, `duration_min`, `eta_label`, `label`, `lat`, `lng`, `type`
-- `store_readiness[]`: `status`, `status_label`, `store_name`, `remaining_min`, `ready_at`
-- `weather`: `condition`, `label`, `travel_delay_min`, `advisory`
-
-라이더가 현재 제안 또는 배정 대상이 아니어도 해당 라이더의 실제 상태를 반환한다. `can_accept`은 현재 제안을 받은 라이더에게만 `true`여야 하며, `status_label`로 가용·재배차 후보·다른 주문 수행 중 상태를 구분한다.
-
-### `POST /api/rider/{rider_id}/packages/{package_id}/offer-response`
+지도용 전체 라이더 목록을 Redis의 현재 위치와 함께 반환한다.
 
 ```json
-{"action":"accept | decline"}
+{
+  "count": 500,
+  "riders": [{
+    "rider_id": "rider_102",
+    "name": "라이더명",
+    "region": "강남",
+    "status": "BUSY",
+    "completed_order_count": 12,
+    "lat": 37.5,
+    "lng": 127.0
+  }]
+}
 ```
 
-새 패키지는 모든 가용 라이더에게 동시에 `offers.{rider_id}.status="OFFERED"`를 생성한다. 한 라이더는 복수 제안을 동시에 조회할 수 있다. 첫 번째 `accept`만 성공시키고 해당 package의 수락 라이더는 `ACCEPTED`, 나머지는 `CANCELLED`로 원자적으로 전환한다. 이후 중복 수락은 실패 응답이어야 한다.
+- 고객·라이더 역할 화면은 이 API를 호출하지 않는다. 전체 라이더 관제 화면을 추가할 때는 별도 성능 최적화와 권한 설계가 필요하다.
+- 위치가 없으면 `lat`, `lng`는 `null`이다.
 
-### 주문별 운행 처리
+### `GET /api/rider/{rider_id}/profile`
 
-- `POST /api/rider/{rider_id}/orders/{order_id}/pickup`: 현재 순서이며 주문이 `READY`일 때만 `PICKED_UP`으로 변경
-- `POST /api/rider/{rider_id}/orders/{order_id}/deliver`: 현재 순서이며 주문이 `PICKED_UP`일 때만 `DELIVERED`로 변경
-- 주문 응답에는 `created_at`, `accepted_at`, `cooking_started_at`, `ready_at`, `picked_up_at`, `delivered_at`, `eta_at`을 포함한다. 상태 변경 뒤 고객별 ETA를 재계산한다.
-- 각 패키지는 `route_steps[]`로 주문별 픽업·배송 순서를 제공한다. 현재 순서의 `READY` 주문만 pickup 가능하며, `PICKED_UP` 주문만 deliver 가능하다.
+라이더 프로필과 위치를 반환한다.
 
-## 추천 설명
+```json
+{"rider_id":"rider_102","name":"라이더명","region":"강남","status":"BUSY","completed_order_count":12,"lat":37.5,"lng":127.0}
+```
 
-### `GET /api/explanations/{role}/{entity_id}`
+라이더가 없으면 `404`다.
 
-`role`은 `customer`, `merchant`, `rider` 중 하나입니다.
+### `GET /api/rider/{rider_id}`
 
-- `headline`, `summary`, `note`, `source`
-- `reasons[]`: `title`, `description`, `metric`
+특정 라이더에게 배정된 패키지와 위치를 반환한다.
 
-## 통합 시연
+```json
+{
+  "rider_id": "rider_102",
+  "current_lat": 37.5,
+  "current_lng": 127.0,
+  "packages": [{
+    "package_id": 740,
+    "package_type": "BUNDLE",
+    "status": "MATCHING",
+    "bundle_size": 2,
+    "score": 0.9,
+    "package_revenue": 6000,
+    "hourly_revenue": 18000,
+    "order_ids": [118, 119],
+    "route_detail": [],
+    "score_detail": {},
+    "created_at": "..."
+  }]
+}
+```
 
-### 조회
+배정 패키지가 없으면 `404`다. 프로필 존재 여부와는 별개다.
 
-- `GET /api/state`: `version`, `simulation_clock`, `route_strategy`, `simulation_running`, `orders`, `packages`, `riders`, `events[] {type, message, occurred_at}`
+### `PUT /api/rider/{rider_id}/package/{package_id}/pickup`
 
-`packages`는 복수 package ID 키를 사용하고, `riders`는 적어도 `R-001`, `R-002`, `R-003`의 상태를 ID 키로 반환한다.
+패키지 상태를 `PICKED_UP`으로 변경한다. 성공 응답은 `{"package_id":740,"status":"PICKED_UP"}`다.
 
-`GET /api/state`에는 복수 `packages`와 각 package의 `offers` 객체, `simulation_clock`, 주문별 `eta_at`도 포함한다. 실제 서버 구현은 REST 상태 변경마다 관계된 고객·사장님·라이더·시연 WebSocket 채널로 갱신 이벤트를 브로드캐스트해야 한다.
+### `PUT /api/rider/{rider_id}/package/{package_id}/complete`
 
-### 명령
+패키지 상태를 `COMPLETED`로 변경하고, 라이더 완료 건수를 증가시키며 Redis에서 라이더를 배정 가능 상태로 변경한다. 성공 응답은 `{"package_id":740,"status":"COMPLETED"}`다.
 
-- `POST /api/demo/weather`: `{"condition":"RAIN | CLEAR"}`
-- `POST /api/demo/strategy`: `{"strategy":"MIXED | PICKUPS_FIRST"}`. 제안 중인 패키지의 경로 순서와 ETA를 다시 계산한다.
-- `POST /api/demo/next-step`: 가상 시각을 1분 진행하고, 라이더 위치와 조리 상태를 한 단계 갱신한다.
-- `POST /api/demo/simulation`: `{"running":true | false}`. mock 통합 시연은 `true`일 때 3초마다 다음 단계를 진행한다.
-- 빈 JSON 객체로 호출: `/api/demo/dispatch-calculate`, `/api/demo/reset`
+- 두 요청 모두 해당 라이더의 패키지가 없으면 `404`다.
+- 실제 호출은 DB와 Redis 상태를 변경한다.
+- 현재 서버는 선행 상태를 엄격히 검사하지 않으므로 운영 전 `MATCHING → PICKED_UP → COMPLETED` 상태 전이 검증이 필요하다.
+
+## 매장
+
+### `GET /api/stores`
+
+지도용 전체 매장 목록을 반환한다.
+
+```json
+{"count":10,"stores":[{"store_id":781,"name":"매장명","category":"치킨","region":"강남","lat":37.5,"lng":127.0,"avg_delivery_eta_min":25}]}
+```
+
+## 설명
+
+### `GET /api/explanation/context/{package_id}`
+
+LLM 프롬프트용 패키지와 연결 주문 데이터를 반환한다.
+
+```json
+{"package":{"package_id":740},"orders":[{"order_id":118}]}
+```
+
+### `POST /api/explanation`
+
+고객용·라이더용 설명을 저장한다.
+
+```json
+{"package_id":740,"consumer_text":"고객 안내 문구","rider_text":"라이더 안내 문구"}
+```
+
+### `GET /api/explanation/{package_id}`
+
+가장 최근에 저장된 설명을 반환한다. 저장 데이터가 없으면 `404`다.
+
+현재 API는 설명 **생성**을 수행하지 않는다. API 키를 브라우저에 노출하지 않도록 생성은 별도 서버 API로 구현해야 한다.
+
+## 기본 시연 데이터
+
+| 역할 | 기본 ID | 관련 패키지 |
+| --- | ---: | ---: |
+| 고객 | 주문 `118` | `740` |
+| 사장님 | 매장 `781` | `740` |
+| 라이더 | `rider_102` | `740` |
+
+통합 시연은 고객 1개, 사장님 3개, 라이더 3개 패널을 사용한다. 전체 연결 데이터는 `docs/REAL_DEMO_DATA.md`와 현재 DB 상태를 함께 확인한다.
+
+## 제공하지 않는 기능
+
+다음은 기존 mock 전용 기능이며 실제 FastAPI로 대체되지 않는다.
+
+- 고객 신규 주문 생성과 배송 방식 선택
+- 배차 제안·수락·거절, 주문별 픽업·배달 처리
+- WebSocket, 날씨·경로 전략·자동 진행·초기화 API
+- 고객·사장님·라이더별 구조화된 LLM 추천 카드 생성

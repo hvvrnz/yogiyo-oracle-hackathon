@@ -1,58 +1,68 @@
-# 화면 제어와 필요 데이터 목록
+# 실제 화면 제어와 API 데이터 매핑
 
-현재 화면은 `static/common.js`의 mock API를 기본으로 사용한다. 실제 FastAPI 연동 시 `VITE_USE_MOCK=false`와 `VITE_API_BASE_URL`을 설정하면 같은 화면 코드가 REST 응답을 사용한다. 아래 키는 화면 구현을 위한 **임시 제안 키**이며, 백엔드 계약 확정 후 공통 API 경계에서 매핑한다.
+이 문서는 `VITE_USE_MOCK=false`일 때 현재 화면에서 실제로 호출하는 API와 렌더링 데이터를 기록한다. mock 전용 제어는 범위에서 제외한다.
 
-## 고객 화면 (`/customer`)
+## 공통 데이터 처리
 
-| 제어 | 변경되는 화면 | 필요한 데이터 |
-| --- | --- | --- |
-| 주문하기 | 새 주문 생성 후 주문 번호·상태·ETA·주문 정보 갱신 | `POST /api/orders` 본문: `customer_id`, `store_id`, `delivery_preference` |
-| AI 추천 사유 자세히 보기 | bottom sheet 제목, 요약, 근거 3개, 안내문 | `headline`, `summary`, `reasons[] {title, description, metric}`, `note`, `source` |
-| 주문 상태 갱신(WebSocket/API) | ETA, 상태 배지, 진행 단계, 묶음 정보, 지도, 날씨 | `order`, `package`, `rider`, `weather`, `route[]` |
+- 구현 위치: `static/backend-client.js`
+- 기본 ID: 주문 `118`, 매장 `781`, 라이더 `rider_102`
+- `menu_items`, `order_ids`, `route_detail`, `score_detail`은 문자열 JSON 또는 객체 모두를 정규화한다.
+- API 오류의 `detail`을 오류 카드·토스트로 표시하며, 조회 실패 화면에는 재시도 동작이 있다.
+- 고객 화면은 담당 라이더 프로필만, 라이더 화면은 본인 프로필·패키지만 5초 폴링한다. 역할별 화면은 전체 라이더 목록을 호출하지 않는다.
 
-고객은 주문을 생성할 수 있으며, 조리·배차·픽업·배달 상태는 사장님·라이더 액션 또는 WebSocket 갱신 뒤 조회 데이터로 반영한다.
+## 고객 화면 (`/customer?orderId={order_id}`)
 
-## 사장님 화면 (`/merchant`)
-
-| 버튼 | 변경되는 값 | 요청 데이터 | 갱신에 필요한 응답 데이터 |
+| 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
-| 주문 수락 | 주문 상태/라벨, 신규·조리 건수 | `POST /api/merchant/orders/{order_id}/action`, `{"action":"accept"}` | `orders[]`, `summary`, `package` |
-| 조리 시작 | 주문 상태/라벨, 조리 건수 | `POST /api/merchant/orders/{order_id}/action`, `{"action":"start"}` | `orders[]`, `summary`, `package` |
-| +5분 / +10분 | 조리 예상시간, 관련 패키지 ETA·추천 문구 | `POST /api/merchant/orders/{order_id}/action`, `{"action":"delay","delay_min":5|10}` | `orders[]`, `rider`, `package` |
-| 조리 완료 | 상태/라벨, 준비 완료 건수, 라이더 대기 정보 | `POST /api/merchant/orders/{order_id}/action`, `{"action":"ready"}` | `orders[]`, `summary`, `rider`, `package` |
-| 추천 근거 | bottom sheet 내용 | `role: "merchant"`, `entityId: storeId` | `headline`, `summary`, `reasons[]`, `note` |
+| 주문 조회 | `GET /api/customer/{order_id}` | 매장명·좌표, 배달 좌표, 메뉴, 금액, 상태, ETA | 주문 카드와 픽업지·배달지 카카오맵 마커 렌더링(키 미설정 시 SVG fallback) |
+| 매장 식별 | `GET /api/stores` | 매장 ID, 이름, 좌표 | 주문 응답의 매장명·좌표와 대조해 매장 ID를 찾음 |
+| 담당 라이더 식별 | `GET /api/merchant/{store_id}` | 현재 주문의 `rider_id` | 같은 주문 ID를 찾아 담당 라이더를 식별 |
+| 담당 라이더 위치 | `GET /api/rider/{rider_id}/profile` | 이름, `lat`, `lng` | 담당 라이더 1명만 5초 폴링해 카카오맵 마커 갱신(키 미설정 시 SVG fallback) |
+| 주문 취소 | `DELETE /api/customer/{order_id}` | `order_id`, `status` | 성공 후 주문 정보를 재조회 |
+| 취소 불가 안내 | `DELETE`의 `400` | `detail` | 고객센터 안내 오류 표시 |
 
-## 라이더 화면 (`/rider`)
+고객 API에는 `package_id`, `rider_id`, `package_status`가 없지만, 프론트가 매장 목록과 매장 주문 목록을 조합해 담당 라이더를 식별한다. 매장명이 중복되어 좌표로 매장을 확정할 수 없거나 배정 전이면 주문 지도만 표시한다.
 
-| 버튼 | 변경되는 값 | 요청 데이터 | 갱신에 필요한 응답 데이터 |
+## 사장님 화면 (`/merchant?storeId={store_id}`)
+
+| 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
-| AI 묶음 수락(2~3건) | 배차 상태, 현재 단계, 액션 버튼, 지도 | `POST /api/rider/{rider_id}/packages/{package_id}/offer-response`, `{"action":"accept"}` | `rider`, `packages[]`, `package`, `steps[]` |
-| 거절 | 해당 라이더의 제안 상태, 남은 제안 또는 대기 상태 | `POST /api/rider/{rider_id}/packages/{package_id}/offer-response`, `{"action":"decline"}` | `rider`, `packages[]`, `package` |
-| 픽업 완료 | 현재 픽업 단계 완료, 다음 경로 활성화 | `POST /api/rider/{rider_id}/orders/{order_id}/pickup` | `package.current_step`, `package.status`, `steps[]` |
-| 배달 완료 | 현재 배달 단계 완료, 다음 경로 또는 패키지 완료 상태 | `POST /api/rider/{rider_id}/orders/{order_id}/deliver` | `package.current_step`, `package.status`, `steps[]` |
-| 추천 근거 | bottom sheet 내용 | `role: "rider"`, `entityId: riderId` | `headline`, `summary`, `reasons[]`, `note` |
+| 매장 주문 목록 | `GET /api/merchant/{store_id}` | `orders[]`의 주문·조리시간·패키지·라이더·경로 | 주문 목록과 배차/방문 순서 렌더링 |
+| 조리시간 수정 | `PUT /api/merchant/orders/{order_id}/cook-time` | `updated_owner_cook_min` | 성공 후 주문 목록 재조회 |
+| 매장 지도 | `GET /api/stores` | 매장 ID, 이름, 좌표 | 매장 정보 보강·마커 렌더링 |
 
-## 통합시연 화면 (`/demo`)
+현재 API에 없는 매장 혼잡도, 예측 정확도, 라이더 도착 ETA는 추정값처럼 표시하지 않는다.
 
-통합 시연은 큰 고객 화면 1개, 사장님 `S-001~S-003`, 라이더 `R-001~R-003`을 2×4로 표시한다. 고객 화면 상단의 전환 버튼으로 `C-001~C-003`을 바꿔 볼 수 있으며, 고객과 매장은 `C-001↔S-001(치킨)`, `C-002↔S-002(버거)`, `C-003↔S-003(한식)`으로 대응한다. 모든 제어 뒤에는 `version`, `packages`, `riders`, `events[]`를 다시 조회해 상단 요약, 모든 내장 역할 화면, 이벤트 로그를 갱신한다.
+## 라이더 화면 (`/rider?riderId={rider_id}`)
 
-| 제어 | 변경되는 값 | 요청 데이터 |
+| 제어 또는 표시 | API | 응답 데이터 | 동작 |
+| --- | --- | --- | --- |
+| 라이더 프로필 | `GET /api/rider/{rider_id}/profile` | 이름, 권역, 상태, 완료 건수, 좌표 | 선택 라이더 정보와 카카오맵 좌표→주소 변환 결과 렌더링 |
+| 배정 패키지 | `GET /api/rider/{rider_id}` | `packages[]`의 유형·상태·수익·주문 ID·경로·점수 | 패키지 목록과 경로 렌더링 |
+| 내 운행 지도 | `GET /api/rider/{rider_id}/profile`, `GET /api/rider/{rider_id}` | 본인 좌표, 패키지 경로 | 본인 위치와 배정 패키지 경로만 5초 갱신하며 카카오맵에 표시(키 미설정 시 SVG fallback) |
+| 픽업 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/pickup` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |
+| 배달 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/complete` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |
+
+API 상태 변경은 패키지 단위다. 주문별 픽업·배달 진행이나 배차 제안 수락/거절 UI는 실제 모드에서 제공하지 않는다.
+
+## 통합 시연 (`/demo`)
+
+통합 시연은 실제 DB를 변경하지 않는 조회 중심 화면이다.
+
+| 패널 | 기본 연결 |
+| --- | --- |
+| 고객 1개 | 주문 `118` |
+| 사장님 3개 | 매장 `781`, `467`, `273` |
+| 라이더 3개 | `rider_102`, `rider_103`, `rider_105` |
+
+각 역할 화면은 독립적으로 API를 조회한다. 취소·조리시간 수정·패키지 픽업/완료는 실제 API 모드에서 DB 상태를 바꾸므로 별도 테스트 데이터에서만 실행한다.
+
+## 설명 API 연동 범위
+
+| 기능 | API | 현재 화면 적용 |
 | --- | --- | --- |
-| 데이터 적용 | 선택한 1·2·3건 데이터 세트, 패키지·이벤트 | 화면에서 `demoDataset`을 읽어 mock의 초기화·주문 생성·수락·배차 호출을 순서대로 실행 |
-| 다음 단계 진행 | 주문 생성·배차 수락·조리·픽업·배달 중 다음 단계, 라이더 좌표, ETA, 이벤트 | `POST /api/demo/next-step` |
-| 현재 라이더 수락 | 라이더/패키지 배차 상태, 이벤트 | 현재 `OFFERED` 라이더의 `accept` |
-| 현재 라이더 거절 / 응답 시간 만료 | 해당 라이더 offer 상태, 다음 제안, 이벤트 | 현재 `OFFERED` 라이더의 `decline` |
-| 버거 매장 +7분 지연 | 주문 조리 상태·예상 시간·ETA, 이벤트 | 버거 주문 생성/조리 시작 후 `delay_min: 7` |
-| 신규 주문 만들기 | 주문 수·패키지 요약·이벤트 | 진행 중 주문이 없는 다음 시연 고객에 주문 생성 |
-| 혼합 최적화 / 전체 픽업 후 배달 | 제안 중 패키지의 경로·ETA·전략 문구, 이벤트 | `POST /api/demo/strategy` |
-| 비 / 맑음 시나리오 | 고객·사장님·라이더 날씨 정보, 이동 보정, 모든 ETA | `condition` |
-| 자동 시연 시작 / 일시정지 | 3초 단위로 AI 추천 3건 주문 생성부터 배차 수락·조리·픽업·배달 완료까지 진행, 현재 경로 방향으로 라이더 좌표 이동, 이벤트 | `POST /api/demo/simulation` |
-| 전체 초기화 | 모든 mock 상태와 이벤트 | 없음 |
+| LLM 프롬프트 재료 조회 | `GET /api/explanation/context/{package_id}` | API 클라이언트 제공, 생성 UI 미구현 |
+| 설명 저장 | `POST /api/explanation` | API 클라이언트 제공, 생성 UI 미구현 |
+| 최근 설명 조회 | `GET /api/explanation/{package_id}` | API 클라이언트 제공, 표시 UI 미구현 |
 
-## FastAPI 전환 지점
-
-- mock 데이터와 mock 명령 처리: `static/common.js`의 `mock`, `mockApi()`
-- 실제 요청 경계: 같은 파일의 `api()`, `apiClient`
-- 화면 렌더링: `static/customer/app.js`, `static/merchant/app.js`, `static/rider/app.js`, `static/demo/app.js`
-
-따라서 API 경로나 응답 형태가 바뀌더라도 가능하면 `apiClient` 또는 그 직전의 응답 매핑만 수정하고, 화면 렌더링 파일은 유지한다.
+LLM 생성은 서버에서 수행해야 하며, API 키를 프론트 환경변수나 브라우저 코드에 두면 안 된다.
