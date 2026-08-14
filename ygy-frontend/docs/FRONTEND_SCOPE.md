@@ -1,44 +1,68 @@
-# 프론트엔드 분리 범위
+# 프론트엔드 구현 범위
 
-## 원본 구조 분석
+## 현재 구조
 
-`ygy-frontend`는 하나의 디렉터리에 다음 두 영역을 함께 가지고 있었습니다.
+`ygy-frontend`는 Vite 기반의 정적 화면 셸과 역할별 DOM 스크립트로 구성된다.
 
-- 프론트엔드: React/Vite 진입점, 역할별 HTML·JavaScript, 공통 CSS, 지도 렌더러, 정적 아이콘
-- 백엔드: FastAPI 라우터, WebSocket, 인메모리 상태, 배차·경로 최적화, 더미 데이터, 배치와 외부 서비스 연동
+- `frontend/src/main.jsx`: URL에 맞는 정적 HTML 템플릿과 화면 스크립트를 로드한다.
+- `static/common.js`: 공통 DOM 도구, 토스트, 상태 표시를 제공한다.
+- `static/backend-client.js`: 실제 FastAPI 요청, 오류 처리, 응답 정규화, 폴링을 담당한다.
+- `static/mock-client.js`: `VITE_USE_MOCK=true`일 때만 로드되는 개발용 mock 상태와 API 클라이언트다.
+- `static/map-data.js`: 매장·배달지·라이더 좌표를 공통 마커 데이터로 만들고 SVG 지도를 렌더링한다.
+- `static/customer`, `static/merchant`, `static/rider`, `static/demo`: 역할별 화면 렌더링과 액션 처리 코드다.
 
-React 진입점은 역할별 화면을 React 컴포넌트로 새로 그리지 않고 기존 HTML을 템플릿으로 읽어 본문과 인라인 스타일을 삽입합니다. 그 후 공통 브라우저 코드와 역할별 코드를 전역 범위에서 실행해 mock 또는 REST·WebSocket 기반 상호작용을 연결합니다. 즉 React는 Vite 진입점·페이지 셸이며, 화면 상태 갱신은 `static/`의 DOM 코드가 담당합니다.
+React는 역할별 화면을 새로 구현하는 계층이 아니라 Vite 진입점·정적 템플릿 로더 역할을 한다. 화면 갱신은 `static/`의 DOM 코드가 담당한다.
 
-## 포함한 프론트엔드 기능
+## 포함 기능
 
-- 시작 화면과 고객·사장님·라이더·통합 시연 화면
-- 반응형 모바일 셸과 데스크톱 통합 콘솔
-- 주문/조리/배차 상태 표시 및 역할별 액션
-- localStorage 기반 mock 상태·탭/iframe 동기화, REST 오류 처리, 토스트, 추천 설명 bottom sheet
-- WebSocket 연결 상태, 재연결, ping/pong, 상태 갱신
-- 개인정보를 노출하지 않는 SVG 시연용 경로 지도
-- 쿼리 매개변수 `customerId`, `storeId`, `riderId`
-- 개발 프록시와 분리 배포용 API/WebSocket Origin 설정
+- 고객 주문 조회·취소
+- 사장님 매장 주문 목록 조회·조리시간 수정
+- 라이더 프로필·배정 패키지 조회·패키지 픽업/완료
+- 매장·주문 출발/도착·전체 라이더 위치를 사용하는 SVG 지도
+- 전체 라이더 위치 5초 폴링
+- 404, 빈 데이터, 서버 오류, 재시도 안내
+- 고객 1개·사장님 3개·라이더 3개 실제 데이터 통합 시연
+- `VITE_USE_MOCK`으로 분리된 개발용 mock 모드
 
-## 제외한 백엔드 기능
+## 실제 API 모드와 mock 모드
 
-다음 원본 영역은 `ygy-frontend-only`에 복사하지 않았습니다.
+기본 모드는 `VITE_USE_MOCK=false`인 실제 API 모드다.
 
-- `api/`, `app.py`: FastAPI REST·WebSocket·페이지 서빙
-- `common/`, `state.py`, `models.py`: 설정·모델·공통 상태·설명 생성
-- `sequencing_engine/`: 배차 및 경로 최적화
-- `stream_processor/`: 주문 클러스터링과 이벤트 처리
-- `vector_search/`, `services/`: 임베딩 및 외부 서비스 경계
-- `batch/`, `scripts/`, `data/`: 배치, 데이터 생성기, 시연 데이터
-- `requirements.txt`, Python 테스트와 실행 스크립트
+```dotenv
+VITE_USE_MOCK=false
+VITE_BACKEND_PROXY_TARGET=http://127.0.0.1:8000
+VITE_DEFAULT_ORDER_ID=118
+VITE_DEFAULT_STORE_ID=781
+VITE_DEFAULT_RIDER_ID=rider_102
+```
 
-이 기능들은 새 `ygy-backend`에서 구현하며, 프론트와의 접점은 [API_CONTRACT.md](API_CONTRACT.md)의 REST/WebSocket 계약뿐입니다.
+- 실제 API 모드: `static/backend-client.js`를 사용해 FastAPI를 호출한다. 상태 변경 요청은 실제 DB·Redis 상태에 영향을 준다.
+- mock 모드: `static/mock-client.js`를 사용한다. 상태는 브라우저 `localStorage`에만 저장된다.
+- Vite 개발 서버는 `/api`, `/docs`, `/openapi.json` 요청을 `VITE_BACKEND_PROXY_TARGET`으로 프록시한다.
 
-## 브라우저 실행 흐름
+## 현재 제외하거나 미구현인 범위
 
-1. `frontend/src/main.jsx`가 URL 경로에 해당하는 HTML 템플릿을 선택합니다.
-2. 공통 CSS와 템플릿의 인라인 스타일로 원본 화면을 재현합니다.
-3. `static/common.js`가 mock 상태 또는 API 주소, 공통 UI와 WebSocket을 구성합니다.
-4. 역할별 화면은 `static/common.js`의 SVG 경로 지도를 갱신합니다.
-5. 역할별 `app.js`와 랜딩의 `static/landing/app.js`가 화면 상태를 읽어 DOM을 갱신합니다.
-6. mock은 브라우저 저장소 이벤트, 실제 연동은 WebSocket 이벤트가 오면 해당 조회를 다시 실행해 최신 상태를 반영합니다.
+- 카카오맵 SDK 렌더러와 마커 클러스터링
+- 서버 측 LLM 설명 생성 API와 고객/라이더용 설명 표시 UI
+- 주문 생성, 배송 방식 선택, 배차 제안·수락·거절
+- 주문별 픽업·배달 상태 변경
+- WebSocket 기반 상태 푸시
+- 날씨, 경로 전략, 자동 진행, 전체 초기화 시연 제어
+
+이 항목들은 실제 FastAPI가 제공하지 않거나 추가 구현이 필요한 기능이다. mock 전용 기능을 실제 API 기능처럼 표시하지 않는다.
+
+## 지도 교체 경계
+
+현재 지도는 SVG fallback이다. 카카오맵으로 교체할 때에도 역할 화면은 `Yogiyo.mapData`로 만든 공통 데이터를 사용하고, `Yogiyo.renderMap` 구현만 카카오맵 렌더러로 대체하는 구조를 유지한다.
+
+## 백엔드와의 책임 분리
+
+프론트는 API를 호출하고 사용자 상태를 표현한다. 다음은 백엔드 책임이다.
+
+- Oracle DB·Redis 접근과 패키지/주문 상태 변경
+- 패키지 상태 전이 검증 및 주문 상태 동기화
+- 라이더 위치 조회 성능과 전체 목록 폴링 부하 관리
+- LLM 키 관리, 프롬프트 생성, 설명 생성·저장
+- 배포 시 CORS와 인증·권한 검증
+
+실제 API 경로와 응답은 [API_CONTRACT.md](API_CONTRACT.md), 화면별 매핑은 [CONTROL_DATA_MAPPING.md](CONTROL_DATA_MAPPING.md)를 기준으로 한다.
