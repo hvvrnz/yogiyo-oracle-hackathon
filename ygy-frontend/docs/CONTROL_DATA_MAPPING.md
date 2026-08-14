@@ -26,11 +26,11 @@
 
 | 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
-| 매장 주문 목록 | `GET /api/merchant/{store_id}` | `orders[]`의 주문·조리시간·패키지·라이더·경로 | 주문 목록과 배차/방문 순서 렌더링 |
+| 매장 주문 목록 | `GET /api/merchant/{store_id}` | `orders[]`의 주문·조리시간·패키지·라이더 ID·라이더 이름·도착 ETA·경로 | 주문 목록에 `라이더명 (rider_id)`, ETA, 한글 주문 상태와 배차/방문 순서를 렌더링 |
 | 조리시간 수정 | `PUT /api/merchant/orders/{order_id}/cook-time` | `updated_owner_cook_min` | 성공 후 주문 목록 재조회 |
 | 매장 지도 | `GET /api/stores` | 매장 ID, 이름, 좌표 | 매장 정보 보강·마커 렌더링 |
 
-현재 API에 없는 매장 혼잡도, 예측 정확도, 라이더 도착 ETA는 추정값처럼 표시하지 않는다.
+`eta_min`이 있으면 실제 API 값으로 “도착 예상: 약 N분”을 표시하고, 없으면 “도착 시간 정보 없음”으로 표시한다. `PICKED_UP`, `DELIVERED`는 각각 “픽업 완료”, “배달 완료”로 표시한다.
 
 ## 라이더 화면 (`/rider?riderId={rider_id}`)
 

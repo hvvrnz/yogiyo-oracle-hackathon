@@ -69,7 +69,8 @@
         if (!store || !orders.length) throw createError('해당 매장의 주문 내역이 없습니다.', 404);
         return clone({ store_id: store.store_id, orders: orders.map(order => {
           const pkg = order.package_id && findPackage(order.package_id);
-          return { order_id: order.order_id, menu_items: order.menu_items, amount: order.amount, status: order.status, owner_cook_min: order.owner_cook_min ?? 15, predicted_cook_min: order.predicted_cook_min ?? 15, package_id: order.package_id, route_detail: pkg?.route_detail || [], rider_id: pkg?.rider_id ?? null };
+          const rider = pkg?.rider_id ? state.riders[pkg.rider_id] : null;
+          return { order_id: order.order_id, menu_items: order.menu_items, amount: order.amount, status: order.status, owner_cook_min: order.owner_cook_min ?? 15, predicted_cook_min: order.predicted_cook_min ?? 15, package_id: order.package_id, route_detail: pkg?.route_detail || [], rider_id: pkg?.rider_id ?? null, rider_name: rider?.name ?? null, eta_min: order.eta_min };
         }) });
       },
       updateCookTime: async (orderId, ownerCookMin) => {

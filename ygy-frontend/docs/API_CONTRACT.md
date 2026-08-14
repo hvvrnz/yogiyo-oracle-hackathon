@@ -64,18 +64,22 @@
     "order_id": 118,
     "menu_items": [{"menu":"메뉴", "qty":1, "price":12000}],
     "amount": 12000,
-    "status": "MATCHING",
+    "status": "MATCHED",
     "owner_cook_min": 20,
     "predicted_cook_min": 18,
     "package_id": 740,
     "route_detail": [],
-    "rider_id": "rider_102"
+    "rider_id": "rider_102",
+    "rider_name": "라이더명",
+    "eta_min": 12
   }]
 }
 ```
 
 - 주문 내역이 없으면 `404`다.
 - `route_detail`에는 `pickup`·`dropoff` 단계의 방문 순서·좌표가 포함될 수 있다.
+- 각 주문의 `rider_name`, `eta_min`은 배정 라이더 이름과 도착 예상 시간이다. ETA가 없으면 프론트는 “도착 시간 정보 없음”으로 표시한다.
+- 주문 상태 `PICKED_UP`, `DELIVERED`는 각각 픽업 완료, 배달 완료로 표시한다.
 
 ### `PUT /api/merchant/orders/{order_id}/cook-time`
 

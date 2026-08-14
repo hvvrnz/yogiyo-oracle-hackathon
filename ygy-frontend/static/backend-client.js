@@ -93,6 +93,7 @@
             route_detail: normalizeRoute(order.route_detail),
             owner_cook_min: toNumber(order.owner_cook_min),
             predicted_cook_min: toNumber(order.predicted_cook_min),
+            eta_min: toNumber(order.eta_min),
           })),
         };
       },
