@@ -41,6 +41,23 @@ window.Yogiyo = (() => {
     window.clearTimeout(node._timer);
     node._timer = window.setTimeout(() => node.classList.remove('show'), 2600);
   };
+  const errorMessage = (error, subject = '데이터') => {
+    if (error?.status === 404) return `${subject}을 찾을 수 없습니다. 입력한 ID를 확인해 주세요.`;
+    return error?.message || `${subject}을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.`;
+  };
+  const renderLoadState = (containerId, { title, description, tone = 'error', onRetry } = {}) => {
+    const container = el(containerId);
+    if (!container) return;
+    container.hidden = false;
+    container.innerHTML = `<div class="state-card ${tone}"><div class="state-icon" aria-hidden="true">${tone === 'empty' ? '⌕' : '!'}</div><div><strong>${escape(title || '데이터를 불러오지 못했습니다.')}</strong><p>${escape(description || '잠시 후 다시 시도해 주세요.')}</p>${onRetry ? '<button type="button" class="ghost-button state-retry">다시 시도</button>' : ''}</div></div>`;
+    container.querySelector('.state-retry')?.addEventListener('click', onRetry);
+  };
+  const clearLoadState = containerId => {
+    const container = el(containerId);
+    if (!container) return;
+    container.hidden = true;
+    container.replaceChildren();
+  };
   const pendingButtons = new WeakSet();
   const withPending = async (button, task) => {
     if (!button || pendingButtons.has(button)) return;
@@ -102,7 +119,7 @@ window.Yogiyo = (() => {
   const dispose = () => { while (cleanups.length) cleanups.pop()(); };
 
   return {
-    qs, el, money, fmtTime, escape, toast, withPending, poll, openSheet, closeSheet, bindSheet, dispose,
+    qs, el, money, fmtTime, escape, toast, errorMessage, renderLoadState, clearLoadState, withPending, poll, openSheet, closeSheet, bindSheet, dispose,
     api: request,
     apiUrl: path => `${apiBaseUrl}${path}`,
     apiClient: Object.freeze({}),

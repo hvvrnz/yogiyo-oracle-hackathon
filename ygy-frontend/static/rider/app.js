@@ -1,5 +1,17 @@
 const initialRiderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let riderId = initialRiderId;
+let currentRider;
+
+const setContentVisible = visible => { Yogiyo.el('riderContent').hidden = !visible; };
+const showRiderFailure = (error, { action = false } = {}) => {
+  setConnection(false);
+  if (!currentRider) setContentVisible(false);
+  Yogiyo.renderLoadState('riderLoadState', {
+    title: action ? '패키지 상태를 변경하지 못했습니다.' : error?.status === 404 ? '라이더를 찾을 수 없습니다.' : '라이더 정보를 불러오지 못했습니다.',
+    description: action ? Yogiyo.errorMessage(error, '패키지 처리') : Yogiyo.errorMessage(error, '라이더'),
+    onRetry: () => loadRider(),
+  });
+};
 
 const packageStatusLabels = Object.freeze({
   MATCHING: '배차 진행 중',
@@ -23,7 +35,7 @@ const routeSummary = route => {
   return route
     .slice()
     .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0))
-    .map(step => `주문 ${step.order_id ?? '-'} ${step.type === 'pickup' ? '픽업' : step.type === 'delivery' ? '배달' : '경유'}`)
+    .map(step => `주문 ${step.order_id ?? '-'} ${step.type === 'pickup' ? '픽업' : ['delivery', 'dropoff'].includes(step.type) ? '배달' : '경유'}`)
     .join(' → ');
 };
 
@@ -34,6 +46,9 @@ const packageAction = pkg => {
 };
 
 function renderRider({ profile, packages }) {
+  currentRider = { profile, packages };
+  setContentVisible(true);
+  Yogiyo.clearLoadState('riderLoadState');
   const activePackages = packages.filter(pkg => !['COMPLETED', 'CANCELLED'].includes(pkg.status));
   const currentPackage = activePackages[0] || packages[0];
   const name = profile?.name || riderId;
@@ -60,7 +75,7 @@ function renderRider({ profile, packages }) {
     const revenue = Number.isFinite(Number(pkg.package_revenue)) ? `예상 매출 ${Yogiyo.money(pkg.package_revenue)}` : '예상 매출 미제공';
     const hourlyRevenue = Number.isFinite(Number(pkg.hourly_revenue)) ? `시간당 ${Yogiyo.money(pkg.hourly_revenue)}` : '시간당 수익 미제공';
     return `<article class="card order-card"><div class="row"><div><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span><div class="order-menu">${Yogiyo.escape(pkg.package_type || '패키지')}</div><div class="order-id">패키지 ${Yogiyo.escape(pkg.package_id)} · ${Yogiyo.escape(bundleSize)}</div></div><strong>${Yogiyo.escape(score)}</strong></div><div class="notice info" style="margin-top:14px"><span>🛵</span><div><strong>주문 ${Yogiyo.escape(orderIds)}</strong><span>${Yogiyo.escape(revenue)} · ${Yogiyo.escape(hourlyRevenue)}</span></div></div><div class="route-strategy-box" style="margin-top:14px"><strong>방문 순서</strong><span>${Yogiyo.escape(routeSummary(pkg.route_detail))}</span></div><div style="margin-top:14px">${packageAction(pkg)}</div></article>`;
-  }).join('') || '<div class="card">이 라이더에게 배정된 패키지가 없습니다.</div>';
+  }).join('') || '<div class="state-card empty"><div class="state-icon" aria-hidden="true">⌕</div><div><strong>배정된 패키지가 없습니다.</strong><p>현재 이 라이더에게 진행 중이거나 완료된 패키지가 없습니다.</p></div></div>';
 
   Yogiyo.el('riderPackages').querySelectorAll('[data-package-action]').forEach(button => {
     button.addEventListener('click', event => {
@@ -86,7 +101,7 @@ async function loadRider() {
     renderRider(await fetchRiderView());
     setConnection(true);
   } catch (error) {
-    setConnection(false);
+    showRiderFailure(error);
     Yogiyo.toast(error.message);
   }
 }
@@ -100,6 +115,7 @@ async function updatePackage(action, packageId, button) {
       Yogiyo.toast(`패키지 ${response.package_id} 상태가 ${response.status}로 변경되었습니다.`);
       await loadRider();
     } catch (error) {
+      showRiderFailure(error, { action: true });
       Yogiyo.toast(error.message);
     }
   });
@@ -116,6 +132,7 @@ function bindRiderLookup() {
       return;
     }
     riderId = nextRiderId;
+    currentRider = undefined;
     loadRider();
   };
   button.addEventListener('click', reload);
@@ -128,4 +145,8 @@ bindRiderLookup();
 Yogiyo.poll(fetchRiderView, view => {
   renderRider(view);
   setConnection(true);
-}, { intervalMs: 5000, onError: error => { setConnection(false); Yogiyo.toast(error.message); } });
+}, { intervalMs: 5000, onError: error => {
+  setConnection(false);
+  if (!currentRider) showRiderFailure(error);
+  console.warn('rider polling failed', error);
+} });

@@ -1,6 +1,18 @@
 const initialStoreId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 let storeId = initialStoreId;
 let storeDirectory;
+let currentMerchant;
+
+const setContentVisible = visible => { Yogiyo.el('merchantContent').hidden = !visible; };
+const showMerchantFailure = (error, { action = false } = {}) => {
+  setConnection(false);
+  if (!currentMerchant) setContentVisible(false);
+  Yogiyo.renderLoadState('merchantLoadState', {
+    title: action ? '조리시간을 변경하지 못했습니다.' : error?.status === 404 ? '매장 주문을 찾을 수 없습니다.' : '매장 주문을 불러오지 못했습니다.',
+    description: action ? Yogiyo.errorMessage(error, '조리시간 변경') : Yogiyo.errorMessage(error, '매장 주문'),
+    onRetry: () => loadMerchant(),
+  });
+};
 
 const statusLabels = Object.freeze({
   NEW: '신규 주문',
@@ -26,7 +38,7 @@ const routeSummary = route => {
   return route
     .slice()
     .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0))
-    .map(step => `주문 ${step.order_id ?? '-'} ${step.type === 'pickup' ? '픽업' : step.type === 'delivery' ? '배달' : '경유'}`)
+    .map(step => `주문 ${step.order_id ?? '-'} ${step.type === 'pickup' ? '픽업' : ['delivery', 'dropoff'].includes(step.type) ? '배달' : '경유'}`)
     .join(' → ');
 };
 
@@ -49,6 +61,7 @@ async function getStore(storeIdToFind) {
 }
 
 function renderMerchant(view, store) {
+  currentMerchant = view;
   const orders = Array.isArray(view.orders) ? view.orders : [];
   const counts = orders.reduce((result, order) => {
     result[order.status] = (result[order.status] || 0) + 1;
@@ -67,6 +80,14 @@ function renderMerchant(view, store) {
   Yogiyo.el('readyCount').textContent = counts.CANCELLED || 0;
   Yogiyo.el('orderCountLabel').textContent = `${orders.length}건`;
 
+  if (orders.length) Yogiyo.clearLoadState('merchantLoadState');
+  else Yogiyo.renderLoadState('merchantLoadState', {
+    tone: 'empty',
+    title: '조회 가능한 주문이 없습니다.',
+    description: '이 매장에는 현재 표시할 주문이 없습니다. 다른 매장 ID를 입력하거나 다시 조회해 주세요.',
+    onRetry: () => loadMerchant(),
+  });
+  setContentVisible(true);
   Yogiyo.el('merchantOrders').innerHTML = orders.map(order => {
     const status = statusLabels[order.status] || order.status || '상태 정보 없음';
     const predicted = Number.isFinite(Number(order.predicted_cook_min)) ? `시스템 예측 조리시간 ${order.predicted_cook_min}분` : '시스템 예측 조리시간 미제공';
@@ -111,7 +132,7 @@ async function loadMerchant() {
     renderMerchant(view, store);
     setConnection(true);
   } catch (error) {
-    setConnection(false);
+    showMerchantFailure(error);
     Yogiyo.toast(error.message);
   }
 }
@@ -127,6 +148,7 @@ async function updateCookTime(orderId, nextCookMin, button) {
       Yogiyo.toast(`주문 ${orderId}의 조리시간을 ${nextCookMin}분으로 변경했습니다.`);
       await loadMerchant();
     } catch (error) {
+      showMerchantFailure(error, { action: true });
       Yogiyo.toast(error.message);
     }
   });
@@ -148,6 +170,7 @@ function bindStoreLookup() {
     const nextStoreId = storeInput.value.trim();
     if (!nextStoreId) return;
     storeId = nextStoreId;
+    currentMerchant = undefined;
     storeDirectory = undefined;
     loadMerchant();
   });
@@ -157,4 +180,8 @@ bindStoreLookup();
 Yogiyo.poll(() => Yogiyo.apiClient.merchants.get(storeId), async view => {
   renderMerchant(view, await getStore(storeId));
   setConnection(true);
-}, { intervalMs: 5000, onError: error => { setConnection(false); Yogiyo.toast(error.message); } });
+}, { intervalMs: 5000, onError: error => {
+  setConnection(false);
+  if (!currentMerchant) showMerchantFailure(error);
+  console.warn('merchant polling failed', error);
+} });

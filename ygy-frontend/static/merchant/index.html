@@ -28,6 +28,8 @@
         <section class="section">
           <button id="merchantDispatchButton" class="primary-button full">매장 다시 조회</button>
         </section>
+        <section id="merchantLoadState" class="section" aria-live="polite" hidden></section>
+        <div id="merchantContent">
         <section class="section">
           <div class="section-title-row"><h2>주문 목록</h2><span id="orderCountLabel">0건</span></div>
           <div id="merchantOrders"><div class="card skeleton"></div></div>
@@ -62,6 +64,7 @@
         <section class="section">
           <div class="card weather-strip"><div class="weather-icon" id="merchantWeatherIcon">ⓘ</div><div class="weather-copy"><strong id="merchantWeatherTitle">데이터 제공 범위</strong><span id="merchantWeatherAdvisory">날씨·라이더 도착 ETA는 현재 사장님 API에서 제공하지 않습니다.</span></div></div>
         </section>
+        </div>
       </div>
 
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>▤</strong><span>주문</span></div><div class="nav-item"><strong>◷</strong><span>조리</span></div><div class="nav-item"><strong>⌁</strong><span>통계</span></div></nav>

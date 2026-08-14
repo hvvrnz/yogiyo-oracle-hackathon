@@ -18,6 +18,8 @@
           <div class="button-row"><input id="riderIdInput" class="text-input" aria-label="라이더 ID" placeholder="라이더 ID (예: rider_102)" /><button id="loadRiderButton" class="primary-button">라이더 조회</button></div>
         </section>
 
+        <section id="riderLoadState" class="section" aria-live="polite" hidden></section>
+        <div id="riderContent">
         <section class="section">
           <div class="hero-card">
             <div class="hero-eyebrow"><span>🛵</span><span id="packageState">패키지 조회 중</span></div>
@@ -49,6 +51,7 @@
         <section class="section">
           <div class="card weather-strip"><div class="weather-icon">ⓘ</div><div class="weather-copy"><strong>데이터 제공 범위</strong><span>배차 수락, 주문별 상세 상태, 날씨·도착 ETA는 현재 라이더 API에서 제공하지 않습니다.</span></div></div>
         </section>
+        </div>
       </div>
 
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>⚡</strong><span>운행</span></div><div class="nav-item"><strong>⌖</strong><span>위치</span></div><div class="nav-item"><strong>₩</strong><span>수익</span></div></nav>
