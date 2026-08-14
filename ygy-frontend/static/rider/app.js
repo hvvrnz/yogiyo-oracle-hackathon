@@ -48,6 +48,7 @@ function renderRider({ profile, packages }) {
   Yogiyo.el('completedCount').textContent = `${Number(profile?.completed_order_count || 0)}건`;
   Yogiyo.el('riderPosition').textContent = position;
   Yogiyo.el('riderAvailability').textContent = profile?.status || '상태 정보 미제공';
+  Yogiyo.renderMap('riderMap', Yogiyo.mapData.fromRiderProfile(profile));
   Yogiyo.el('currentPackageSummary').textContent = currentPackage
     ? `패키지 ${currentPackage.package_id} · ${packageStatus(currentPackage.status)}`
     : '현재 패키지 정보가 없습니다.';

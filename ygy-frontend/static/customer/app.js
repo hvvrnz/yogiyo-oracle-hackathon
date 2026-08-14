@@ -16,13 +16,6 @@ function setConnection(online) {
   if (label) label.textContent = online ? '서버 연결됨' : '재연결 필요';
 }
 
-function orderRoute(order) {
-  return [
-    { type: 'PICKUP', sequence: 1, lat: order.store_lat, lng: order.store_lng, label: order.store_name },
-    { type: 'DELIVERY', sequence: 2, lat: order.delivery_lat, lng: order.delivery_lng, label: '배달지' },
-  ];
-}
-
 function menuSummary(items) {
   return items.map(item => `${item.menu}${item.qty > 1 ? ` ${item.qty}개` : ''}`).join(' · ') || '메뉴 정보 없음';
 }
@@ -60,7 +53,7 @@ function renderCustomer(order) {
   const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
   const etaLabel = order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
-  const route = orderRoute(order);
+  const map = Yogiyo.mapData.fromCustomerOrder(order);
 
   Yogiyo.el('orderId').textContent = `주문 ${order.order_id} · ${order.store_name}`;
   Yogiyo.el('etaWindow').textContent = etaLabel;
@@ -74,7 +67,7 @@ function renderCustomer(order) {
   [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= meta.progress));
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
-  Yogiyo.renderRouteMap('customerMap', route, null);
+  Yogiyo.renderMap('customerMap', map);
   renderUnavailableMetrics();
 
   const cancelButton = Yogiyo.el('createOrderButton');

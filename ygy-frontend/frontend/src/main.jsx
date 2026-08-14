@@ -10,6 +10,7 @@ import riderTemplate from '../../static/rider/index.html?raw';
 import demoTemplate from '../../static/demo/index.html?raw';
 import commonScript from '../../static/common.js?raw';
 import backendClientScript from '../../static/backend-client.js?raw';
+import mapDataScript from '../../static/map-data.js?raw';
 import customerScript from '../../static/customer/app.js?raw';
 import merchantScript from '../../static/merchant/app.js?raw';
 import riderScript from '../../static/rider/app.js?raw';
@@ -63,6 +64,7 @@ function Screen({ page }) {
     if (!page.script) return undefined;
     execute(commonScript);
     execute(backendClientScript);
+    execute(mapDataScript);
     execute(page.script);
     return () => {
       // Each route is a separate document navigation. Clearing globals prevents stale map state on HMR.
