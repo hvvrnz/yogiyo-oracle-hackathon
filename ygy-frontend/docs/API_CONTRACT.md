@@ -29,22 +29,26 @@
   "menu_items": [{"menu":"메뉴", "qty":1, "price":12000}],
   "amount": 12000,
   "delivery_fee": 3000,
-  "status": "MATCHING",
+  "status": "MATCHED",
+  "package_id": 740,
+  "rider_id": "rider_102",
+  "route_detail": [{"order_id":118,"type":"pickup"},{"order_id":118,"type":"dropoff"}],
+  "score_detail": {"timeline":[{"order_id":118,"type":"dropoff","arrival_time_min":18}]},
   "eta_min": 18
 }
 ```
 
-- `eta_min`은 패키지 `route_detail`의 해당 주문 `dropoff` 단계에 값이 있을 때 반환하며, 없으면 `null`이다.
+- `eta_min`은 `score_detail.timeline`에서 해당 주문의 `dropoff` 단계 `arrival_time_min`으로 계산된다. `route_detail`은 주문 ID와 방문 순서만 제공하므로 시간 정보에 사용하면 안 된다.
 - 주문이 없으면 `404`다.
-- 현재 응답에는 `package_id`, `rider_id`, `package_status`가 없다. 고객 화면은 매장 목록에서 매장 ID를 찾고, 해당 매장 주문 목록에서 같은 주문의 `rider_id`를 찾아 담당 라이더를 식별한다.
-- 담당 라이더를 식별한 뒤에는 `GET /api/rider/{rider_id}/profile`만 5초 간격으로 폴링한다.
+- 고객 화면은 응답의 `rider_id`를 직접 사용하고, 값이 있을 때만 `GET /api/rider/{rider_id}/profile`을 5초 간격으로 폴링한다.
+- 주문 상태는 배차 전후 `NEW`·`MATCHED`, 픽업 후 `PICKED_UP`, 배달 완료 후 `DELIVERED`다. 프론트는 기존 목업 호환을 위해 `COMPLETED`도 배달 완료로 처리한다.
 
 ### `DELETE /api/customer/{order_id}`
 
 주문을 취소한다. 성공 응답은 `{"order_id":118,"status":"CANCELLED"}`다.
 
-- 패키지가 `PICKED_UP` 또는 `COMPLETED`이면 `400`과 고객센터 안내 메시지를 반환한다.
-- 배차 전 주문은 주문만 취소한다. `MATCHING` 패키지 주문은 패키지 정책에 따라 패키지 취소·재배정을 수행할 수 있다.
+- 주문이 `PICKED_UP` 또는 `DELIVERED`이면 `400`과 고객센터 안내 메시지를 반환한다.
+- 그 외 상태는 취소할 수 있다. BUNDLE 주문 중 하나를 취소하면 백엔드가 나머지 주문을 SOLO로 재배정하므로 프론트는 고객 주문을 다시 조회하기만 하면 된다.
 - 실제 호출은 DB 상태를 변경한다.
 
 ## 사장님

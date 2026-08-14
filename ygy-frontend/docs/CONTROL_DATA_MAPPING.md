@@ -14,14 +14,13 @@
 
 | 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
-| 주문 조회 | `GET /api/customer/{order_id}` | 매장명·좌표, 배달 좌표, 메뉴, 금액, 상태, ETA | 주문 카드와 픽업지·배달지 카카오맵 마커 렌더링(키 미설정 시 SVG fallback) |
-| 매장 식별 | `GET /api/stores` | 매장 ID, 이름, 좌표 | 주문 응답의 매장명·좌표와 대조해 매장 ID를 찾음 |
-| 담당 라이더 식별 | `GET /api/merchant/{store_id}` | 현재 주문의 `rider_id` | 같은 주문 ID를 찾아 담당 라이더를 식별 |
+| 주문 조회 | `GET /api/customer/{order_id}` | 매장명·좌표, 배달 좌표, 메뉴, 금액, 상태, ETA, `package_id`, `rider_id` | 주문 카드·배차 번호와 픽업지·배달지 카카오맵 마커 렌더링(키 미설정 시 SVG fallback) |
+| 담당 라이더 식별 | `GET /api/customer/{order_id}` | 현재 주문의 `rider_id` | 고객 주문 응답을 단일 진실 원천으로 사용. 라이더가 없으면 주문 지도만 표시 |
 | 담당 라이더 위치 | `GET /api/rider/{rider_id}/profile` | 이름, `lat`, `lng` | 담당 라이더 1명만 5초 폴링해 카카오맵 마커 갱신(키 미설정 시 SVG fallback) |
 | 주문 취소 | `DELETE /api/customer/{order_id}` | `order_id`, `status` | 성공 후 주문 정보를 재조회 |
 | 취소 불가 안내 | `DELETE`의 `400` | `detail` | 고객센터 안내 오류 표시 |
 
-고객 API에는 `package_id`, `rider_id`, `package_status`가 없지만, 프론트가 매장 목록과 매장 주문 목록을 조합해 담당 라이더를 식별한다. 매장명이 중복되어 좌표로 매장을 확정할 수 없거나 배정 전이면 주문 지도만 표시한다.
+고객 API의 `package_id`, `rider_id`를 직접 사용한다. `DELIVERED`와 기존 목업 호환용 `COMPLETED`는 모두 배달 완료로 표시하고 취소를 막는다. ETA의 상세 시간 근거가 필요하면 좌표·시간이 없는 `route_detail`이 아니라 `score_detail.timeline`에서 해당 주문의 `dropoff.arrival_time_min`을 확인한다.
 
 ## 사장님 화면 (`/merchant?storeId={store_id}`)
 
