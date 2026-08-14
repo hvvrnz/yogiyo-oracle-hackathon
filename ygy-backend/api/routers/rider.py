@@ -1,18 +1,24 @@
 from fastapi import APIRouter, HTTPException
 from db.connection import execute_and_commit, fetch_all, fetch_one
-from stream_processor.riders.geo_client import set_rider_available
+from stream_processor.riders.geo_client import set_rider_available, get_rider_position
 
 router = APIRouter(prefix="/api/rider", tags=["rider"])
 
 
 @router.get("")
 def get_all_riders():
-    """전체 라이더 목록 조회 (지도에 마커 찍을 때 사용)."""
+    """전체 라이더 목록 조회 (지도에 마커 찍을 때 사용). Redis에서 실시간 위치도 함께 조회."""
     riders = fetch_all("""
         SELECT rider_id, name, region, status, completed_order_count
         FROM riders
         ORDER BY rider_id
     """)
+
+    for rider in riders:
+        pos = get_rider_position(rider["rider_id"])
+        rider["lat"] = pos[0] if pos else None
+        rider["lng"] = pos[1] if pos else None
+
     return {"count": len(riders), "riders": riders}
 
 
@@ -31,12 +37,19 @@ def get_rider_packages(rider_id: str):
     if not packages:
         raise HTTPException(status_code=404, detail="해당 라이더의 배정 내역이 없습니다.")
 
-    return {"rider_id": rider_id, "packages": packages}
+    rider_pos = get_rider_position(rider_id)
+
+    return {
+        "rider_id": rider_id,
+        "current_lat": rider_pos[0] if rider_pos else None,
+        "current_lng": rider_pos[1] if rider_pos else None,
+        "packages": packages,
+    }
 
 
 @router.get("/{rider_id}/profile")
 def get_rider_profile(rider_id: str):
-    """라이더 개인 정보 조회 (이름, 권역, 완료 건수 등)."""
+    """라이더 개인 정보 조회 (이름, 권역, 완료 건수, 현재 위치)."""
     profile = fetch_one("""
         SELECT rider_id, name, region, status, completed_order_count
         FROM riders
@@ -45,6 +58,10 @@ def get_rider_profile(rider_id: str):
 
     if not profile:
         raise HTTPException(status_code=404, detail="해당 라이더를 찾을 수 없습니다.")
+
+    pos = get_rider_position(rider_id)
+    profile["lat"] = pos[0] if pos else None
+    profile["lng"] = pos[1] if pos else None
 
     return profile
 
@@ -67,9 +84,11 @@ def mark_pickup(rider_id: str, package_id: int):
 def mark_complete(rider_id: str, package_id: int):
     """
     라이더가 배달을 완료했을 때 호출.
-    - packages 상태를 COMPLETED로 변경
-    - riders 완료 건수 1 증가
+    - packages 상태를 COMPLETED로 변경 (DB, 영구 기록)
+    - riders 완료 건수 1 증가 (DB)
     - Redis에서 이 라이더를 다시 배정 가능(available) 상태로 되돌림
+      (packages.status와 Redis 상태는 서로 자동 동기화되지 않으며,
+       이 API가 두 곳을 각각 명시적으로 업데이트함)
     """
     row_count = execute_and_commit(
         """UPDATE packages SET status = 'COMPLETED', completed_at = SYSTIMESTAMP

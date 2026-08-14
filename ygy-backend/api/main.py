@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.routers import rider, customer, merchant, store
+from api.routers import rider, customer, merchant, store, explanation
 
 app = FastAPI(title="실속배달 API")
 
@@ -7,6 +7,7 @@ app.include_router(rider.router)
 app.include_router(customer.router)
 app.include_router(merchant.router)
 app.include_router(store.router)
+app.include_router(explanation.router)
 
 
 @app.get("/")
