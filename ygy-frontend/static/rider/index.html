@@ -15,45 +15,37 @@
       </header>
       <div class="mobile-scroll">
         <section class="section">
-          <div class="button-row"><input id="riderIdInput" class="text-input" aria-label="라이더 ID" placeholder="라이더 ID (예: rider_102)" /><button id="loadRiderButton" class="primary-button">라이더 조회</button></div>
+          <div class="section-title-row"><h2>라이더 조회</h2><span>문자열 ID</span></div>
+          <div class="button-row"><input id="riderIdInput" class="text-input" aria-label="라이더 ID" placeholder="예: rider_102" /><button id="loadRiderButton" class="primary-button">라이더 조회</button></div>
         </section>
-
         <section id="riderLoadState" class="section" aria-live="polite" hidden></section>
         <div id="riderContent">
-        <section class="section">
-          <div class="hero-card">
-            <div class="hero-eyebrow"><span>🛵</span><span id="packageState">패키지 조회 중</span></div>
-            <h2 class="hero-title" id="currentPackageSummary">패키지 정보를 확인하고 있어요.</h2>
-            <p class="hero-copy">픽업과 배달 완료는 패키지 단위로 실제 API에 반영됩니다.</p>
-            <div class="hero-meta"><span class="hero-chip" id="packageCount">0건</span><span class="hero-chip" id="completedCount">완료 0건</span></div>
-          </div>
-        </section>
-
-        <section class="section">
-          <div class="section-title-row"><h2>라이더 정보</h2><span class="badge neutral">API 기준</span></div>
-          <div class="card">
-            <div class="row"><span class="label">현재 상태</span><span class="value" id="riderAvailability">-</span></div>
-            <div class="row"><span class="label">현재 위치</span><span class="value" id="riderPosition">-</span></div>
-            <div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>위치 갱신</strong><span>라이더 위치는 서버 데이터 기준으로 5초마다 다시 조회합니다.</span></div></div>
-          </div>
-        </section>
-
-        <section class="section">
-          <div class="section-title-row"><h2>현재 위치 지도</h2><span id="riderLocationCount">위치 조회 중</span></div>
-          <div class="card map-card"><div class="map-head"><span class="badge info">전체 라이더 위치</span><span class="subtext">좌표 기반 임시 지도</span></div><div class="map-canvas" id="riderMap"><div class="map-legend">큰 파랑: 선택 라이더 · 작은 파랑: 전체 라이더</div></div></div>
-        </section>
-
-        <section class="section">
-          <div class="section-title-row"><h2>배정 패키지</h2><span>패키지 단위 처리</span></div>
-          <div id="riderPackages"><div class="card skeleton"></div></div>
-        </section>
-
-        <section class="section">
-          <div class="card weather-strip"><div class="weather-icon">ⓘ</div><div class="weather-copy"><strong>데이터 제공 범위</strong><span>배차 수락, 주문별 상세 상태, 날씨·도착 ETA는 현재 라이더 API에서 제공하지 않습니다.</span></div></div>
-        </section>
+          <section class="section">
+            <div class="hero-card">
+              <div class="hero-eyebrow"><span>🛵</span><span id="packageState">패키지 조회 중</span></div>
+              <h2 class="hero-title" id="currentPackageSummary">패키지 정보를 확인하고 있어요.</h2>
+              <p class="hero-copy">픽업과 배달 완료는 패키지 단위로 실제 API에 반영됩니다.</p>
+              <div class="hero-meta"><span class="hero-chip" id="packageCount">0건</span><span class="hero-chip" id="completedCount">완료 0건</span></div>
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-title-row"><h2>라이더 정보</h2><span class="badge neutral">라이더 API 기준</span></div>
+            <div class="card">
+              <div class="row"><span class="label">현재 상태</span><span class="value" id="riderAvailability">-</span></div>
+              <div class="row"><span class="label">현재 위치</span><span class="value" id="riderPosition">-</span></div>
+              <div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>위치 갱신</strong><span>현재 위치와 전체 라이더 위치는 5초마다 다시 조회합니다.</span></div></div>
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-title-row"><h2>전체 라이더 위치</h2><span id="riderLocationCount">위치 조회 중</span></div>
+            <div class="card map-card"><div class="map-head"><span class="badge info">좌표 기반 지도</span><span class="subtext">카카오맵 전 SVG 렌더러</span></div><div class="map-canvas" id="riderMap"><div class="map-legend">큰 파랑: 선택 라이더 · 작은 파랑: 전체 라이더</div></div></div>
+          </section>
+          <section class="section">
+            <div class="section-title-row"><h2>배정 패키지</h2><span>패키지 단위 처리</span></div>
+            <div id="riderPackages"><div class="card skeleton"></div></div>
+          </section>
         </div>
       </div>
-
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>⚡</strong><span>운행</span></div><div class="nav-item"><strong>⌖</strong><span>위치</span></div><div class="nav-item"><strong>₩</strong><span>수익</span></div></nav>
       <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
     </main>

@@ -73,8 +73,7 @@ function renderMerchant(view, store) {
   const riderId = activeOrder?.rider_id;
 
   Yogiyo.el('merchantStoreName').textContent = store?.name || `매장 ${storeId}`;
-  Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || '매장 기본 정보는 주문 API에 포함되지 않습니다.';
-  Yogiyo.el('congestion').textContent = '매장 혼잡도는 현재 API에서 제공하지 않습니다.';
+  Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || `매장 ${storeId} · 주문 API 기준`;
   Yogiyo.el('newCount').textContent = counts.NEW || 0;
   Yogiyo.el('cookingCount').textContent = counts.MATCHED || 0;
   Yogiyo.el('readyCount').textContent = counts.CANCELLED || 0;
@@ -109,21 +108,11 @@ function renderMerchant(view, store) {
   });
 
   Yogiyo.el('riderAssignedBadge').textContent = riderId ? '배정 완료' : '배정 전';
-  Yogiyo.el('riderArrival').textContent = 'API 미제공';
-  Yogiyo.el('riderRemaining').textContent = 'API 미제공';
-  Yogiyo.el('riderDistance').textContent = 'API 미제공';
-  Yogiyo.el('riderContext').textContent = riderId ? `배정 라이더: ${riderId}. 위치·도착 ETA는 현재 사장님 API에 없습니다.` : '라이더 배정 정보를 확인하고 있습니다.';
-
+  Yogiyo.el('assignedRiderId').textContent = riderId || '배정 정보 없음';
   Yogiyo.el('packageStatus').textContent = packageId ? `패키지 ${packageId}` : '배차 전';
   Yogiyo.el('packageSize').textContent = packageId ? `${orders.filter(order => String(order.package_id) === String(packageId)).length}건` : '0건';
   Yogiyo.el('packageStrategy').textContent = routeSummary(route);
-  Yogiyo.el('packageGap').textContent = Number.isFinite(Number(activeOrder?.predicted_cook_min)) ? `${activeOrder.predicted_cook_min}분` : 'API 미제공';
-  Yogiyo.el('packageWait').textContent = 'API 미제공';
-  Yogiyo.el('packageReason').textContent = '방문 순서와 패키지 ID는 주문 조회 응답의 배차 정보를 사용합니다.';
-  Yogiyo.el('merchantRouteChange').hidden = true;
-  Yogiyo.el('merchantWeatherIcon').textContent = 'ⓘ';
-  Yogiyo.el('merchantWeatherTitle').textContent = '데이터 제공 범위';
-  Yogiyo.el('merchantWeatherAdvisory').textContent = '날씨·라이더 도착 ETA는 현재 사장님 API에서 제공하지 않습니다.';
+  Yogiyo.el('packageReason').textContent = '주문 API가 제공하는 패키지·라이더·방문 순서 정보입니다.';
 }
 
 async function loadMerchant() {
@@ -155,24 +144,23 @@ async function updateCookTime(orderId, nextCookMin, button) {
 }
 
 function bindStoreLookup() {
+  const storeInput = Yogiyo.el('storeIdInput');
   const dispatchButton = Yogiyo.el('merchantDispatchButton');
-  dispatchButton.textContent = '매장 다시 조회';
-  dispatchButton.addEventListener('click', loadMerchant);
-
-  const storeInput = document.createElement('input');
-  storeInput.className = 'text-input';
-  storeInput.inputMode = 'numeric';
   storeInput.value = storeId;
-  storeInput.setAttribute('aria-label', '매장 ID');
-  storeInput.style.cssText = 'width:100%;margin-bottom:10px';
-  dispatchButton.parentElement.prepend(storeInput);
-  storeInput.addEventListener('change', () => {
+  const reload = () => {
     const nextStoreId = storeInput.value.trim();
-    if (!nextStoreId) return;
+    if (!/^\d+$/.test(nextStoreId)) {
+      Yogiyo.toast('숫자로 된 매장 ID를 입력해 주세요.');
+      return;
+    }
     storeId = nextStoreId;
     currentMerchant = undefined;
     storeDirectory = undefined;
     loadMerchant();
+  };
+  dispatchButton.addEventListener('click', reload);
+  storeInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') reload();
   });
 }
 

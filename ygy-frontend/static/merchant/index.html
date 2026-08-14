@@ -10,63 +10,43 @@
   <div class="page-stage">
     <main class="mobile-shell" aria-label="사장님 주문 관리">
       <header class="app-header">
-        <div class="header-title"><div class="brand-mark">샵</div><div><h1 id="merchantStoreName">매장 관리</h1><p id="merchantStoreMeta">매장 정보를 확인 중</p></div></div>
+        <div class="header-title"><div class="brand-mark">샵</div><div><h1 id="merchantStoreName">매장 주문 관리</h1><p id="merchantStoreMeta">매장 정보를 확인 중</p></div></div>
         <div id="connection" class="connection-pill"><i></i><span>연결 중</span></div>
       </header>
       <div class="mobile-scroll">
         <section class="section">
+          <div class="section-title-row"><h2>매장 주문 조회</h2><span>숫자 ID</span></div>
+          <div class="button-row"><input id="storeIdInput" class="text-input" inputmode="numeric" aria-label="매장 ID" placeholder="예: 781" /><button id="merchantDispatchButton" class="primary-button">매장 조회</button></div>
+          <p class="subtext" style="margin:9px 2px 0">시연 예시: 매장 781, 467, 273</p>
+        </section>
+        <section class="section">
           <div class="card">
-            <div class="row"><div><span class="badge neutral">영업 상태 API 미제공</span><div class="order-menu">오늘의 주문 현황</div><div class="order-id" id="congestion">매장 정보를 확인 중</div></div><button class="icon-button" aria-label="통합 시연으로 이동" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
-            <div class="metric-grid" style="margin-top:15px">
+            <div class="section-title-row"><h2>주문 현황</h2><button class="icon-button" aria-label="통합 시연으로 이동" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
+            <div class="metric-grid">
               <div class="metric"><span class="metric-label">신규 주문</span><strong id="newCount">0</strong><small>건</small></div>
               <div class="metric"><span class="metric-label">배차 완료</span><strong id="cookingCount">0</strong><small>건</small></div>
               <div class="metric"><span class="metric-label">취소 주문</span><strong id="readyCount">0</strong><small>건</small></div>
             </div>
           </div>
         </section>
-
-        <section class="section">
-          <button id="merchantDispatchButton" class="primary-button full">매장 다시 조회</button>
-        </section>
         <section id="merchantLoadState" class="section" aria-live="polite" hidden></section>
         <div id="merchantContent">
-        <section class="section">
-          <div class="section-title-row"><h2>주문 목록</h2><span id="orderCountLabel">0건</span></div>
-          <div id="merchantOrders"><div class="card skeleton"></div></div>
-        </section>
-
-        <section class="section">
-          <div class="section-title-row"><h2>배정 라이더 정보</h2><span id="riderAssignedBadge" class="badge neutral">배정 전</span></div>
-          <div class="card">
-            <div class="row"><span class="label">매장 도착 예정</span><span class="value" id="riderArrival">-</span></div>
-            <div class="row"><span class="label">도착까지</span><span class="value" id="riderRemaining">-</span></div>
-            <div class="row"><span class="label">매장까지 거리</span><span class="value" id="riderDistance">-</span></div>
-            <div class="notice info" style="margin-top:14px"><span>🛵</span><div><strong>라이더 상태</strong><span id="riderContext">배차 정보를 확인하고 있어요.</span></div></div>
-          </div>
-        </section>
-
-        <section class="section">
-          <div class="section-title-row"><h2>배차 정보</h2><span class="badge neutral">API 기준</span></div>
-          <div class="card">
-            <div class="row"><span class="label">현재 패키지</span><span class="value" id="packageStatus">-</span></div>
-            <div class="row"><span class="label">주문 수</span><span class="value" id="packageSize">-건</span></div>
-            <div class="row"><span class="label">방문 순서</span><span class="value" id="packageStrategy">-</span></div>
-            <div class="row"><span class="label">조리 완료 예상</span><span class="value" id="packageGap">-</span></div>
-            <div class="row"><span class="label">라이더 대기 정보</span><span class="value" id="packageWait">-</span></div>
-            <div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>안내</strong><span id="packageReason">매장 API가 제공하는 배차 정보만 표시합니다.</span></div></div>
-          </div>
-        </section>
-
-        <section class="section" id="merchantRouteChange" hidden>
-          <div class="notice warn"><span>↻</span><div><strong>방문 순서가 다시 계산됐습니다</strong><span id="merchantRouteNote"></span></div></div>
-        </section>
-
-        <section class="section">
-          <div class="card weather-strip"><div class="weather-icon" id="merchantWeatherIcon">ⓘ</div><div class="weather-copy"><strong id="merchantWeatherTitle">데이터 제공 범위</strong><span id="merchantWeatherAdvisory">날씨·라이더 도착 ETA는 현재 사장님 API에서 제공하지 않습니다.</span></div></div>
-        </section>
+          <section class="section">
+            <div class="section-title-row"><h2>주문 목록</h2><span id="orderCountLabel">0건</span></div>
+            <div id="merchantOrders"><div class="card skeleton"></div></div>
+          </section>
+          <section class="section">
+            <div class="section-title-row"><h2>배차 정보</h2><span id="riderAssignedBadge" class="badge neutral">배정 전</span></div>
+            <div class="card">
+              <div class="row"><span class="label">배정 라이더</span><span class="value" id="assignedRiderId">-</span></div>
+              <div class="row"><span class="label">현재 패키지</span><span class="value" id="packageStatus">-</span></div>
+              <div class="row"><span class="label">패키지 주문 수</span><span class="value" id="packageSize">-</span></div>
+              <div class="route-strategy-box"><strong>방문 순서</strong><span id="packageStrategy">방문 순서 정보 없음</span></div>
+              <div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>주문 API 기준</strong><span id="packageReason">패키지와 라이더 정보는 주문 API 응답을 기준으로 표시합니다.</span></div></div>
+            </div>
+          </section>
         </div>
       </div>
-
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>▤</strong><span>주문</span></div><div class="nav-item"><strong>◷</strong><span>조리</span></div><div class="nav-item"><strong>⌁</strong><span>통계</span></div></nav>
       <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
     </main>
