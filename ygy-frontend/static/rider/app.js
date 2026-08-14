@@ -81,8 +81,8 @@ const packageAction = pkg => {
   return `<button class="ghost-button full" disabled>${Yogiyo.escape(packageStatus(pkg.status))}</button>`;
 };
 
-function renderRider({ profile, packages }) {
-  currentRider = { profile, packages };
+function renderRider({ profile, packages, earnings, earningsError }) {
+  currentRider = { profile, packages, earnings, earningsError };
   setContentVisible(true);
   Yogiyo.clearLoadState('riderLoadState');
   const activePackages = packages.filter(pkg => !['COMPLETED', 'CANCELLED'].includes(pkg.status));
@@ -97,6 +97,13 @@ function renderRider({ profile, packages }) {
   Yogiyo.el('packageState').textContent = activePackages.length ? `진행 패키지 ${activePackages.length}건` : '진행 중인 패키지 없음';
   Yogiyo.el('packageCount').textContent = `${packages.length}건`;
   Yogiyo.el('completedCount').textContent = `${Number(profile?.completed_order_count || 0)}건`;
+  const hasEarnings = Boolean(earnings);
+  Yogiyo.el('earningsTotalPackageCount').textContent = hasEarnings ? `${earnings.total_package_count}건` : '-';
+  Yogiyo.el('earningsCompletedCount').textContent = hasEarnings ? `${earnings.completed_count}건` : '-';
+  Yogiyo.el('earningsTotalRevenue').textContent = hasEarnings ? Yogiyo.money(earnings.total_revenue) : '-';
+  Yogiyo.el('earningsSummary').textContent = hasEarnings
+    ? `오늘 배정된 패키지 ${earnings.packages.length}건의 수익 API 응답입니다.`
+    : earningsError?.status === 404 ? '수익 API가 아직 제공되지 않아 현재 운행 정보만 표시합니다.' : '오늘 수익 정보를 불러오는 중입니다.';
   Yogiyo.el('riderPosition').textContent = position;
   Yogiyo.el('riderAvailability').textContent = profile?.status || '상태 정보 미제공';
   const routeMap = currentPackage ? Yogiyo.mapData.fromRouteDetail(currentPackage.route_detail) : Yogiyo.mapData.create();
@@ -128,13 +135,25 @@ function renderRider({ profile, packages }) {
 
 async function fetchRiderView() {
   const profile = await Yogiyo.apiClient.riders.profile(riderId);
+  const earningsResult = Yogiyo.apiClient.riders.getEarnings(riderId)
+    .then(earnings => ({ earnings, earningsError: undefined }))
+    .catch(error => ({ earnings: undefined, earningsError: error }));
+  let packages = [];
+  let riderLocation;
   try {
     const response = await Yogiyo.apiClient.riders.get(riderId);
-    return { profile: { ...profile, lat: response.current_lat ?? profile.lat, lng: response.current_lng ?? profile.lng }, packages: response.packages || [] };
+    packages = response.packages || [];
+    riderLocation = response;
   } catch (error) {
-    if (error.status === 404) return { profile, packages: [] };
-    throw error;
+    if (error.status !== 404) throw error;
   }
+  const { earnings, earningsError } = await earningsResult;
+  return {
+    profile: { ...profile, lat: riderLocation?.current_lat ?? profile.lat, lng: riderLocation?.current_lng ?? profile.lng },
+    packages,
+    earnings,
+    earningsError,
+  };
 }
 
 async function loadRider() {
