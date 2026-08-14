@@ -9,8 +9,8 @@
 | 화면 | 주소 | 실제 API 기능 |
 |---|---|---|
 | 고객 | `/customer?orderId=118` | 주문 조회, 상태·ETA·메뉴·금액 확인, 취소 |
-| 사장님 | `/merchant?storeId=781` | 매장 주문 조회, 조리시간 수정, 패키지·라이더·방문 순서 확인 |
-| 라이더 | `/rider?riderId=rider_102` | 프로필·패키지 조회, 패키지 픽업/완료 |
+| 사장님 | `/merchant?storeId=781` | 매장 주문 조회, 조리시간 수정, 라이더 이름·도착 ETA·패키지·방문 순서 확인 |
+| 라이더 | `/rider?riderId=rider_102` | 프로필·패키지·오늘 수익 조회, 패키지 상세 모달, 패키지 픽업/완료 |
 | 통합 시연 | `/demo` | 고객 1개·사장님 3개·라이더 3개 패널의 실제 데이터 조회 |
 
 지도는 `VITE_KAKAO_MAP_JS_KEY`가 설정되고 SDK 로드에 성공하면 카카오맵으로 표시합니다. 고객 지도는 매장·배달지·담당 라이더를, 라이더 지도는 본인 위치와 배정 패키지 경로를 표시합니다. 키가 없거나 SDK 로드에 실패하면 SVG fallback을 유지합니다.
@@ -61,7 +61,7 @@ VITE_KAKAO_MAP_JS_KEY=카카오맵_JavaScript_키
 | `VITE_DEFAULT_RIDER_ID` | 라이더 화면 기본 라이더 ID |
 | `VITE_KAKAO_MAP_JS_KEY` | 카카오맵 Web(JavaScript) SDK 키. JavaScript SDK 허용 도메인 등록 필요 |
 
-실제 API 모드가 기본값입니다. 다른 Origin에 배포한다면 백엔드 CORS 허용이 필요합니다.
+실제 API 모드가 기본값입니다. 백엔드는 CORS 전체 허용으로 설정되어 있어 다른 포트의 프론트에서도 직접 API를 호출할 수 있습니다.
 
 ## 실제 테스트 데이터
 
@@ -117,6 +117,8 @@ VITE_USE_MOCK=true npm run dev -- --host 0.0.0.0
 - 고객: `GET/DELETE /api/customer/{order_id}`
 - 사장님: `GET /api/merchant/{store_id}`, `PUT /api/merchant/orders/{order_id}/cook-time`
 - 라이더: `GET /api/rider`, `GET /api/rider/{rider_id}`, `GET /api/rider/{rider_id}/profile`
+- 라이더 수익: `GET /api/rider/{rider_id}/earnings`
+- 패키지 상세: `GET /api/package/{package_id}`
 - 패키지 처리: `PUT /api/rider/{rider_id}/package/{package_id}/pickup`, `.../complete`
 - 매장: `GET /api/stores`
 - 설명: `GET /api/explanation/context/{package_id}`, `POST /api/explanation`, `GET /api/explanation/{package_id}`
@@ -125,7 +127,7 @@ VITE_USE_MOCK=true npm run dev -- --host 0.0.0.0
 
 ## 실제 API 모드의 제약사항
 
-- 고객 주문 API에는 담당 `rider_id`, `package_id`가 없지만, 프론트가 매장명·좌표로 매장을 식별한 뒤 해당 매장 주문 목록에서 담당 라이더를 찾습니다.
+- 고객 주문 API의 `rider_id`와 `package_id`를 직접 사용한다. 라이더가 배정된 경우에만 해당 라이더 프로필을 5초 간격으로 조회하며, 매장 목록이나 사장님 주문 API로 담당 라이더를 역조회하지 않는다.
 - 역할별 화면은 전체 라이더 목록 API(`GET /api/rider`)를 호출하지 않습니다. 전체 라이더 관제 화면이 필요하면 별도 API 최적화와 권한 설계가 필요합니다.
 - 현재 지도는 SVG입니다. 카카오맵 SDK 키·허용 도메인이 준비되면 동일 지도 데이터 계층에 연결할 수 있습니다.
 - 설명 API는 컨텍스트·저장·조회만 제공합니다. LLM 생성은 브라우저 API 키 노출을 피하기 위해 서버 측 생성 API가 추가되어야 합니다.

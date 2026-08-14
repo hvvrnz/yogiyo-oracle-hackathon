@@ -93,6 +93,7 @@
             route_detail: normalizeRoute(order.route_detail),
             owner_cook_min: toNumber(order.owner_cook_min),
             predicted_cook_min: toNumber(order.predicted_cook_min),
+            eta_min: toNumber(order.eta_min),
           })),
         };
       },
@@ -115,9 +116,22 @@
           packages: asArray(data.packages).map(normalizePackage),
         };
       },
+      getEarnings: async riderId => {
+        const data = await request(endpoint('riderEarnings', '/api/rider/:riderId/earnings', { riderId }));
+        return {
+          ...data,
+          total_package_count: Number(data.total_package_count ?? 0),
+          completed_count: Number(data.completed_count ?? 0),
+          total_revenue: Number(data.total_revenue ?? 0),
+          packages: asArray(data.packages).map(normalizePackage),
+        };
+      },
       profile: async riderId => normalizeRider(await request(endpoint('riderProfile', '/api/rider/:riderId/profile', { riderId }))),
       pickup: (riderId, packageId) => request(endpoint('riderPickup', '/api/rider/:riderId/package/:packageId/pickup', { riderId, packageId }), { method: 'PUT' }),
       complete: (riderId, packageId) => request(endpoint('riderComplete', '/api/rider/:riderId/package/:packageId/complete', { riderId, packageId }), { method: 'PUT' }),
+    }),
+    packages: Object.freeze({
+      get: async packageId => normalizePackage(await request(endpoint('package', '/api/package/:packageId', { packageId }))),
     }),
     stores: Object.freeze({
       list: async () => {

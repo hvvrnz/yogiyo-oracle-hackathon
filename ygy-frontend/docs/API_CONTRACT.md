@@ -29,22 +29,26 @@
   "menu_items": [{"menu":"메뉴", "qty":1, "price":12000}],
   "amount": 12000,
   "delivery_fee": 3000,
-  "status": "MATCHING",
+  "status": "MATCHED",
+  "package_id": 740,
+  "rider_id": "rider_102",
+  "route_detail": [{"order_id":118,"type":"pickup"},{"order_id":118,"type":"dropoff"}],
+  "score_detail": {"timeline":[{"order_id":118,"type":"dropoff","arrival_time_min":18}]},
   "eta_min": 18
 }
 ```
 
-- `eta_min`은 패키지 `route_detail`의 해당 주문 `dropoff` 단계에 값이 있을 때 반환하며, 없으면 `null`이다.
+- `eta_min`은 `score_detail.timeline`에서 해당 주문의 `dropoff` 단계 `arrival_time_min`으로 계산된다. `route_detail`은 주문 ID와 방문 순서만 제공하므로 시간 정보에 사용하면 안 된다.
 - 주문이 없으면 `404`다.
-- 현재 응답에는 `package_id`, `rider_id`, `package_status`가 없다. 고객 화면은 매장 목록에서 매장 ID를 찾고, 해당 매장 주문 목록에서 같은 주문의 `rider_id`를 찾아 담당 라이더를 식별한다.
-- 담당 라이더를 식별한 뒤에는 `GET /api/rider/{rider_id}/profile`만 5초 간격으로 폴링한다.
+- 고객 화면은 응답의 `rider_id`를 직접 사용하고, 값이 있을 때만 `GET /api/rider/{rider_id}/profile`을 5초 간격으로 폴링한다.
+- 주문 상태는 배차 전후 `NEW`·`MATCHED`, 픽업 후 `PICKED_UP`, 배달 완료 후 `DELIVERED`다. 프론트는 기존 목업 호환을 위해 `COMPLETED`도 배달 완료로 처리한다.
 
 ### `DELETE /api/customer/{order_id}`
 
 주문을 취소한다. 성공 응답은 `{"order_id":118,"status":"CANCELLED"}`다.
 
-- 패키지가 `PICKED_UP` 또는 `COMPLETED`이면 `400`과 고객센터 안내 메시지를 반환한다.
-- 배차 전 주문은 주문만 취소한다. `MATCHING` 패키지 주문은 패키지 정책에 따라 패키지 취소·재배정을 수행할 수 있다.
+- 주문이 `PICKED_UP` 또는 `DELIVERED`이면 `400`과 고객센터 안내 메시지를 반환한다.
+- 그 외 상태는 취소할 수 있다. BUNDLE 주문 중 하나를 취소하면 백엔드가 나머지 주문을 SOLO로 재배정하므로 프론트는 고객 주문을 다시 조회하기만 하면 된다.
 - 실제 호출은 DB 상태를 변경한다.
 
 ## 사장님
@@ -60,18 +64,22 @@
     "order_id": 118,
     "menu_items": [{"menu":"메뉴", "qty":1, "price":12000}],
     "amount": 12000,
-    "status": "MATCHING",
+    "status": "MATCHED",
     "owner_cook_min": 20,
     "predicted_cook_min": 18,
     "package_id": 740,
     "route_detail": [],
-    "rider_id": "rider_102"
+    "rider_id": "rider_102",
+    "rider_name": "라이더명",
+    "eta_min": 12
   }]
 }
 ```
 
 - 주문 내역이 없으면 `404`다.
 - `route_detail`에는 `pickup`·`dropoff` 단계의 방문 순서·좌표가 포함될 수 있다.
+- 각 주문의 `rider_name`, `eta_min`은 배정 라이더 이름과 도착 예상 시간이다. ETA가 없으면 프론트는 “도착 시간 정보 없음”으로 표시한다.
+- 주문 상태 `PICKED_UP`, `DELIVERED`는 각각 픽업 완료, 배달 완료로 표시한다.
 
 ### `PUT /api/merchant/orders/{order_id}/cook-time`
 
@@ -148,17 +156,53 @@
 
 배정 패키지가 없으면 `404`다. 프로필 존재 여부와는 별개다.
 
+### `GET /api/rider/{rider_id}/earnings`
+
+라이더의 오늘 배정·완료 수익을 반환한다.
+
+```json
+{"rider_id":"rider_102","total_package_count":5,"completed_count":2,"total_revenue":45000,"packages":[]}
+```
+
+- `total_package_count`는 오늘 배정된 패키지 수, `completed_count`는 완료된 패키지 수, `total_revenue`는 백엔드가 집계한 오늘 누적 수익이다.
+- `packages`는 오늘 배정된 패키지 목록이며, 프론트는 이를 정규화해 수익 요약과 후속 상세 조회에 사용한다.
+
+### `GET /api/package/{package_id}`
+
+특정 패키지의 상세 정보를 반환한다.
+
+```json
+{
+  "package_id": 556,
+  "package_type": "BUNDLE",
+  "status": "MATCHING",
+  "bundle_size": 3,
+  "score": 52,
+  "package_revenue": 9000,
+  "hourly_revenue": 22100,
+  "order_ids": [9, 142, 178],
+  "route_detail": [{"order_id":9,"type":"pickup"}],
+  "score_detail": {"timeline":[{"order_id":9,"type":"pickup","arrival_time_min":3.2}]},
+  "rider_id": "rider_102",
+  "created_at": "..."
+}
+```
+
+- 프론트는 라이더 패키지 카드의 “상세 배차 정보 보기”에서 이 API를 호출한다.
+- 시간 분석은 `score_detail.timeline`을 사용한다. `route_detail`은 방문 순서만 제공하므로 ETA나 도착 시간 계산에 사용하지 않는다.
+- `556`, `557`, `561`~`565`는 성공 응답 테스트용 ID이며, 임의의 큰 숫자(예: `99999`)는 `404` 테스트에 사용한다.
+
 ### `PUT /api/rider/{rider_id}/package/{package_id}/pickup`
 
-패키지 상태를 `PICKED_UP`으로 변경한다. 성공 응답은 `{"package_id":740,"status":"PICKED_UP"}`다.
+패키지 상태를 `PICKED_UP`으로 변경하고, 연결된 주문 상태도 `PICKED_UP`으로 갱신한다. 성공 응답은 `{"package_id":740,"status":"PICKED_UP"}`다.
 
 ### `PUT /api/rider/{rider_id}/package/{package_id}/complete`
 
-패키지 상태를 `COMPLETED`로 변경하고, 라이더 완료 건수를 증가시키며 Redis에서 라이더를 배정 가능 상태로 변경한다. 성공 응답은 `{"package_id":740,"status":"COMPLETED"}`다.
+패키지 상태를 `COMPLETED`로 변경하고, 연결된 주문 상태를 `DELIVERED`로 갱신한다. 라이더 완료 건수를 증가시키며 Redis에서 라이더를 배정 가능 상태로 변경한다. 성공 응답은 `{"package_id":740,"status":"COMPLETED"}`다.
 
 - 두 요청 모두 해당 라이더의 패키지가 없으면 `404`다.
 - 실제 호출은 DB와 Redis 상태를 변경한다.
-- 현재 서버는 선행 상태를 엄격히 검사하지 않으므로 운영 전 `MATCHING → PICKED_UP → COMPLETED` 상태 전이 검증이 필요하다.
+- 고객 주문은 라이더 처리 결과에 따라 `PICKED_UP → DELIVERED`로 갱신되며, 고객 화면은 5초 폴링으로 이를 반영한다.
 
 ## 매장
 

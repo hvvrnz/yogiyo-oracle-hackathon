@@ -24,6 +24,8 @@ GET /api/merchant/273
 GET /api/rider/rider_102
 GET /api/rider/rider_103
 GET /api/rider/rider_105
+GET /api/rider/rider_102/earnings
+GET /api/package/740
 ```
 
 ## 읽기 전용 시연 원칙

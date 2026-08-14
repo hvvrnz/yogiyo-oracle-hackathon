@@ -17,7 +17,19 @@ const showMerchantFailure = (error, { action = false } = {}) => {
 const statusLabels = Object.freeze({
   NEW: '신규 주문',
   MATCHED: '배차 완료',
+  PICKED_UP: '픽업 완료',
+  DELIVERED: '배달 완료',
+  COMPLETED: '배달 완료',
   CANCELLED: '취소됨',
+});
+
+const statusTones = Object.freeze({
+  NEW: 'info',
+  MATCHED: 'brand',
+  PICKED_UP: 'warn',
+  DELIVERED: 'good',
+  COMPLETED: 'good',
+  CANCELLED: 'neutral',
 });
 
 const setConnection = online => {
@@ -31,6 +43,20 @@ const menuSummary = items => {
   const menus = Array.isArray(items) ? items : [];
   if (!menus.length) return '메뉴 정보 없음';
   return menus.map(item => `${item.menu} ${item.qty ? `${item.qty}개` : ''}`.trim()).join(', ');
+};
+
+const riderIdentity = order => {
+  if (!order?.rider_id) return '라이더 배정 정보 없음';
+  const riderName = String(order.rider_name || '').trim();
+  return riderName ? `${riderName} (${order.rider_id})` : String(order.rider_id);
+};
+
+const riderSummary = order => order?.rider_id ? `배정 라이더: ${riderIdentity(order)}` : '라이더 배정 정보 없음';
+
+const etaSummary = order => {
+  if (order?.eta_min == null || order.eta_min === '') return '도착 시간 정보 없음';
+  const eta = Number(order?.eta_min);
+  return Number.isFinite(eta) && eta >= 0 ? `도착 예상: 약 ${Math.ceil(eta)}분` : '도착 시간 정보 없음';
 };
 
 const routeSummary = route => {
@@ -89,10 +115,10 @@ function renderMerchant(view, store) {
   setContentVisible(true);
   Yogiyo.el('merchantOrders').innerHTML = orders.map(order => {
     const status = statusLabels[order.status] || order.status || '상태 정보 없음';
+    const statusTone = statusTones[order.status] || 'neutral';
     const predicted = Number.isFinite(Number(order.predicted_cook_min)) ? `시스템 예측 조리시간 ${order.predicted_cook_min}분` : '시스템 예측 조리시간 미제공';
     const packageText = order.package_id ? `패키지 ${order.package_id}` : '아직 패키지 정보 없음';
-    const riderText = order.rider_id ? `배정 라이더 ${order.rider_id}` : '라이더 배정 정보 없음';
-    return `<article class="card order-card"><div class="row"><div><span class="badge brand">${Yogiyo.escape(status)}</span><div class="order-menu">${Yogiyo.escape(menuSummary(order.menu_items))}</div><div class="order-id">주문 ${Yogiyo.escape(order.order_id)}</div></div><strong>${Yogiyo.money(order.amount || 0)}</strong></div><div class="notice info" style="margin-top:14px"><span>🍳</span><div><strong>사장님 설정 조리시간 ${Yogiyo.escape(order.owner_cook_min ?? '-')}분</strong><span>${Yogiyo.escape(predicted)} · ${Yogiyo.escape(packageText)} · ${Yogiyo.escape(riderText)}</span></div></div><div style="margin-top:14px">${cookTimeControls(order)}</div></article>`;
+    return `<article class="card order-card"><div class="row"><div><span class="badge ${statusTone}">${Yogiyo.escape(status)}</span><div class="order-menu">${Yogiyo.escape(menuSummary(order.menu_items))}</div><div class="order-id">주문 ${Yogiyo.escape(order.order_id)}</div></div><strong>${Yogiyo.money(order.amount || 0)}</strong></div><div class="notice info" style="margin-top:14px"><span>🍳</span><div><strong>사장님 설정 조리시간 ${Yogiyo.escape(order.owner_cook_min ?? '-')}분</strong><span>${Yogiyo.escape(predicted)} · ${Yogiyo.escape(packageText)} · ${Yogiyo.escape(riderSummary(order))} · ${Yogiyo.escape(etaSummary(order))}</span></div></div><div style="margin-top:14px">${cookTimeControls(order)}</div></article>`;
   }).join('') || '<div class="card">이 매장에 조회 가능한 주문이 없습니다.</div>';
 
   Yogiyo.el('merchantOrders').querySelectorAll('[data-cook-time]').forEach(button => {
@@ -108,7 +134,7 @@ function renderMerchant(view, store) {
   });
 
   Yogiyo.el('riderAssignedBadge').textContent = riderId ? '배정 완료' : '배정 전';
-  Yogiyo.el('assignedRiderId').textContent = riderId || '배정 정보 없음';
+  Yogiyo.el('assignedRiderId').textContent = riderIdentity(activeOrder);
   Yogiyo.el('packageStatus').textContent = packageId ? `패키지 ${packageId}` : '배차 전';
   Yogiyo.el('packageSize').textContent = packageId ? `${orders.filter(order => String(order.package_id) === String(packageId)).length}건` : '0건';
   Yogiyo.el('packageStrategy').textContent = routeSummary(route);
