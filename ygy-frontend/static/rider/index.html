@@ -57,6 +57,13 @@
           </section>
         </div>
       </div>
+      <div id="packageDetailBackdrop" class="sheet-backdrop" aria-hidden="true"></div>
+      <aside id="packageDetailSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="packageDetailTitle" aria-hidden="true">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="row"><h2 id="packageDetailTitle" class="sheet-title">패키지 상세</h2><button id="packageDetailCloseButton" class="icon-button" type="button" aria-label="패키지 상세 닫기">×</button></div>
+        <p id="packageDetailSummary" class="sheet-summary">상세 배차 정보를 선택해 주세요.</p>
+        <div id="packageDetailContent" aria-live="polite"></div>
+      </aside>
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>⚡</strong><span>운행</span></div><div class="nav-item"><strong>⌖</strong><span>위치</span></div><div class="nav-item"><strong>₩</strong><span>수익</span></div></nav>
       <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
     </main>
