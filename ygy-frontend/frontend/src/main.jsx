@@ -36,8 +36,8 @@ window.__YGY_CONFIG__ = Object.freeze({
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || '',
   useMock: String(import.meta.env.VITE_USE_MOCK ?? 'false').toLowerCase() === 'true',
-  defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '1',
-  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '892',
+  defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '118',
+  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '781',
   defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'rider_102',
   apiPaths: parseJson(import.meta.env.VITE_API_PATHS, {}),
 });

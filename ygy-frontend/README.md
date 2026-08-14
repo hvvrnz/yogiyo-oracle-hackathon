@@ -1,109 +1,148 @@
 # ygy-frontend
 
-`ygy-frontend`에서 화면과 브라우저 동작만 분리한 독립 Vite 프론트엔드입니다. React는 URL별 페이지를 선택하고 정적 HTML 템플릿을 마운트하는 셸 역할을 하며, 고객·사장님·라이더·통합 시연의 실제 DOM 렌더링과 상호작용은 `static/`의 브라우저 JavaScript가 담당합니다. Python/FastAPI 코드, 서버 상태 저장소, 배차 엔진 및 데이터 파일은 포함하지 않습니다.
+실속배달 해커톤 프로젝트의 Vite 프론트엔드입니다. 기본 모드는 제공된 FastAPI와 Oracle DB를 조회하는 **실제 API 모드**이며, 고객·사장님·라이더 화면은 같은 API 응답을 역할별로 표시합니다.
 
-기본 모드는 `VITE_USE_MOCK=true`입니다. 이때 `static/common.js`의 브라우저 내 mock 엔진이 주문·조리·배차·라이더 상태를 `localStorage`에 저장하고, 같은 Origin의 탭과 통합 시연 iframe에 상태 변경을 반영합니다. mock은 UI 개발 및 시연 전용이며, 실제 서버가 준비되면 같은 API 경계에서 REST·WebSocket 응답으로 교체합니다.
-
-## 렌더링 구조
-
-- `frontend/src/main.jsx`: Vite/React 진입점. URL별 정적 HTML을 선택하고, 공통·화면별 스크립트를 브라우저 전역 범위에서 실행합니다.
-- `static/index.html`, `static/customer/`, `static/merchant/`, `static/rider/`, `static/demo/`: 화면 마크업·역할별 DOM 렌더러·시연 제어 코드입니다.
-- `static/common.js`: mock 상태 전이, API 클라이언트, WebSocket, ETA·거리 계산, SVG 지도, 공통 UI 동작입니다.
-- `static/common.css`: 모든 역할 화면의 공통 스타일입니다. `frontend/src/styles/common.css`는 이 파일을 Vite 번들에 포함시키는 import 래퍼입니다.
-
-이 구조는 기존 정적 시연 화면을 유지하기 위한 선택입니다. 화면을 React 컴포넌트와 state로 직접 구성한 구조는 아닙니다.
+> 실제 API 모드의 변경 요청은 DB 상태를 바꿉니다. 취소·조리시간 수정·패키지 픽업/완료 시연은 별도 테스트 DB가 없으면 `VITE_USE_MOCK=true`에서 진행하세요.
 
 ## 제공 화면
 
-- `/`: 역할별 시작 화면
-- `/customer?customerId=C-001`: 고객 주문·ETA·품질·실시간 경로 화면 (`C-001~C-003` 지원; 각 고객은 치킨·버거·한식 매장에 대응)
-- `/merchant?storeId=S-001`: 사장님 주문·조리·라이더 도착 관리 화면
-- `/rider?riderId=R-001`: 라이더 배차·수익·픽업/배달 경로 화면
-- `/demo`: 고객·사장님·라이더 통합 시연 및 시나리오 제어 화면
+| 화면 | 주소 | 실제 API 기능 |
+|---|---|---|
+| 고객 | `/customer?orderId=118` | 주문 조회, 상태·ETA·메뉴·금액 확인, 취소 |
+| 사장님 | `/merchant?storeId=781` | 매장 주문 조회, 조리시간 수정, 패키지·라이더·방문 순서 확인 |
+| 라이더 | `/rider?riderId=rider_102` | 프로필·패키지 조회, 패키지 픽업/완료 |
+| 통합 시연 | `/demo` | 고객 1개·사장님 3개·라이더 3개 패널의 실제 데이터 조회 |
 
-화면 마크업, 스타일, 개인정보를 노출하지 않는 좌표 기반 SVG 시연용 경로 지도, 사용자 액션 구조는 기존 `ygy-frontend` 구현을 유지합니다. 지도는 강남역·역삼·선릉 권역과 세 매장을 고정 좌표계로 표시하고, 고객·라이더·경로만 위도·경도를 기준으로 이동합니다. 위치·거리·예상 시간은 시연용 이동 속도로 계산하며, 실제 도로 길이나 교통 정보는 사용하지 않습니다. FastAPI 연동 시 사용할 REST·WebSocket 계약은 [docs/API_CONTRACT.md](docs/API_CONTRACT.md)에 정리되어 있습니다.
-분리 기준과 기능별 소스 구성은 [docs/FRONTEND_SCOPE.md](docs/FRONTEND_SCOPE.md)에서 확인할 수 있습니다.
+지도는 현재 좌표 기반 SVG 렌더러입니다. 매장·배달지·전체 라이더 위치 데이터를 5초 폴링하며, 카카오맵 SDK 연결 전까지 fallback으로 사용합니다.
 
 ## 요구 환경
 
 - Node.js 20.19 이상 또는 22.12 이상
 - npm
-- FastAPI 백엔드는 현재 실행하지 않아도 됨(mock 모드 기본 사용)
+- 실제 API 모드: FastAPI 서버 (기본 `http://127.0.0.1:8000`)
 
-## 개발 실행
+## 설치와 실행
 
 ```bash
+cd ygy-frontend
 npm ci
+cp .env.example .env
 npm run dev -- --host 0.0.0.0
 ```
 
-기본값은 `VITE_USE_MOCK=true`이며, 고객·사장님·라이더·통합시연 화면은 `static/common.js`의 mock 상태로 동작합니다. 통합시연의 제어 버튼은 같은 상태를 변경하며, 브라우저 저장소를 통해 iframe 화면에도 반영합니다. `.env.example`을 복사해 개발 환경을 만들 때도 `VITE_USE_MOCK=true`를 유지하면 됩니다.
+같은 VM에 VS Code Remote-SSH로 접속했다면 포트 포워딩을 통해 로컬 브라우저에서 Vite가 안내한 주소로 접속할 수 있습니다. FastAPI 문서는 일반적으로 `http://localhost:8000/docs`에서 확인합니다.
 
-## 배포 빌드
+프로덕션 빌드:
 
 ```bash
-npm ci
 npm run build
 ```
 
-결과는 `dist/`에 생성됩니다. FastAPI 연동 시 프론트와 백엔드를 같은 도메인의 리버스 프록시로 묶으면, 별도 Origin 설정 없이 `/api`와 `/ws`를 사용할 수 있습니다.
+## 환경변수
 
-## FastAPI 연동 전환
+`.env.example`을 복사해 사용합니다.
 
-백엔드가 준비되면 mock을 사용하지 않도록 `VITE_USE_MOCK=false`를 설정합니다. 기본 개발 프록시는 `http://127.0.0.1:8000`을 가리키며, 다른 주소라면 `VITE_BACKEND_PROXY_TARGET`을 설정합니다.
-
-```bash
-VITE_USE_MOCK=false \
-VITE_BACKEND_PROXY_TARGET=http://127.0.0.1:8000 \
-npm run dev
+```dotenv
+VITE_USE_MOCK=false
+VITE_BACKEND_PROXY_TARGET=http://127.0.0.1:8000
+VITE_DEFAULT_ORDER_ID=118
+VITE_DEFAULT_STORE_ID=781
+VITE_DEFAULT_RIDER_ID=rider_102
 ```
 
-서로 다른 도메인으로 배포할 때는 빌드 전에 다음 값을 지정합니다. `VITE_API_BASE_URL`에는 `/api`를 제외한 백엔드 Origin만 입력합니다.
+| 변수 | 설명 |
+|---|---|
+| `VITE_USE_MOCK` | `false`: 실제 FastAPI, `true`: 브라우저 개발용 목업 |
+| `VITE_BACKEND_PROXY_TARGET` | 개발 서버가 `/api`를 전달할 FastAPI Origin |
+| `VITE_API_BASE_URL` | 프론트와 API가 다른 Origin으로 배포될 때의 API Origin. `/api`는 제외 |
+| `VITE_DEFAULT_ORDER_ID` | 고객 화면 기본 주문 ID |
+| `VITE_DEFAULT_STORE_ID` | 사장님 화면 기본 매장 ID |
+| `VITE_DEFAULT_RIDER_ID` | 라이더 화면 기본 라이더 ID |
+
+실제 API 모드가 기본값입니다. 다른 Origin에 배포한다면 백엔드 CORS 허용이 필요합니다.
+
+## 실제 테스트 데이터
+
+현재 통합 시연용으로 확인된 연결 데이터입니다.
+
+| 주문 | 매장 | 라이더 | 패키지 |
+|---:|---:|---|---:|
+| 118 | 781 | rider_102 | 740 |
+| 184 | 467 | rider_103 | 638 |
+| 226 | 273 | rider_105 | 635 |
+
+추가 조회 예시:
+
+- 주문 ID: `1`~`10`
+- 문서상 매장 ID: `884`~`893` — 현재 주문 연결 여부에 따라 404가 날 수 있습니다.
+- 배정 라이더 예시: `rider_102`, `rider_103`, `rider_105`
+- 404 확인용 라이더 예시: `rider_1` (프로필은 존재해도 패키지 조회는 404일 수 있음)
+
+통합 시연의 상세 연결 관계는 [docs/REAL_DEMO_DATA.md](docs/REAL_DEMO_DATA.md)를 참고하세요.
+
+## 시연 순서
+
+### 실제 API 조회 시연
+
+실제 DB를 변경하지 않는 안전한 시연 순서입니다.
+
+1. `/demo`를 열어 고객 주문 118, 매장 781·467·273, 라이더 102·103·105 패널이 표시되는지 확인합니다.
+2. 고객 화면에서 주문 상태·ETA·메뉴·매장/배달지 좌표를 확인합니다.
+3. 사장님 화면에서 주문별 조리시간과 패키지·라이더·방문 순서를 확인합니다.
+4. 라이더 화면에서 패키지 상태·수익·방문 순서와 위치를 확인합니다.
+5. 각 화면의 5초 폴링 및 빈 데이터·404·재시도 화면을 확인합니다.
+
+### 상태 변경 시연
+
+실제 API 모드에서 다음 동작은 DB를 변경합니다.
+
+- 고객 주문 취소
+- 사장님 조리시간 수정
+- 라이더 패키지 픽업·완료
+
+별도 테스트 DB가 없다면 아래처럼 목업 모드에서 실행합니다.
 
 ```bash
-VITE_USE_MOCK=false \
-VITE_API_BASE_URL=https://api.example.com \
-VITE_WS_BASE_URL=wss://api.example.com \
-npm run build
+VITE_USE_MOCK=true npm run dev -- --host 0.0.0.0
 ```
 
-이 경우 백엔드에서 프론트 도메인에 대한 CORS 허용이 필요합니다. WebSocket은 `VITE_WS_BASE_URL`을 우선 사용하며, 연결이 끊기면 최대 30초 간격으로 재연결하고 20초마다 `ping`을 보냅니다. 배포 서버는 `/customer`, `/merchant`, `/rider`, `/demo` 요청을 모두 `index.html`로 되돌리는 SPA fallback도 설정해야 합니다.
+목업 모드의 상태 변경은 브라우저 `localStorage`에만 저장됩니다.
 
-FastAPI가 아래 데이터 계약에 맞춰 JSON을 내려주면 역할별 화면 코드는 그대로 사용할 수 있습니다. 계약 키가 확정되기 전까지는 [제어·데이터 목록](docs/CONTROL_DATA_MAPPING.md)의 임시 제안 키를 사용합니다.
+## API 연결 구조
 
-## 데이터 연결 구조
+브라우저는 `static/backend-client.js`의 API 클라이언트를 통해 다음 API를 호출합니다.
 
-화면의 HTML/CSS는 표시 구조와 문구를 하드코딩해 둔 상태이며, 주문·매장·라이더처럼 변하는 값은 공통 API 경계를 통해 주입합니다. 현재 그 경계는 mock 데이터를 반환하고, FastAPI 연동 시 같은 요청 경계에서 실제 JSON 응답을 반환합니다.
+- 고객: `GET/DELETE /api/customer/{order_id}`
+- 사장님: `GET /api/merchant/{store_id}`, `PUT /api/merchant/orders/{order_id}/cook-time`
+- 라이더: `GET /api/rider`, `GET /api/rider/{rider_id}`, `GET /api/rider/{rider_id}/profile`
+- 패키지 처리: `PUT /api/rider/{rider_id}/package/{package_id}/pickup`, `.../complete`
+- 매장: `GET /api/stores`
+- 설명: `GET /api/explanation/context/{package_id}`, `POST /api/explanation`, `GET /api/explanation/{package_id}`
 
-- API 주소와 기본 화면 ID는 `VITE_API_BASE_URL`, `VITE_WS_BASE_URL`, `VITE_DEFAULT_*` 설정으로 바꿉니다.
-- 표준 계약과 경로만 다르면 `VITE_API_PATHS` JSON으로 바꿉니다. 경로의 `:customerId`, `:storeId`, `:riderId`, `:orderId`, `:packageId`, `:role`, `:entityId`는 호출 시 실제 값으로 치환됩니다. 예: `{"customer":"/v1/customers/:customerId/orders/current","websocket":"/v1/ws/:role/:entityId"}`. 지원 키 전체는 [`.env.example`](.env.example)에 적었습니다.
-- 응답 키까지 다르면 `static/common.js`의 API 응답 경계에 매핑을 추가합니다. 역할별 화면 파일은 가능한 그대로 유지합니다.
-- mock 데이터와 제어 로직은 `static/common.js`의 `mock`, `mockApi()`에 있으며, FastAPI 연동 완료 후 제거 대상입니다.
+`menu_items`, `order_ids`, `route_detail`, `score_detail`처럼 문자열 JSON 또는 객체로 내려올 수 있는 필드는 클라이언트에서 공통 정규화합니다.
+
+## 실제 API 모드의 제약사항
+
+- 고객 주문 API에는 담당 `rider_id`, `package_id`가 없어 고객 화면에는 담당 라이더를 직접 표시할 수 없습니다.
+- 전체 라이더 목록 API(`GET /api/rider`)는 서버 상태에 따라 응답 지연이 발생할 수 있습니다. 프론트는 마지막 정상 지도와 재시도 안내를 유지합니다.
+- 현재 지도는 SVG입니다. 카카오맵 SDK 키·허용 도메인이 준비되면 동일 지도 데이터 계층에 연결할 수 있습니다.
+- 설명 API는 컨텍스트·저장·조회만 제공합니다. LLM 생성은 브라우저 API 키 노출을 피하기 위해 서버 측 생성 API가 추가되어야 합니다.
+- 기존 [docs/API_CONTRACT.md](docs/API_CONTRACT.md)는 초기 mock 시나리오 계약을 포함하므로, 실제 FastAPI 연결 기준은 이 README와 `static/backend-client.js`를 우선합니다.
 
 ## 구조
 
 ```text
 ygy-frontend/
-├── frontend/
-│   ├── index.html
-│   └── src/
-│       ├── main.jsx
-│       └── styles/common.css
-├── public/favicon.svg
+├── frontend/src/main.jsx        # URL별 정적 화면 로더
 ├── static/
-│   ├── common.css
-│   ├── common.js
-│   ├── index.html
-│   ├── landing/
-│   │   └── app.js
-│   ├── customer/
-│   ├── merchant/
-│   ├── rider/
-│   └── demo/
-├── docs/
-│   ├── API_CONTRACT.md
-│   ├── CONTROL_DATA_MAPPING.md
-│   └── FRONTEND_SCOPE.md
-├── package.json
+│   ├── backend-client.js        # 실제 FastAPI 클라이언트·응답 정규화
+│   ├── mock-client.js           # VITE_USE_MOCK=true 전용 클라이언트
+│   ├── map-data.js              # 좌표·마커·SVG 지도 데이터 계층
+│   ├── customer/                # 고객 화면
+│   ├── merchant/                # 사장님 화면
+│   ├── rider/                   # 라이더 화면
+│   └── demo/                    # 통합 시연 화면
+├── docs/REAL_DEMO_DATA.md       # 실제 통합 시연 데이터
+├── .env.example
 └── vite.config.js
 ```
