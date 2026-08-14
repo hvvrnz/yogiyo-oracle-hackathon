@@ -2,6 +2,9 @@ const initialRiderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let riderId = initialRiderId;
 let currentRider;
 let stopRiderViewPolling;
+let locationAddress;
+let locationAddressKey;
+let locationAddressRequestId = 0;
 
 const setContentVisible = visible => { Yogiyo.el('riderContent').hidden = !visible; };
 const showRiderFailure = (error, { action = false } = {}) => {
@@ -31,6 +34,38 @@ const setConnection = online => {
 
 const packageStatus = status => packageStatusLabels[status] || status || '상태 정보 없음';
 
+
+const coordinateKey = profile => {
+  const lat = Number(profile?.lat);
+  const lng = Number(profile?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(4)},${lng.toFixed(4)}` : null;
+};
+
+const coordinateLabel = profile => {
+  const lat = Number(profile?.lat);
+  const lng = Number(profile?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : null;
+};
+
+const resolveLocationAddress = profile => {
+  const nextKey = coordinateKey(profile);
+  if (nextKey === locationAddressKey) return;
+  locationAddressKey = nextKey;
+  locationAddress = undefined;
+  if (!nextKey) return;
+  const requestId = ++locationAddressRequestId;
+  Promise.resolve(Yogiyo.reverseGeocode?.(profile?.lat, profile?.lng))
+    .then(address => {
+      if (requestId !== locationAddressRequestId) return;
+      locationAddress = address || coordinateLabel(profile);
+      if (currentRider) renderRider(currentRider);
+    })
+    .catch(() => {
+      if (requestId !== locationAddressRequestId) return;
+      locationAddress = coordinateLabel(profile);
+      if (currentRider) renderRider(currentRider);
+    });
+};
 const routeSummary = route => {
   if (!Array.isArray(route) || !route.length) return '방문 순서 정보 없음';
   return route
@@ -53,9 +88,9 @@ function renderRider({ profile, packages }) {
   const activePackages = packages.filter(pkg => !['COMPLETED', 'CANCELLED'].includes(pkg.status));
   const currentPackage = activePackages[0] || packages[0];
   const name = profile?.name || riderId;
-  const position = [profile?.lat, profile?.lng].every(Number.isFinite)
-    ? `${Number(profile.lat).toFixed(5)}, ${Number(profile.lng).toFixed(5)}`
-    : '위치 정보 미제공';
+  resolveLocationAddress(profile);
+  const coordinate = coordinateLabel(profile);
+  const position = locationAddress || (coordinate ? '주소 확인 중' : '위치 정보 미제공');
 
   Yogiyo.el('riderName').textContent = name;
   Yogiyo.el('riderMeta').textContent = [profile?.region, profile?.status].filter(Boolean).join(' · ') || '라이더 정보를 확인 중';
@@ -139,6 +174,9 @@ function bindRiderLookup() {
     }
     riderId = nextRiderId;
     currentRider = undefined;
+    locationAddress = undefined;
+    locationAddressKey = undefined;
+    locationAddressRequestId += 1;
     loadRider();
   };
   button.addEventListener('click', reload);

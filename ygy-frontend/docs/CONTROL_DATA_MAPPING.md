@@ -37,7 +37,7 @@
 
 | 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
-| 라이더 프로필 | `GET /api/rider/{rider_id}/profile` | 이름, 권역, 상태, 완료 건수, 좌표 | 선택 라이더 정보와 위치 렌더링 |
+| 라이더 프로필 | `GET /api/rider/{rider_id}/profile` | 이름, 권역, 상태, 완료 건수, 좌표 | 선택 라이더 정보와 카카오맵 좌표→주소 변환 결과 렌더링 |
 | 배정 패키지 | `GET /api/rider/{rider_id}` | `packages[]`의 유형·상태·수익·주문 ID·경로·점수 | 패키지 목록과 경로 렌더링 |
 | 내 운행 지도 | `GET /api/rider/{rider_id}/profile`, `GET /api/rider/{rider_id}` | 본인 좌표, 패키지 경로 | 본인 위치와 배정 패키지 경로만 5초 갱신하며 카카오맵에 표시(키 미설정 시 SVG fallback) |
 | 픽업 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/pickup` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |

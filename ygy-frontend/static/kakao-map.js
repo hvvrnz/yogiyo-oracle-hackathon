@@ -1,6 +1,7 @@
 (() => {
   const SDK_PROMISE_KEY = '__YGY_KAKAO_MAP_SDK_PROMISE__';
   const mapStates = new WeakMap();
+  const geocodeCache = new Map();
   let enabled = false;
 
   const clearSvgArtifacts = root => {
@@ -15,7 +16,7 @@
       const script = document.createElement('script');
       script.id = 'ygy-kakao-map-sdk';
       script.async = true;
-      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=${encodeURIComponent(appKey)}`;
+      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&libraries=services&appkey=${encodeURIComponent(appKey)}`;
       script.onload = () => {
         if (!window.kakao?.maps?.load) {
           reject(new Error('카카오맵 SDK를 초기화할 수 없습니다.'));
@@ -116,6 +117,25 @@
     return true;
   };
 
+
+  const reverseGeocode = (lat, lng) => {
+    if (!enabled || !window.kakao?.maps?.services?.Geocoder || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return Promise.resolve(null);
+    const cacheKey = `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
+    if (geocodeCache.has(cacheKey)) return geocodeCache.get(cacheKey);
+    const request = new Promise(resolve => {
+      const geocoder = new window.kakao.maps.services.Geocoder();
+      geocoder.coord2Address(Number(lng), Number(lat), (results, status) => {
+        if (status !== window.kakao.maps.services.Status.OK || !results?.[0]) {
+          resolve(null);
+          return;
+        }
+        const result = results[0];
+        resolve(result.road_address?.address_name || result.address?.address_name || null);
+      });
+    });
+    geocodeCache.set(cacheKey, request);
+    return request;
+  };
   const configureKakaoMap = async () => {
     const appKey = String(window.__YGY_CONFIG__?.kakaoMapJsKey || '').trim();
     if (!appKey) return false;
@@ -130,5 +150,5 @@
     }
   };
 
-  Object.assign(window.Yogiyo, { configureKakaoMap, renderKakaoMap });
+  Object.assign(window.Yogiyo, { configureKakaoMap, renderKakaoMap, reverseGeocode });
 })();
