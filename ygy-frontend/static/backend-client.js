@@ -2,7 +2,11 @@
   const config = window.__YGY_CONFIG__ || {};
   const apiBaseUrl = String(config.apiBaseUrl || '').replace(/\/+$/, '');
   const apiPaths = config.apiPaths && typeof config.apiPaths === 'object' ? config.apiPaths : {};
-  const defaultIds = Object.freeze({ customer: '1', merchant: '884', rider: 'rider_102' });
+  const defaultIds = Object.freeze({
+    customer: String(config.defaultOrderId || '1'),
+    merchant: String(config.defaultStoreId || '892'),
+    rider: String(config.defaultRiderId || 'rider_102'),
+  });
 
   const endpoint = (name, fallback, params = {}) => {
     const template = String(apiPaths[name] || fallback);

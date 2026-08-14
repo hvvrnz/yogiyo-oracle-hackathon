@@ -37,7 +37,7 @@ window.__YGY_CONFIG__ = Object.freeze({
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || '',
   useMock: 'false',
   defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '1',
-  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '884',
+  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '892',
   defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'rider_102',
   apiPaths: parseJson(import.meta.env.VITE_API_PATHS, {}),
 });
