@@ -156,6 +156,18 @@
 
 배정 패키지가 없으면 `404`다. 프로필 존재 여부와는 별개다.
 
+### `GET /api/rider/{rider_id}/earnings`
+
+라이더의 오늘 배정·완료 수익을 반환한다.
+
+```json
+{"rider_id":"rider_102","total_package_count":5,"completed_count":2,"total_revenue":45000,"packages":[]}
+```
+
+### `GET /api/package/{package_id}`
+
+특정 패키지의 상세 정보를 반환한다. 응답의 패키지 필드는 `GET /api/rider/{rider_id}`의 `packages[]` 항목과 같다. 존재하지 않는 패키지는 `404`다.
+
 ### `PUT /api/rider/{rider_id}/package/{package_id}/pickup`
 
 패키지 상태를 `PICKED_UP`으로 변경한다. 성공 응답은 `{"package_id":740,"status":"PICKED_UP"}`다.

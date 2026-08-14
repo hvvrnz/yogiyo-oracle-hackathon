@@ -90,6 +90,18 @@
         if (!packages.length) throw createError('해당 라이더의 배정 내역이 없습니다.', 404);
         return { rider_id: riderId, current_lat: rider.lat, current_lng: rider.lng, packages };
       },
+      getEarnings: async riderId => {
+        profile(riderId);
+        const packages = packageForRider(riderId);
+        const completedPackages = packages.filter(pkg => pkg.status === 'COMPLETED');
+        return {
+          rider_id: riderId,
+          total_package_count: packages.length,
+          completed_count: completedPackages.length,
+          total_revenue: completedPackages.reduce((total, pkg) => total + Number(pkg.package_revenue || 0), 0),
+          packages,
+        };
+      },
       pickup: async (riderId, packageId) => {
         profile(riderId);
         const pkg = findPackage(packageId);
@@ -115,6 +127,13 @@
         rider.status = 'AVAILABLE';
         save();
         return { package_id: pkg.package_id, status: pkg.status };
+      },
+    }),
+    packages: Object.freeze({
+      get: async packageId => {
+        const pkg = findPackage(packageId);
+        if (!pkg) throw createError('해당 패키지를 찾을 수 없습니다.', 404);
+        return clone(pkg);
       },
     }),
     stores: Object.freeze({ list: async () => ({ stores: clone(state.stores) }) }),

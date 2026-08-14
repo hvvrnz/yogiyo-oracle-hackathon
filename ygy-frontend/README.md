@@ -117,6 +117,8 @@ VITE_USE_MOCK=true npm run dev -- --host 0.0.0.0
 - 고객: `GET/DELETE /api/customer/{order_id}`
 - 사장님: `GET /api/merchant/{store_id}`, `PUT /api/merchant/orders/{order_id}/cook-time`
 - 라이더: `GET /api/rider`, `GET /api/rider/{rider_id}`, `GET /api/rider/{rider_id}/profile`
+- 라이더 수익: `GET /api/rider/{rider_id}/earnings`
+- 패키지 상세: `GET /api/package/{package_id}`
 - 패키지 처리: `PUT /api/rider/{rider_id}/package/{package_id}/pickup`, `.../complete`
 - 매장: `GET /api/stores`
 - 설명: `GET /api/explanation/context/{package_id}`, `POST /api/explanation`, `GET /api/explanation/{package_id}`
