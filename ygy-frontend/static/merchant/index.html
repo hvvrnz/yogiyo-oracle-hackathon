@@ -3,38 +3,38 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>요기요 사장님 · 조리 동기화</title>
+  <title>요기요 사장님 · 주문 관리</title>
   <link rel="stylesheet" href="/static/common.css" />
 </head>
 <body>
   <div class="page-stage">
     <main class="mobile-shell" aria-label="사장님 주문 관리">
       <header class="app-header">
-        <div class="header-title"><div class="brand-mark">샵</div><div><h1 id="merchantStoreName">매장 관리</h1><p id="merchantStoreMeta">영업 상태 확인 중</p></div></div>
+        <div class="header-title"><div class="brand-mark">샵</div><div><h1 id="merchantStoreName">매장 관리</h1><p id="merchantStoreMeta">매장 정보를 확인 중</p></div></div>
         <div id="connection" class="connection-pill"><i></i><span>연결 중</span></div>
       </header>
       <div class="mobile-scroll">
         <section class="section">
           <div class="card">
-            <div class="row"><div><span class="badge good"><span class="dot"></span>영업 중</span><div class="order-menu">오늘의 조리 현황</div><div class="order-id" id="congestion">매장 혼잡도 확인 중</div></div><button class="icon-button" aria-label="통합 시연으로 이동" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
+            <div class="row"><div><span class="badge neutral">영업 상태 API 미제공</span><div class="order-menu">오늘의 주문 현황</div><div class="order-id" id="congestion">매장 정보를 확인 중</div></div><button class="icon-button" aria-label="통합 시연으로 이동" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
             <div class="metric-grid" style="margin-top:15px">
               <div class="metric"><span class="metric-label">신규 주문</span><strong id="newCount">0</strong><small>건</small></div>
-              <div class="metric"><span class="metric-label">조리 중</span><strong id="cookingCount">0</strong><small>건</small></div>
-              <div class="metric"><span class="metric-label">픽업 대기</span><strong id="readyCount">0</strong><small>건</small></div>
+              <div class="metric"><span class="metric-label">배차 완료</span><strong id="cookingCount">0</strong><small>건</small></div>
+              <div class="metric"><span class="metric-label">취소 주문</span><strong id="readyCount">0</strong><small>건</small></div>
             </div>
           </div>
         </section>
 
         <section class="section">
-          <button id="merchantDispatchButton" class="primary-button full">AI 배차 계산</button>
+          <button id="merchantDispatchButton" class="primary-button full">매장 다시 조회</button>
         </section>
         <section class="section">
-          <div class="section-title-row"><h2>진행 중 주문</h2><span id="orderCountLabel">0건</span></div>
+          <div class="section-title-row"><h2>주문 목록</h2><span id="orderCountLabel">0건</span></div>
           <div id="merchantOrders"><div class="card skeleton"></div></div>
         </section>
 
         <section class="section">
-          <div class="section-title-row"><h2>라이더 도착 정보</h2><span id="riderAssignedBadge" class="badge neutral">배정 전</span></div>
+          <div class="section-title-row"><h2>배정 라이더 정보</h2><span id="riderAssignedBadge" class="badge neutral">배정 전</span></div>
           <div class="card">
             <div class="row"><span class="label">매장 도착 예정</span><span class="value" id="riderArrival">-</span></div>
             <div class="row"><span class="label">도착까지</span><span class="value" id="riderRemaining">-</span></div>
@@ -44,14 +44,14 @@
         </section>
 
         <section class="section">
-          <div class="section-title-row"><h2>AI 묶음 동기화</h2><button class="ghost-button" style="min-height:34px;padding:7px 10px;font-size:11px" id="merchantWhyButton">추천 근거</button></div>
+          <div class="section-title-row"><h2>배차 정보</h2><span class="badge neutral">API 기준</span></div>
           <div class="card">
             <div class="row"><span class="label">현재 패키지</span><span class="value" id="packageStatus">-</span></div>
             <div class="row"><span class="label">주문 수</span><span class="value" id="packageSize">-건</span></div>
-            <div class="row"><span class="label">경로 전략</span><span class="value" id="packageStrategy">-</span></div>
-            <div class="row"><span class="label">조리 완료 예상 편차</span><span class="value" id="packageGap">-분</span></div>
-            <div class="row"><span class="label">예상 총 라이더 대기</span><span class="value" id="packageWait">-분</span></div>
-            <div class="notice good" style="margin-top:14px"><span>✓</span><div><strong>동기화 목표</strong><span id="packageReason">조리 완료와 라이더 도착을 맞춥니다.</span></div></div>
+            <div class="row"><span class="label">방문 순서</span><span class="value" id="packageStrategy">-</span></div>
+            <div class="row"><span class="label">조리 완료 예상</span><span class="value" id="packageGap">-</span></div>
+            <div class="row"><span class="label">라이더 대기 정보</span><span class="value" id="packageWait">-</span></div>
+            <div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>안내</strong><span id="packageReason">매장 API가 제공하는 배차 정보만 표시합니다.</span></div></div>
           </div>
         </section>
 
@@ -60,16 +60,12 @@
         </section>
 
         <section class="section">
-          <div class="card weather-strip"><div class="weather-icon" id="merchantWeatherIcon">🌧️</div><div class="weather-copy"><strong id="merchantWeatherTitle">날씨 확인 중</strong><span id="merchantWeatherAdvisory">라이더 도착 영향을 계산하고 있어요.</span></div></div>
+          <div class="card weather-strip"><div class="weather-icon" id="merchantWeatherIcon">ⓘ</div><div class="weather-copy"><strong id="merchantWeatherTitle">데이터 제공 범위</strong><span id="merchantWeatherAdvisory">날씨·라이더 도착 ETA는 현재 사장님 API에서 제공하지 않습니다.</span></div></div>
         </section>
       </div>
 
       <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>▤</strong><span>주문</span></div><div class="nav-item"><strong>◷</strong><span>조리</span></div><div class="nav-item"><strong>⌁</strong><span>통계</span></div></nav>
       <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-      <div id="sheetBackdrop" class="sheet-backdrop"></div>
-      <section id="bottomSheet" class="bottom-sheet" aria-modal="true" aria-labelledby="sheetHeadline" aria-hidden="true" inert role="dialog">
-        <div class="sheet-handle"></div><h2 class="sheet-title" id="sheetHeadline">추천 근거</h2><p class="sheet-summary" id="sheetSummary"></p><div class="reason-list" id="sheetReasons"></div><div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>운영 안내</strong><span id="sheetNote"></span></div></div><button class="ghost-button full" style="margin-top:14px" id="sheetClose">확인</button>
-      </section>
     </main>
   </div>
   <script src="/static/common.js"></script>
