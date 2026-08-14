@@ -35,7 +35,7 @@ function parseJson(value, fallback) {
 window.__YGY_CONFIG__ = Object.freeze({
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || '',
-  useMock: 'false',
+  useMock: String(import.meta.env.VITE_USE_MOCK ?? 'false').toLowerCase() === 'true',
   defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '1',
   defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '892',
   defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'rider_102',
@@ -60,14 +60,25 @@ function Screen({ page }) {
   const content = useMemo(() => splitTemplate(page.template), [page.template]);
 
   useEffect(() => {
+    let disposed = false;
     document.title = page.title;
     if (!page.script) return undefined;
-    execute(commonScript);
-    execute(backendClientScript);
-    execute(mapDataScript);
-    execute(page.script);
+    const boot = async () => {
+      execute(commonScript);
+      if (window.__YGY_CONFIG__.useMock) {
+        const { default: mockClientScript } = await import('../../static/mock-client.js?raw');
+        if (disposed) return;
+        execute(mockClientScript);
+      } else {
+        execute(backendClientScript);
+      }
+      if (disposed) return;
+      execute(mapDataScript);
+      execute(page.script);
+    };
+    boot();
     return () => {
-      // Each route is a separate document navigation. Clearing globals prevents stale map state on HMR.
+      disposed = true;
       window.Yogiyo?.dispose?.();
       delete window.Yogiyo;
     };
