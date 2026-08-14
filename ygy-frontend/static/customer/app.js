@@ -1,62 +1,131 @@
-const customerId = Yogiyo.qs('customerId', Yogiyo.defaultIds.customer);
-const storeForCustomer = {'C-001':'S-001','C-002':'S-002','C-003':'S-003'};
-let currentView;
-let previousRouteSignature;
+const orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
+let currentOrder;
+let stopPolling;
 
-async function loadCustomer() {
-  try { currentView = await Yogiyo.apiClient.customer.get(customerId); renderCustomer(currentView); }
-  catch (error) { Yogiyo.toast(error.message); }
+const statusMeta = {
+  NEW: { label: '신규 주문', progress: 0, message: '주문이 접수되어 배차를 기다리고 있어요.' },
+  MATCHED: { label: '배차 완료', progress: 3, message: '배차가 완료되었습니다. 라이더가 픽업을 준비하고 있어요.' },
+  CANCELLED: { label: '주문 취소', progress: 0, message: '이 주문은 취소되었습니다.' },
+};
+
+function setConnection(online) {
+  const root = Yogiyo.el('connection');
+  if (!root) return;
+  root.classList.toggle('online', online);
+  const label = root.querySelector('span');
+  if (label) label.textContent = online ? '서버 연결됨' : '재연결 필요';
 }
 
-function renderCustomer(view) {
-  const {order, store, package: pkg, rider, weather, route} = view;
-  Yogiyo.el('orderId').textContent = `${order.order_id} · ${store?.name || '주문 생성 대기'}`;
-  Yogiyo.el('etaWindow').textContent = order.eta_window;
-  Yogiyo.el('currentMessage').textContent = order.current_message;
-  Yogiyo.el('deliveryOrder').textContent = `내 배달 순서 ${order.delivery_sequence}번째`;
-  Yogiyo.el('etaUpdated').textContent = order.eta_updated_label;
-  Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(order.status_label)}`;
-  Yogiyo.el('storeName').textContent = store?.name || '매장을 선택해 주문하세요';
-  Yogiyo.el('menuSummary').textContent = order.menu_summary;
-  Yogiyo.el('remainingMin').textContent = order.status === 'DELIVERED' ? '완료' : `약 ${order.remaining_min}분`;
-  [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= order.progress_index));
-  Yogiyo.el('deliveryPreference').textContent = `고객 선택 · ${order.delivery_preference_label}`;
-  Yogiyo.el('resolvedDelivery').textContent = order.resolved_delivery_label ? `실제 배차 · ${order.resolved_delivery_label}` : '실제 배차 · AI 배차 계산 대기';
-  Yogiyo.el('assignedRider').textContent = rider.assigned ? `배정 라이더 · ${rider.display_name}` : '배정 라이더 · 탐색 중';
-  Yogiyo.el('readyGap').textContent = `${pkg.ready_gap_min || 0}분`;
-  Yogiyo.el('routeOverlap').textContent = String(pkg.delivery_type || '').startsWith('AI_BUNDLE_') ? `${pkg.route_saving_pct || 0}%` : '-';
-  Yogiyo.el('bagTime').textContent = `${order.bag_time_min}분`; Yogiyo.el('bagLimit').textContent = `제한 ${order.bag_time_limit_min}분`;
-  Yogiyo.el('routeStrategyLabel').textContent = `현재 방식 · ${pkg.route_strategy_label}`;
-  Yogiyo.el('routeStrategyDescription').textContent = pkg.route_strategy_description;
-  Yogiyo.el('riderStep').textContent = rider.current_step_label;
-  Yogiyo.el('qualityBag').textContent = `${order.bag_time_min}분`; Yogiyo.el('qualityLimit').textContent = `${order.bag_time_limit_min}분`; Yogiyo.el('qualityMargin').textContent = `${order.quality_margin_min}분`;
-  const qualityPassed = Boolean(order.quality_guard_passed);
-  const qualityBadge=Yogiyo.el('qualityBadge'); qualityBadge.textContent=qualityPassed?'기준 통과':'품질 주의'; qualityBadge.className=`badge ${qualityPassed?'good':'warn'}`;
-  const qualityNotice=Yogiyo.el('qualityNotice'); qualityNotice.className=`notice ${qualityPassed?'good':'warn'}`;
-  Yogiyo.el('qualityNoticeIcon').textContent=qualityPassed?'✓':'!';
-  Yogiyo.el('qualityNoticeTitle').textContent=qualityPassed?'품질 가드레일을 통과했어요':'품질 기준을 다시 확인해 주세요';
-  Yogiyo.el('qualityNoticeDescription').textContent=qualityPassed
-    ? '현재 경로의 예상 가방 체류시간이 음식별 제한 안에 있습니다.'
-    : `예상 가방 체류시간이 제한을 ${Math.abs(Math.min(0, order.quality_margin_min))}분 넘습니다. 경로 조정 또는 개별 배달을 검토해야 합니다.`;
-  const routeSignature=`${pkg.package_id||'none'}:${pkg.route_strategy_label||'-'}:${route.map(step=>`${step.order_id}-${step.type}-${step.sequence}`).join('|')}`;
-  const routeChanged=Boolean(previousRouteSignature&&previousRouteSignature!==routeSignature); Yogiyo.el('routeChangeSection').hidden=!routeChanged; Yogiyo.el('routeChangeNote').textContent=routeChanged?`${pkg.route_strategy_label} 기준으로 ETA와 배달 순서를 다시 계산했습니다.`:''; previousRouteSignature=routeSignature;
-  Yogiyo.el('weatherIcon').textContent = weather.condition === 'RAIN' ? '🌧️' : '☀️'; Yogiyo.el('weatherTitle').textContent = `${weather.label} · ${weather.temperature_c}℃`; Yogiyo.el('weatherAdvisory').textContent = weather.advisory; Yogiyo.el('temperature').textContent = `${weather.temperature_c}°`;
-  Yogiyo.el('amount').textContent = Yogiyo.money(order.amount); Yogiyo.el('itemsCard').innerHTML = order.items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.name)}</span><span class="value">${item.quantity}개</span></div>`).join('') || '<div class="subtext">주문 생성 후 메뉴가 표시됩니다.</div>';
-  Yogiyo.renderRouteMap('customerMap', route, rider.assigned ? rider : null);
-  const hasActive = order.order_id !== '새 주문 없음' && order.status !== 'DELIVERED'; Yogiyo.el('createOrderButton').disabled = hasActive; Yogiyo.el('createOrderButton').textContent = hasActive ? '진행 중인 주문이 있습니다' : '주문하기';
+function orderRoute(order) {
+  return [
+    { type: 'PICKUP', sequence: 1, lat: order.store_lat, lng: order.store_lng, label: order.store_name },
+    { type: 'DELIVERY', sequence: 2, lat: order.delivery_lat, lng: order.delivery_lng, label: '배달지' },
+  ];
 }
 
-async function createOrder() {
-  const preference = document.querySelector('input[name="deliveryPreference"]:checked')?.value || 'AI_RECOMMENDED';
-  try { const result = await Yogiyo.apiClient.orders.create({customer_id:customerId,store_id:storeForCustomer[customerId] || 'S-001',delivery_preference:preference}); Yogiyo.toast(result.message); await loadCustomer(); }
-  catch (error) { Yogiyo.toast(error.message); }
+function menuSummary(items) {
+  return items.map(item => `${item.menu}${item.qty > 1 ? ` ${item.qty}개` : ''}`).join(' · ') || '메뉴 정보 없음';
 }
 
-Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, createOrder));
-Yogiyo.el('customerSwitcher').querySelectorAll('[data-customer-id]').forEach(button => {
-  button.className = button.dataset.customerId === customerId ? 'primary-button' : 'ghost-button';
-  button.addEventListener('click', () => { location.href = `/customer?customerId=${encodeURIComponent(button.dataset.customerId)}`; });
+function renderUnavailableMetrics() {
+  Yogiyo.el('deliveryPreference').textContent = '고객 선택 정보는 현재 API에서 제공되지 않아요';
+  Yogiyo.el('resolvedDelivery').textContent = '패키지 상세 정보는 라이더 화면에서 확인할 수 있어요';
+  Yogiyo.el('assignedRider').textContent = '라이더 정보는 현재 고객 API에서 제공되지 않아요';
+  Yogiyo.el('readyGap').textContent = '-';
+  Yogiyo.el('routeOverlap').textContent = '-';
+  Yogiyo.el('bagTime').textContent = '-';
+  Yogiyo.el('bagLimit').textContent = 'API 미제공';
+  Yogiyo.el('routeStrategyLabel').textContent = '방문 순서는 라이더 화면에서 확인할 수 있어요';
+  Yogiyo.el('routeStrategyDescription').textContent = '고객 API는 주문 ETA와 매장·배달지 좌표를 제공합니다.';
+  Yogiyo.el('riderStep').textContent = '라이더 정보 미제공';
+  Yogiyo.el('qualityBag').textContent = '-';
+  Yogiyo.el('qualityLimit').textContent = '-';
+  Yogiyo.el('qualityMargin').textContent = '-';
+  Yogiyo.el('qualityBadge').textContent = '정보 미제공';
+  Yogiyo.el('qualityBadge').className = 'badge info';
+  Yogiyo.el('qualityNotice').className = 'notice info';
+  Yogiyo.el('qualityNoticeIcon').textContent = 'ⓘ';
+  Yogiyo.el('qualityNoticeTitle').textContent = '품질 지표는 현재 제공되지 않아요';
+  Yogiyo.el('qualityNoticeDescription').textContent = '가방 체류시간과 품질 제한은 패키지 상세 API가 추가되면 표시할 수 있습니다.';
+  Yogiyo.el('weatherIcon').textContent = '—';
+  Yogiyo.el('weatherTitle').textContent = '날씨 데이터 미연동';
+  Yogiyo.el('weatherAdvisory').textContent = '현재 백엔드 API는 날씨 정보를 제공하지 않습니다.';
+  Yogiyo.el('temperature').textContent = '-';
+  Yogiyo.el('whyButton').disabled = true;
+  Yogiyo.el('whyButton').textContent = '패키지 ID가 제공되면 설명을 조회할 수 있어요';
+}
+
+function renderCustomer(order) {
+  currentOrder = order;
+  const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
+  const etaLabel = order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
+  const items = Array.isArray(order.menu_items) ? order.menu_items : [];
+  const route = orderRoute(order);
+
+  Yogiyo.el('orderId').textContent = `주문 ${order.order_id} · ${order.store_name}`;
+  Yogiyo.el('etaWindow').textContent = etaLabel;
+  Yogiyo.el('currentMessage').textContent = meta.message;
+  Yogiyo.el('deliveryOrder').textContent = order.status === 'MATCHED' ? '패키지 배차 완료' : meta.label;
+  Yogiyo.el('etaUpdated').textContent = '서버 조회 기준';
+  Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(meta.label)}`;
+  Yogiyo.el('storeName').textContent = order.store_name;
+  Yogiyo.el('menuSummary').textContent = menuSummary(items);
+  Yogiyo.el('remainingMin').textContent = order.status === 'CANCELLED' ? '취소됨' : etaLabel;
+  [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= meta.progress));
+  Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
+  Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
+  Yogiyo.renderRouteMap('customerMap', route, null);
+  renderUnavailableMetrics();
+
+  const cancelButton = Yogiyo.el('createOrderButton');
+  const cancelled = order.status === 'CANCELLED';
+  cancelButton.disabled = cancelled;
+  cancelButton.textContent = cancelled ? '취소된 주문입니다' : '주문 취소';
+  setConnection(true);
+}
+
+async function loadCustomer({ silent = false } = {}) {
+  try {
+    renderCustomer(await Yogiyo.apiClient.customers.get(orderId));
+  } catch (error) {
+    setConnection(false);
+    if (!silent) Yogiyo.toast(error.message);
+  }
+}
+
+async function cancelOrder() {
+  if (!currentOrder || currentOrder.status === 'CANCELLED') return;
+  if (!window.confirm(`주문 ${currentOrder.order_id}을 취소할까요?\n픽업 완료된 주문은 취소할 수 없습니다.`)) return;
+  try {
+    const result = await Yogiyo.apiClient.customers.cancel(currentOrder.order_id);
+    Yogiyo.toast(`주문 ${result.order_id}이 취소되었습니다.`);
+    await loadCustomer();
+  } catch (error) {
+    Yogiyo.toast(error.message);
+  }
+}
+
+function switchOrder(nextOrderId) {
+  location.href = `/customer?orderId=${encodeURIComponent(nextOrderId)}`;
+}
+
+Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, cancelOrder));
+Yogiyo.el('customerSwitcher').querySelectorAll('[data-order-id]').forEach(button => {
+  button.className = button.dataset.orderId === orderId ? 'primary-button' : 'ghost-button';
+  button.addEventListener('click', () => switchOrder(button.dataset.orderId));
 });
-async function showCustomerExplanation(){try{Yogiyo.openSheet();const info=await Yogiyo.apiClient.explanation('customer',customerId);Yogiyo.el('sheetHeadline').textContent=info.headline;Yogiyo.el('sheetSummary').textContent=info.summary;Yogiyo.el('sheetReasons').innerHTML=info.reasons.map(reason=>`<div class="reason-item"><div class="reason-copy"><h3>${Yogiyo.escape(reason.title)}</h3><p>${Yogiyo.escape(reason.description)}</p></div><div class="reason-metric">${Yogiyo.escape(reason.metric)}</div></div>`).join('');Yogiyo.el('sheetNote').textContent=info.note;}catch(error){Yogiyo.closeSheet();Yogiyo.toast(error.message);}}
-Yogiyo.el('whyButton').addEventListener('click', showCustomerExplanation);
-Yogiyo.bindSheet(); Yogiyo.websocket('customer',customerId,loadCustomer); loadCustomer();
+Yogiyo.el('loadOrderButton')?.addEventListener('click', () => {
+  const nextOrderId = Yogiyo.el('orderIdInput').value.trim();
+  if (!/^\d+$/.test(nextOrderId)) { Yogiyo.toast('숫자로 된 주문 번호를 입력해 주세요.'); return; }
+  switchOrder(nextOrderId);
+});
+Yogiyo.el('orderIdInput')?.addEventListener('keydown', event => {
+  if (event.key === 'Enter') Yogiyo.el('loadOrderButton').click();
+});
+Yogiyo.el('whyButton').addEventListener('click', () => Yogiyo.toast('현재 고객 API에는 패키지 ID가 없습니다.'));
+Yogiyo.bindSheet();
+stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), renderCustomer, {
+  intervalMs: 5000,
+  onError: error => { setConnection(false); console.warn('customer polling failed', error); },
+});
+window.addEventListener('beforeunload', () => stopPolling?.(), { once: true });
