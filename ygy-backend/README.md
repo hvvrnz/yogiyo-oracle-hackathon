@@ -87,10 +87,12 @@ ygy-backend/
   `handler`나 `repository`를 호출만 하고 직접 SQL을 짜지 않는다
   (단, 지금은 조회가 단순해 라우터에서 `db/connection.py`의 헬퍼를
   직접 호출하는 경우도 있음).
+  
 - **실시간 값 vs 정적 값 분리**: 라이더 위치처럼 자주 바뀌는 값은
   Redis(`stream_processor/riders/geo_client.py`)가 전담하고, DB는
   라이더/매장 등 상대적으로 정적인 정보만 관리한다. 라이더의 배정
   가능 여부(BUSY/AVAILABLE)도 Redis가 실시간 판단의 기준이다.
+  
 - **더미 데이터 일관성**: 매장/라이더 더미는 스크립트 실행마다
   랜덤하게 재생성되면 DB와 Kafka 파이프라인이 서로 다른 데이터를
   참조하는 문제가 있어, 최초 1회 생성 후 JSON 파일로 캐싱해 이후
@@ -115,14 +117,17 @@ ygy-backend/
 | PUT | `/api/rider/{rider_id}/package/{package_id}/complete` | 배달 완료 처리 |
 | GET | `/api/customer/{order_id}` | 주문 상태/ETA/좌표 조회 |
 | DELETE | `/api/customer/{order_id}` | 주문 취소 |
+| GET | `/api/package/{package_id}` | 
 | GET | `/api/merchant/{store_id}` | 매장 주문 목록 조회 |
 | PUT | `/api/merchant/orders/{order_id}/cook-time` | 조리시간 수정 |
-| GET | `/api/stores` | 전체 매장 목록 |
+| GET | `/api/stores` | 전체 매장 목록 | 패키지(묶음/한집배달) 단건 상세 조회 |
 | GET | `/api/explanation/context/{package_id}` | LLM 프롬프트 재료 조회 |
 | POST | `/api/explanation` | LLM 생성 설명 저장 |
 | GET | `/api/explanation/{package_id}` | 저장된 설명 조회 |
 
-전체 명세(요청/응답 타입, 예시값)는 `API_명세서_v4.md` 참고.
+전체 API 명세는 아래 Notion 문서 참고
+
+[ℹ️ API 명세](https://app.notion.com/p/API-3bcc9e9064bf80e8a1bdf2d967666287?pvs=12) 
 
 ## 인프라
 
@@ -157,13 +162,13 @@ python riders/repository/rider_repo.py
 # 2. 라이더 위치를 Redis Geo에 등록
 python stream_processor/riders/geo_client.py
 
-# 3. Kafka 토픽 초기화 (기존 데이터 정리하고 싶을 때)
+# 3. Kafka 토픽 초기화 (기존 데이터 정리시)
 docker exec -it ygy-kafka kafka-topics --bootstrap-server localhost:9092 \
     --delete --topic order-events
 docker exec -it ygy-kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic order-events --partitions 1 --replication-factor 1
 
-# 4. Consumer 실행 (라이더 위치 시뮬레이터가 백그라운드 스레드로 자동 포함됨)
+# 4. Consumer 실행 (라이더 위치 시뮬레이터가 백그라운드 스레드로 자동 포함)
 python stream_processor/orders/consumer.py
 
 # 5. (새 터미널) Producer 실행 — 더미 주문을 계속 생성해 Kafka로 전송
@@ -174,4 +179,4 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 다음 작업 (별도 브랜치)
- 조리시간 예측 고도화: correction_factor를 지금의 카테고리별 고정값(common/config/menu_data.py)에서, Oracle AI Vector Search(vector_cases 테이블) 기반 유사 사례 검색으로 전환
+ 조리시간 예측 고도화: correction_factor를 지금의 카테고리별 고정값 (common/config menu_data.py)에서, Oracle AI Vector Search(vector_cases 테이블) 기반 유사 사례 검색으로 전환
