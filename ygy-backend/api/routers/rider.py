@@ -116,3 +116,25 @@ def mark_complete(rider_id: str, package_id: int):
     )
     
     return {"package_id": package_id, "status": "COMPLETED"}
+
+@router.get("/{rider_id}/earnings")
+def get_rider_earnings(rider_id: str):
+    """
+    라이더의 전체 수익 요약 (현재는 날짜 필터 없이 전체 집계).
+    """
+    packages = fetch_all("""
+        SELECT package_id, package_type, package_revenue, hourly_revenue, status
+        FROM packages
+        WHERE rider_id = :rider_id
+    """, {"rider_id": rider_id})
+
+    total_revenue = sum(p["package_revenue"] for p in packages)
+    completed_count = sum(1 for p in packages if p["status"] == "COMPLETED")
+
+    return {
+        "rider_id": rider_id,
+        "total_package_count": len(packages),
+        "completed_count": completed_count,
+        "total_revenue": total_revenue,
+        "packages": packages,
+    }
