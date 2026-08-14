@@ -36,7 +36,8 @@
 
 - `eta_min`은 패키지 `route_detail`의 해당 주문 `dropoff` 단계에 값이 있을 때 반환하며, 없으면 `null`이다.
 - 주문이 없으면 `404`다.
-- 현재 응답에는 `package_id`, `rider_id`, `package_status`가 없다. 고객 화면은 담당 라이더를 직접 표시하지 않는다.
+- 현재 응답에는 `package_id`, `rider_id`, `package_status`가 없다. 고객 화면은 매장 목록에서 매장 ID를 찾고, 해당 매장 주문 목록에서 같은 주문의 `rider_id`를 찾아 담당 라이더를 식별한다.
+- 담당 라이더를 식별한 뒤에는 `GET /api/rider/{rider_id}/profile`만 5초 간격으로 폴링한다.
 
 ### `DELETE /api/customer/{order_id}`
 

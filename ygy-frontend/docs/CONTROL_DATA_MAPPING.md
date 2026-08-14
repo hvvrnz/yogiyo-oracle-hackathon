@@ -8,18 +8,20 @@
 - 기본 ID: 주문 `118`, 매장 `781`, 라이더 `rider_102`
 - `menu_items`, `order_ids`, `route_detail`, `score_detail`은 문자열 JSON 또는 객체 모두를 정규화한다.
 - API 오류의 `detail`을 오류 카드·토스트로 표시하며, 조회 실패 화면에는 재시도 동작이 있다.
-- 전체 라이더 위치는 5초 폴링하고, 진행 중인 요청과 중복 호출하지 않는다.
+- 라이더 화면의 전체 라이더 위치는 5초 폴링하고, 진행 중인 요청과 중복 호출하지 않는다. 고객 화면은 담당 라이더 프로필만 폴링한다.
 
 ## 고객 화면 (`/customer?orderId={order_id}`)
 
 | 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
 | 주문 조회 | `GET /api/customer/{order_id}` | 매장명·좌표, 배달 좌표, 메뉴, 금액, 상태, ETA | 주문 카드와 픽업지·배달지 지도 마커 렌더링 |
-| 전체 라이더 지도 | `GET /api/rider` | `riders[].rider_id`, 이름, `lat`, `lng` | 5초 폴링으로 지도 마커 갱신 |
+| 매장 식별 | `GET /api/stores` | 매장 ID, 이름, 좌표 | 주문 응답의 매장명·좌표와 대조해 매장 ID를 찾음 |
+| 담당 라이더 식별 | `GET /api/merchant/{store_id}` | 현재 주문의 `rider_id` | 같은 주문 ID를 찾아 담당 라이더를 식별 |
+| 담당 라이더 위치 | `GET /api/rider/{rider_id}/profile` | 이름, `lat`, `lng` | 담당 라이더 1명만 5초 폴링해 지도 갱신 |
 | 주문 취소 | `DELETE /api/customer/{order_id}` | `order_id`, `status` | 성공 후 주문 정보를 재조회 |
 | 취소 불가 안내 | `DELETE`의 `400` | `detail` | 고객센터 안내 오류 표시 |
 
-고객 API에는 `package_id`, `rider_id`, `package_status`가 없으므로 담당 라이더·패키지를 표시하지 않는다.
+고객 API에는 `package_id`, `rider_id`, `package_status`가 없지만, 프론트가 매장 목록과 매장 주문 목록을 조합해 담당 라이더를 식별한다. 매장명이 중복되어 좌표로 매장을 확정할 수 없거나 배정 전이면 주문 지도만 표시한다.
 
 ## 사장님 화면 (`/merchant?storeId={store_id}`)
 

@@ -2,7 +2,11 @@ const orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
 let currentOrder;
 let stopPolling;
 let stopRiderPolling;
-let riderLocations = [];
+let currentRider;
+let currentRiderId;
+let storeDirectoryPromise;
+let resolvingRider = false;
+let riderResolutionError;
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'COMPLETED', 'CANCELLED']);
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
@@ -28,6 +32,7 @@ function setConnection(online) {
   const root = Yogiyo.el('connection');
   if (!root) return;
   root.classList.toggle('online', online);
+  root.classList.toggle('offline', !online);
   const label = root.querySelector('span');
   if (label) label.textContent = online ? '서버 연결됨' : '재연결 필요';
 }
@@ -36,15 +41,22 @@ function menuSummary(items) {
   return items.map(item => `${item.menu}${item.qty > 1 ? ` ${item.qty}개` : ''}`).join(' · ') || '메뉴 정보 없음';
 }
 
+function riderLocationLabel() {
+  if (currentRider?.name || currentRiderId) return `${currentRider?.name || currentRiderId} 위치 · 5초 갱신`;
+  if (resolvingRider) return '담당 라이더 확인 중';
+  if (riderResolutionError) return '담당 라이더 정보 조회 실패 · 다시 시도 중';
+  return '담당 라이더 배정 전';
+}
+
 function renderCustomer(order) {
   currentOrder = order;
   const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
   const etaLabel = order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
-  const map = Yogiyo.mapData.combine(
-    Yogiyo.mapData.fromCustomerOrder(order),
-    Yogiyo.mapData.fromRiders(riderLocations),
-  );
+  const riderMap = currentRider
+    ? Yogiyo.mapData.fromRiderProfile({ ...currentRider, rider_id: currentRiderId, meta: { selected: true } })
+    : Yogiyo.mapData.create();
+  const map = Yogiyo.mapData.combine(Yogiyo.mapData.fromCustomerOrder(order), riderMap);
 
   Yogiyo.el('orderId').textContent = `주문 ${order.order_id} · ${order.store_name}`;
   Yogiyo.el('etaWindow').textContent = etaLabel;
@@ -59,7 +71,7 @@ function renderCustomer(order) {
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
   Yogiyo.renderMap('customerMap', map);
-  Yogiyo.el('riderStep').textContent = riderLocations.length ? `전체 라이더 ${riderLocations.length}명 위치 · 5초 갱신` : '라이더 위치 조회 중';
+  Yogiyo.el('riderStep').textContent = riderLocationLabel();
 
   const cancelButton = Yogiyo.el('createOrderButton');
   const cancelBlocked = cancelBlockedStatuses.has(order.status);
@@ -73,9 +85,73 @@ function renderCustomer(order) {
   setConnection(true);
 }
 
+const sameCoordinate = (left, right) => Number.isFinite(Number(left))
+  && Number.isFinite(Number(right))
+  && Math.abs(Number(left) - Number(right)) < 0.000001;
+
+async function findStoreId(order) {
+  if (!storeDirectoryPromise) {
+    storeDirectoryPromise = Yogiyo.apiClient.stores.list()
+      .then(response => Array.isArray(response.stores) ? response.stores : [])
+      .catch(error => {
+        storeDirectoryPromise = undefined;
+        throw error;
+      });
+  }
+  const candidates = (await storeDirectoryPromise).filter(store => store.name === order.store_name);
+  const coordinateMatch = candidates.find(store => sameCoordinate(store.lat, order.store_lat) && sameCoordinate(store.lng, order.store_lng));
+  return coordinateMatch?.store_id ?? (candidates.length === 1 ? candidates[0].store_id : null);
+}
+
+function startRiderPolling(riderId) {
+  if (currentRiderId === riderId && stopRiderPolling) return;
+  stopRiderPolling?.();
+  currentRiderId = riderId;
+  currentRider = undefined;
+  stopRiderPolling = Yogiyo.poll(() => Yogiyo.apiClient.riders.profile(riderId), profile => {
+    if (currentRiderId !== riderId) return;
+    currentRider = profile;
+    riderResolutionError = undefined;
+    if (currentOrder) renderCustomer(currentOrder);
+  }, {
+    intervalMs: 5000,
+    onError: error => {
+      if (currentRiderId !== riderId) return;
+      riderResolutionError = error;
+      if (currentOrder) renderCustomer(currentOrder);
+      console.warn('customer assigned-rider polling failed', error);
+    },
+  });
+}
+
+async function resolveAssignedRider(order) {
+  if (currentRiderId || resolvingRider) return;
+  resolvingRider = true;
+  riderResolutionError = undefined;
+  if (currentOrder?.order_id === order.order_id) renderCustomer(currentOrder);
+  try {
+    const storeId = await findStoreId(order);
+    if (!storeId) return;
+    const merchant = await Yogiyo.apiClient.merchants.get(storeId);
+    const matchingOrder = (merchant.orders || []).find(item => String(item.order_id) === String(order.order_id));
+    if (matchingOrder?.rider_id) startRiderPolling(String(matchingOrder.rider_id));
+  } catch (error) {
+    riderResolutionError = error;
+    console.warn('customer assigned-rider resolution failed', error);
+  } finally {
+    resolvingRider = false;
+    if (currentOrder?.order_id === order.order_id) renderCustomer(currentOrder);
+  }
+}
+
+async function refreshCustomer(order) {
+  renderCustomer(order);
+  await resolveAssignedRider(order);
+}
+
 async function loadCustomer({ silent = false } = {}) {
   try {
-    renderCustomer(await Yogiyo.apiClient.customers.get(orderId));
+    await refreshCustomer(await Yogiyo.apiClient.customers.get(orderId));
   } catch (error) {
     showCustomerFailure(error);
     if (!silent) Yogiyo.toast(error.message);
@@ -110,18 +186,9 @@ Yogiyo.el('orderIdInput')?.addEventListener('keydown', event => {
   if (event.key === 'Enter') Yogiyo.el('loadOrderButton').click();
 });
 
-const updateRiderLocations = response => {
-  riderLocations = Array.isArray(response?.riders) ? response.riders : [];
-  if (currentOrder) renderCustomer(currentOrder);
-};
-stopRiderPolling = Yogiyo.pollRiders(updateRiderLocations, {
-  intervalMs: 5000,
-  onError: error => {
-    console.warn('customer rider-location polling failed', error);
-    if (currentOrder) Yogiyo.el('riderStep').textContent = '라이더 위치 갱신 실패 · 다시 시도 중';
-  },
-});
-stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), renderCustomer, {
+stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), order => {
+  refreshCustomer(order).catch(error => console.warn('customer assigned-rider refresh failed', error));
+}, {
   intervalMs: 5000,
   onError: error => {
     setConnection(false);
