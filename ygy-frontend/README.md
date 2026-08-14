@@ -10,7 +10,7 @@
 |---|---|---|
 | 고객 | `/customer?orderId=118` | 주문 조회, 상태·ETA·메뉴·금액 확인, 취소 |
 | 사장님 | `/merchant?storeId=781` | 매장 주문 조회, 조리시간 수정, 라이더 이름·도착 ETA·패키지·방문 순서 확인 |
-| 라이더 | `/rider?riderId=rider_102` | 프로필·패키지·오늘 수익 조회, 패키지 픽업/완료 |
+| 라이더 | `/rider?riderId=rider_102` | 프로필·패키지·오늘 수익 조회, 패키지 상세 모달, 패키지 픽업/완료 |
 | 통합 시연 | `/demo` | 고객 1개·사장님 3개·라이더 3개 패널의 실제 데이터 조회 |
 
 지도는 `VITE_KAKAO_MAP_JS_KEY`가 설정되고 SDK 로드에 성공하면 카카오맵으로 표시합니다. 고객 지도는 매장·배달지·담당 라이더를, 라이더 지도는 본인 위치와 배정 패키지 경로를 표시합니다. 키가 없거나 SDK 로드에 실패하면 SVG fallback을 유지합니다.
@@ -61,7 +61,7 @@ VITE_KAKAO_MAP_JS_KEY=카카오맵_JavaScript_키
 | `VITE_DEFAULT_RIDER_ID` | 라이더 화면 기본 라이더 ID |
 | `VITE_KAKAO_MAP_JS_KEY` | 카카오맵 Web(JavaScript) SDK 키. JavaScript SDK 허용 도메인 등록 필요 |
 
-실제 API 모드가 기본값입니다. 다른 Origin에 배포한다면 백엔드 CORS 허용이 필요합니다.
+실제 API 모드가 기본값입니다. 백엔드는 CORS 전체 허용으로 설정되어 있어 다른 포트의 프론트에서도 직접 API를 호출할 수 있습니다.
 
 ## 실제 테스트 데이터
 

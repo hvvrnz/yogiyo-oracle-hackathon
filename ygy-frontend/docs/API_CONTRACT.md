@@ -164,21 +164,45 @@
 {"rider_id":"rider_102","total_package_count":5,"completed_count":2,"total_revenue":45000,"packages":[]}
 ```
 
+- `total_package_count`는 오늘 배정된 패키지 수, `completed_count`는 완료된 패키지 수, `total_revenue`는 백엔드가 집계한 오늘 누적 수익이다.
+- `packages`는 오늘 배정된 패키지 목록이며, 프론트는 이를 정규화해 수익 요약과 후속 상세 조회에 사용한다.
+
 ### `GET /api/package/{package_id}`
 
-특정 패키지의 상세 정보를 반환한다. 응답의 패키지 필드는 `GET /api/rider/{rider_id}`의 `packages[]` 항목과 같다. 존재하지 않는 패키지는 `404`다.
+특정 패키지의 상세 정보를 반환한다.
+
+```json
+{
+  "package_id": 556,
+  "package_type": "BUNDLE",
+  "status": "MATCHING",
+  "bundle_size": 3,
+  "score": 52,
+  "package_revenue": 9000,
+  "hourly_revenue": 22100,
+  "order_ids": [9, 142, 178],
+  "route_detail": [{"order_id":9,"type":"pickup"}],
+  "score_detail": {"timeline":[{"order_id":9,"type":"pickup","arrival_time_min":3.2}]},
+  "rider_id": "rider_102",
+  "created_at": "..."
+}
+```
+
+- 프론트는 라이더 패키지 카드의 “상세 배차 정보 보기”에서 이 API를 호출한다.
+- 시간 분석은 `score_detail.timeline`을 사용한다. `route_detail`은 방문 순서만 제공하므로 ETA나 도착 시간 계산에 사용하지 않는다.
+- `556`, `557`, `561`~`565`는 성공 응답 테스트용 ID이며, 임의의 큰 숫자(예: `99999`)는 `404` 테스트에 사용한다.
 
 ### `PUT /api/rider/{rider_id}/package/{package_id}/pickup`
 
-패키지 상태를 `PICKED_UP`으로 변경한다. 성공 응답은 `{"package_id":740,"status":"PICKED_UP"}`다.
+패키지 상태를 `PICKED_UP`으로 변경하고, 연결된 주문 상태도 `PICKED_UP`으로 갱신한다. 성공 응답은 `{"package_id":740,"status":"PICKED_UP"}`다.
 
 ### `PUT /api/rider/{rider_id}/package/{package_id}/complete`
 
-패키지 상태를 `COMPLETED`로 변경하고, 라이더 완료 건수를 증가시키며 Redis에서 라이더를 배정 가능 상태로 변경한다. 성공 응답은 `{"package_id":740,"status":"COMPLETED"}`다.
+패키지 상태를 `COMPLETED`로 변경하고, 연결된 주문 상태를 `DELIVERED`로 갱신한다. 라이더 완료 건수를 증가시키며 Redis에서 라이더를 배정 가능 상태로 변경한다. 성공 응답은 `{"package_id":740,"status":"COMPLETED"}`다.
 
 - 두 요청 모두 해당 라이더의 패키지가 없으면 `404`다.
 - 실제 호출은 DB와 Redis 상태를 변경한다.
-- 현재 서버는 선행 상태를 엄격히 검사하지 않으므로 운영 전 `MATCHING → PICKED_UP → COMPLETED` 상태 전이 검증이 필요하다.
+- 고객 주문은 라이더 처리 결과에 따라 `PICKED_UP → DELIVERED`로 갱신되며, 고객 화면은 5초 폴링으로 이를 반영한다.
 
 ## 매장
 

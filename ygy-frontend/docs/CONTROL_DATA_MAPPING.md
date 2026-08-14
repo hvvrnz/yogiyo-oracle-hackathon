@@ -8,7 +8,7 @@
 - 기본 ID: 주문 `118`, 매장 `781`, 라이더 `rider_102`
 - `menu_items`, `order_ids`, `route_detail`, `score_detail`은 문자열 JSON 또는 객체 모두를 정규화한다.
 - API 오류의 `detail`을 오류 카드·토스트로 표시하며, 조회 실패 화면에는 재시도 동작이 있다.
-- 고객 화면은 담당 라이더 프로필만, 라이더 화면은 본인 프로필·패키지만 5초 폴링한다. 역할별 화면은 전체 라이더 목록을 호출하지 않는다.
+- 고객 화면은 담당 라이더 프로필만, 라이더 화면은 본인 프로필·패키지·오늘 수익만 5초 폴링한다. 역할별 화면은 전체 라이더 목록을 호출하지 않는다.
 
 ## 고객 화면 (`/customer?orderId={order_id}`)
 
@@ -45,6 +45,8 @@
 | 배달 완료 | `PUT /api/rider/{rider_id}/package/{package_id}/complete` | `package_id`, `status` | 성공 후 프로필·패키지 재조회 |
 
 API 상태 변경은 패키지 단위다. 주문별 픽업·배달 진행이나 배차 제안 수락/거절 UI는 실제 모드에서 제공하지 않는다.
+
+패키지 상세 모달의 방문 시간 분석은 `route_detail`이 아닌 `score_detail.timeline`을 사용한다. `route_detail`은 주문별 방문 순서 확인에만 사용한다.
 
 ## 통합 시연 (`/demo`)
 
