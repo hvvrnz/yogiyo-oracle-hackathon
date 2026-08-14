@@ -9,6 +9,7 @@ import merchantTemplate from '../../static/merchant/index.html?raw';
 import riderTemplate from '../../static/rider/index.html?raw';
 import demoTemplate from '../../static/demo/index.html?raw';
 import commonScript from '../../static/common.js?raw';
+import backendClientScript from '../../static/backend-client.js?raw';
 import customerScript from '../../static/customer/app.js?raw';
 import merchantScript from '../../static/merchant/app.js?raw';
 import riderScript from '../../static/rider/app.js?raw';
@@ -33,11 +34,10 @@ function parseJson(value, fallback) {
 window.__YGY_CONFIG__ = Object.freeze({
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || '',
-  useMock: import.meta.env.VITE_USE_MOCK ?? 'true',
-  // These are integration settings only. Screen markup continues to use the same data shape.
-  defaultCustomerId: import.meta.env.VITE_DEFAULT_CUSTOMER_ID || 'C-001',
-  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || 'S-001',
-  defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'R-001',
+  useMock: 'false',
+  defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '1',
+  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '884',
+  defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'rider_102',
   apiPaths: parseJson(import.meta.env.VITE_API_PATHS, {}),
 });
 
@@ -62,6 +62,7 @@ function Screen({ page }) {
     document.title = page.title;
     if (!page.script) return undefined;
     execute(commonScript);
+    execute(backendClientScript);
     execute(page.script);
     return () => {
       // Each route is a separate document navigation. Clearing globals prevents stale map state on HMR.

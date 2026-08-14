@@ -7,7 +7,7 @@ window.Yogiyo = (() => {
   const storageKey = 'ygy-demo-mock-state-v3';
   const clone = value => JSON.parse(JSON.stringify(value));
   const now = () => new Date().toISOString();
-  const ids = Object.freeze({customer: 'C-001', merchant: 'S-001', rider: 'R-001'});
+  const ids = Object.freeze({customer: '1', merchant: '884', rider: 'rider_102'});
   const labels = {SINGLE:'단일 배달', AI_RECOMMENDED:'AI 추천 배달', SINGLE_DELIVERY:'개별 배달', AI_BUNDLE_2:'AI 추천 2건 묶음', AI_BUNDLE_3:'AI 추천 3건 묶음'};
   const stores = {
     'S-001': {name:'요기요 치킨 강남점', category:'치킨', base_cooking_min:16, lat:37.500, lng:127.030},
