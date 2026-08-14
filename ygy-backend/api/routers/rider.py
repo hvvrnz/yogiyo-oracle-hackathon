@@ -76,6 +76,11 @@ def mark_pickup(rider_id: str, package_id: int):
     )
     if row_count == 0:
         raise HTTPException(status_code=404, detail="해당 패키지를 찾을 수 없습니다.")
+    
+    execute_and_commit(
+        "UPDATE orders SET status = 'PICKED_UP' WHERE package_id = :package_id",
+        {"package_id": package_id}
+    ) #  패키지랑 orders.status랑 동기화
 
     return {"package_id": package_id, "status": "PICKED_UP"}
 
@@ -104,4 +109,10 @@ def mark_complete(rider_id: str, package_id: int):
     )
 
     set_rider_available(rider_id)
+
+    execute_and_commit(
+        "UPDATE orders SET status = 'DELIVERED' WHERE package_id = :package_id",
+        {"package_id": package_id}
+    )
+    
     return {"package_id": package_id, "status": "COMPLETED"}
