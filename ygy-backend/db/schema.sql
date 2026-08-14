@@ -50,7 +50,7 @@ CREATE TABLE riders (
 CREATE TABLE packages (
     package_id       NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     package_type     VARCHAR2(20) DEFAULT 'BUNDLE',
-    rider_id         VARCHAR2(50),
+    rider_id         VARCHAR2(20),
     status           VARCHAR2(20) DEFAULT 'MATCHING',
     bundle_size      NUMBER,
     score            NUMBER,
@@ -107,3 +107,11 @@ CREATE TABLE explanations (
     rider_text      CLOB,
     created_at      TIMESTAMP DEFAULT SYSTIMESTAMP
 );
+
+-- =====================================================================
+-- 외래키 제약조건 추가
+ALTER TABLE packages ADD CONSTRAINT fk_packages_rider
+    FOREIGN KEY (rider_id) REFERENCES riders(rider_id);
+
+ALTER TABLE orders ADD CONSTRAINT fk_orders_store
+    FOREIGN KEY (store_id) REFERENCES stores(store_id);

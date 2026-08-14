@@ -4,27 +4,32 @@ from common.config import MIN_ACCEPTABLE_HOURLY_REVENUE
 
 
 def generate_valid_routes(order_ids):
-    all_routes = []
-    for pickup_order in permutations(order_ids):
-        events = [(oid, "pickup") for oid in pickup_order]
-        all_routes.extend(_insert_dropoffs(events, list(order_ids)))
-    return all_routes
+    """
+    n건 주문의 pickup+dropoff 유효한 전체 순서를 모두 생성.
+    n=3이면 정확히 90가지, 중복 없이 생성됨.
+    """
+    return _build_sequences([], list(order_ids), list(order_ids))
 
 
-def _insert_dropoffs(events, order_ids, remaining_dropoffs=None):
-    if remaining_dropoffs is None:
-        remaining_dropoffs = list(order_ids)
-
-    if not remaining_dropoffs:
+def _build_sequences(events, remaining_pickups, remaining_dropoffs):
+    if not remaining_pickups and not remaining_dropoffs:
         return [events]
 
     results = []
-    for oid in remaining_dropoffs:
-        last_pickup_index = max(i for i, e in enumerate(events) if e[0] == oid and e[1] == "pickup")
-        for insert_pos in range(last_pickup_index + 1, len(events) + 1):
-            new_events = events[:insert_pos] + [(oid, "dropoff")] + events[insert_pos:]
-            new_remaining = [x for x in remaining_dropoffs if x != oid]
-            results.extend(_insert_dropoffs(new_events, order_ids, new_remaining))
+    # 아직 픽업 안 한 주문은 지금 픽업 가능
+    for oid in remaining_pickups:
+        new_events = events + [(oid, "pickup")]
+        new_pickups = [x for x in remaining_pickups if x != oid]
+        results.extend(_build_sequences(new_events, new_pickups, remaining_dropoffs))
+
+    # 이미 픽업했고 아직 배달 안 한 주문은 지금 배달 가능
+    picked_ids = {oid for oid, t in events if t == "pickup"} - {oid for oid, t in events if t == "dropoff"}
+    for oid in picked_ids:
+        if oid in remaining_dropoffs:
+            new_events = events + [(oid, "dropoff")]
+            new_dropoffs = [x for x in remaining_dropoffs if x != oid]
+            results.extend(_build_sequences(new_events, remaining_pickups, new_dropoffs))
+
     return results
 
 
