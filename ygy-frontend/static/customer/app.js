@@ -5,6 +5,9 @@ let stopRiderPolling;
 let currentRider;
 let currentRiderId;
 let riderResolutionError;
+let customerExplanation;
+let customerExplanationPackageId;
+let customerExplanationRequestId = 0;
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED']);
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
@@ -46,6 +49,71 @@ function riderLocationLabel() {
   return '담당 라이더 배정 전';
 }
 
+function explanationText(value) {
+  const text = String(value || '').trim();
+  return text || null;
+}
+
+function renderCustomerExplanation() {
+  const section = Yogiyo.el('customerExplanationSection');
+  const content = Yogiyo.el('customerExplanationContent');
+  const state = customerExplanation;
+  section.hidden = !state?.packageId;
+  if (!state?.packageId) {
+    content.replaceChildren();
+    return;
+  }
+
+  if (state.status === 'loading') {
+    content.innerHTML = '<div class="notice info"><span>ⓘ</span><div><strong>배차 안내를 불러오는 중입니다.</strong><span>현재 배차 정보를 바탕으로 준비된 안내를 확인하고 있어요.</span></div></div>';
+    return;
+  }
+  if (state.status === 'ready') {
+    content.innerHTML = `<div class="notice info"><span>ⓘ</span><div><strong>배차 안내</strong><span class="explanation-copy">${Yogiyo.escape(state.text)}</span></div></div>`;
+    return;
+  }
+
+  const isMissing = state.status === 'missing';
+  content.innerHTML = `<div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? '배차 안내를 준비 중입니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '안내 문구가 생성되면 이곳에 표시됩니다.' : Yogiyo.escape(Yogiyo.errorMessage(state.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-customer-explanation-retry>다시 확인</button></div></div>`;
+  content.querySelector('[data-customer-explanation-retry]').addEventListener('click', () => {
+    loadCustomerExplanation(state.packageId, { force: true });
+  });
+}
+
+async function loadCustomerExplanation(packageId, { force = false } = {}) {
+  const normalizedPackageId = String(packageId);
+  if (!force && customerExplanationPackageId === normalizedPackageId && customerExplanation) return;
+  const requestId = ++customerExplanationRequestId;
+  customerExplanationPackageId = normalizedPackageId;
+  customerExplanation = { packageId, status: 'loading' };
+  renderCustomerExplanation();
+  try {
+    const explanation = await Yogiyo.apiClient.explanations.get(packageId);
+    if (requestId !== customerExplanationRequestId || customerExplanationPackageId !== normalizedPackageId) return;
+    const text = explanationText(explanation?.consumer_text);
+    customerExplanation = text
+      ? { packageId, status: 'ready', text }
+      : { packageId, status: 'missing' };
+  } catch (error) {
+    if (requestId !== customerExplanationRequestId || customerExplanationPackageId !== normalizedPackageId) return;
+    customerExplanation = error?.status === 404
+      ? { packageId, status: 'missing' }
+      : { packageId, status: 'error', error };
+  }
+  renderCustomerExplanation();
+}
+
+function syncCustomerExplanation(order) {
+  const packageId = order.package_id;
+  if (packageId == null || packageId === '') {
+    customerExplanationRequestId += 1;
+    customerExplanationPackageId = undefined;
+    customerExplanation = undefined;
+    return;
+  }
+  loadCustomerExplanation(packageId);
+}
+
 function renderCustomer(order) {
   currentOrder = order;
   const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
@@ -71,6 +139,7 @@ function renderCustomer(order) {
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
   Yogiyo.renderMap('customerMap', map);
   Yogiyo.el('riderStep').textContent = riderLocationLabel();
+  renderCustomerExplanation();
 
   const cancelButton = Yogiyo.el('createOrderButton');
   const cancelBlocked = cancelBlockedStatuses.has(order.status);
@@ -124,6 +193,7 @@ function syncAssignedRider(order) {
 
 function refreshCustomer(order) {
   syncAssignedRider(order);
+  syncCustomerExplanation(order);
   renderCustomer(order);
 }
 

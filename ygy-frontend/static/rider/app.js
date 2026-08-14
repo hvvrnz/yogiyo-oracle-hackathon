@@ -85,6 +85,23 @@ const packageAction = pkg => {
 
 const packageDetailRow = (label, value) => `<div class="row"><span class="label">${Yogiyo.escape(label)}</span><span class="value">${Yogiyo.escape(value)}</span></div>`;
 
+const explanationText = value => {
+  const text = String(value || '').trim();
+  return text || null;
+};
+
+const packageExplanationCard = state => {
+  if (state?.status === 'ready') {
+    return `<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice info"><span>ⓘ</span><div><strong>운행 안내</strong><span class="explanation-copy">${Yogiyo.escape(state.text)}</span></div></div></div>`;
+  }
+  if (state?.status === 'loading') {
+    return '<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice info"><span>ⓘ</span><div><strong>배차 안내를 불러오는 중입니다.</strong><span>현재 패키지의 운행 안내를 확인하고 있어요.</span></div></div></div>';
+  }
+
+  const isMissing = state?.status === 'missing';
+  return `<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? '배차 설명이 아직 생성되지 않았습니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '설명이 생성되면 이곳에서 운행 근거를 확인할 수 있습니다.' : Yogiyo.escape(Yogiyo.errorMessage(state?.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-package-explanation-retry>다시 확인</button></div></div></div>`;
+};
+
 const packageDetailTimeline = timeline => {
   if (!Array.isArray(timeline) || !timeline.length) return '<p class="subtext">상세 운행 시간 정보가 없습니다.</p>';
   return `<div class="timeline">${timeline.map(step => {
@@ -104,14 +121,31 @@ function closePackageDetail() {
   packageDetailTrigger = undefined;
 }
 
-function renderPackageDetail(pkg) {
+function renderPackageDetail(pkg, explanation = { status: 'loading' }) {
   const detail = pkg.score_detail || {};
   const orderIds = Array.isArray(pkg.order_ids) && pkg.order_ids.length ? pkg.order_ids.join(', ') : '주문 ID 정보 없음';
   const createdDate = pkg.created_at ? new Date(pkg.created_at) : null;
   const createdAt = createdDate && Number.isFinite(createdDate.getTime()) ? createdDate.toLocaleString('ko-KR') : '생성 시각 정보 없음';
   Yogiyo.el('packageDetailTitle').textContent = `패키지 ${pkg.package_id} 상세`;
   Yogiyo.el('packageDetailSummary').textContent = `${packageStatus(pkg.status)} · ${pkg.package_type || '패키지'} · 주문 ${orderIds}`;
-  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card">${packageDetailRow('패키지 유형', pkg.package_type || '정보 없음')}${packageDetailRow('상태', packageStatus(pkg.status))}${packageDetailRow('묶음 주문 수', `${pkg.bundle_size ?? '-'}건`)}${packageDetailRow('패키지 수익', Number.isFinite(Number(pkg.package_revenue)) ? Yogiyo.money(pkg.package_revenue) : '정보 없음')}${packageDetailRow('시간당 수익', Number.isFinite(Number(pkg.hourly_revenue)) ? Yogiyo.money(pkg.hourly_revenue) : '정보 없음')}${packageDetailRow('매칭 점수', Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '정보 없음')}${packageDetailRow('생성 시각', createdAt)}</div><div class="card"><div class="section-title-row"><h2>배차 시간 분석</h2></div>${packageDetailRow('총 예상 소요시간', Number.isFinite(Number(detail.total_time)) ? `${Number(detail.total_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('라이더 대기시간', Number.isFinite(Number(detail.courier_wait_time)) ? `${Number(detail.courier_wait_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 대기시간', Number.isFinite(Number(detail.food_sitting_time)) ? `${Number(detail.food_sitting_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 보관시간', Number.isFinite(Number(detail.bag_time)) ? `${Number(detail.bag_time).toFixed(1)}분` : '정보 없음')}</div><div class="card"><div class="section-title-row"><h2>상세 방문 순서</h2></div>${packageDetailTimeline(detail.timeline)}</div>`;
+  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card">${packageDetailRow('패키지 유형', pkg.package_type || '정보 없음')}${packageDetailRow('상태', packageStatus(pkg.status))}${packageDetailRow('묶음 주문 수', `${pkg.bundle_size ?? '-'}건`)}${packageDetailRow('패키지 수익', Number.isFinite(Number(pkg.package_revenue)) ? Yogiyo.money(pkg.package_revenue) : '정보 없음')}${packageDetailRow('시간당 수익', Number.isFinite(Number(pkg.hourly_revenue)) ? Yogiyo.money(pkg.hourly_revenue) : '정보 없음')}${packageDetailRow('매칭 점수', Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '정보 없음')}${packageDetailRow('생성 시각', createdAt)}</div><div class="card"><div class="section-title-row"><h2>배차 시간 분석</h2></div>${packageDetailRow('총 예상 소요시간', Number.isFinite(Number(detail.total_time)) ? `${Number(detail.total_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('라이더 대기시간', Number.isFinite(Number(detail.courier_wait_time)) ? `${Number(detail.courier_wait_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 대기시간', Number.isFinite(Number(detail.food_sitting_time)) ? `${Number(detail.food_sitting_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 보관시간', Number.isFinite(Number(detail.bag_time)) ? `${Number(detail.bag_time).toFixed(1)}분` : '정보 없음')}</div><div class="card"><div class="section-title-row"><h2>상세 방문 순서</h2></div>${packageDetailTimeline(detail.timeline)}</div>${packageExplanationCard(explanation)}`;
+  Yogiyo.el('packageDetailContent').querySelector('[data-package-explanation-retry]')?.addEventListener('click', () => {
+    const requestId = ++packageDetailRequestId;
+    loadPackageExplanation(pkg, requestId);
+  });
+}
+
+async function loadPackageExplanation(pkg, requestId) {
+  renderPackageDetail(pkg, { status: 'loading' });
+  try {
+    const explanation = await Yogiyo.apiClient.explanations.get(pkg.package_id);
+    if (requestId !== packageDetailRequestId) return;
+    const text = explanationText(explanation?.rider_text);
+    renderPackageDetail(pkg, text ? { status: 'ready', text } : { status: 'missing' });
+  } catch (error) {
+    if (requestId !== packageDetailRequestId) return;
+    renderPackageDetail(pkg, error?.status === 404 ? { status: 'missing' } : { status: 'error', error });
+  }
 }
 
 async function openPackageDetail(packageId, trigger) {
@@ -127,7 +161,7 @@ async function openPackageDetail(packageId, trigger) {
   try {
     const pkg = await Yogiyo.apiClient.packages.get(packageId);
     if (requestId !== packageDetailRequestId) return;
-    renderPackageDetail(pkg);
+    loadPackageExplanation(pkg, requestId);
   } catch (error) {
     if (requestId !== packageDetailRequestId) return;
     Yogiyo.el('packageDetailSummary').textContent = '패키지 상세 정보를 불러오지 못했습니다.';
