@@ -218,6 +218,8 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .notice.info { background:var(--info-soft); color:#3157b5; }
 .notice.good { background:var(--good-soft); color:#16784e; }
 .notice strong { display:block; margin-bottom:2px; }
+.explanation-copy { display:block; white-space:pre-wrap; }
+.explanation-retry { display:block; margin-top:10px; }
 .weather-strip { display:flex; align-items:center; gap:11px; }
 .weather-icon { width:40px; height:40px; border-radius:14px; display:grid; place-items:center; background:#edf2ff; font-size:21px; }
 .weather-copy { min-width:0; flex:1; }
