@@ -30,13 +30,16 @@ class CookTimeUpdate(BaseModel):
 
 
 @router.put("/orders/{order_id}/cook-time")
-def update_cook_time(order_id: int, body: CookTimeUpdate):
-    """사장님이 특정 주문의 조리시간을 5분 단위로 수정."""
+def start_cooking(order_id: int, body: CookTimeUpdate):
+    """
+    사장님이 '조리시작' 버튼을 누르면서 조리시간을 입력.
+    이 순간부터 이 주문이 배차 대상(COOKING)이 됨.
+    """
     row_count = execute_and_commit(
-        "UPDATE orders SET owner_cook_min = :cook_min WHERE order_id = :order_id",
+        "UPDATE orders SET owner_cook_min = :cook_min, status = 'COOKING' WHERE order_id = :order_id",
         {"cook_min": body.owner_cook_min, "order_id": order_id}
     )
     if row_count == 0:
         raise HTTPException(status_code=404, detail="해당 주문을 찾을 수 없습니다.")
 
-    return {"order_id": order_id, "updated_owner_cook_min": body.owner_cook_min}
+    return {"order_id": order_id, "status": "COOKING", "owner_cook_min": body.owner_cook_min}

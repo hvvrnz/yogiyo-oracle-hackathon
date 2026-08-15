@@ -11,8 +11,24 @@ from stream_processor.orders.timing import still_has_time
 from common.config import MIN_ACCEPTABLE_HOURLY_REVENUE
 
 
-def _build_route_detail(best_route):
-    return [{"order_id": oid, "type": vtype} for oid, vtype in best_route]
+def _build_route_detail(best_route, orders_by_id):
+    """
+    각 방문 지점에 좌표까지 포함해서 저장.
+    """
+    detail = []
+    for oid, vtype in best_route:
+        order = orders_by_id[oid]
+        if vtype == "pickup":
+            lat, lng = order["store_lat"], order["store_lng"]
+        else:
+            lat, lng = order["delivery_lat"], order["delivery_lng"]
+        detail.append({
+            "order_id": oid,
+            "type": vtype,
+            "lat": lat,
+            "lng": lng,
+        })
+    return detail
 
 
 def _build_score_detail(detail):
@@ -39,6 +55,7 @@ def _get_available_riders(store_lat, store_lng, assigned_rider_ids, radius_km=5)
     ]
 
 
+# 자동 확정 대신 제안만 하도록
 def assign_bundle(cluster, assigned_rider_ids):
     rep_store_lat = cluster[0]["store_lat"]
     rep_store_lng = cluster[0]["store_lng"]
@@ -55,38 +72,24 @@ def assign_bundle(cluster, assigned_rider_ids):
     package_revenue, hourly_revenue = calculate_revenue(cluster, best_detail['total_time'])
 
     if not is_hourly_revenue_acceptable(hourly_revenue):
-        print(f"   ⚠ 묶음 시간당 수익({hourly_revenue:,.0f}원)이 "
-              f"최소 기준({MIN_ACCEPTABLE_HOURLY_REVENUE:,.0f}원)보다 낮음 — 묶음 취소")
         return False
 
-    # 여기서부터 확정 — 이 시점에만 라이더를 실제로 "잡음"
-    assigned_rider_ids.add(nearest_rider_id)
-    set_rider_busy(nearest_rider_id)
-
     order_ids = [o["order_id"] for o in cluster]
+    orders_by_id = {o["order_id"]: o for o in cluster}   # ← 이 줄 추가!
+
     package_id = insert_package(
-        rider_id=nearest_rider_id,
+        rider_id=None,
         package_type="BUNDLE",
         order_ids=order_ids,
-        route_detail=_build_route_detail(best_route),
+        route_detail=_build_route_detail(best_route, orders_by_id),
         score=round(best_score, 2),
         score_detail=_build_score_detail(best_detail),
         package_revenue=package_revenue,
         hourly_revenue=hourly_revenue,
+        status="OFFERED",
     )
     insert_orders(cluster, package_id=package_id)
-
-    rider_info = get_rider_info(nearest_rider_id)
-    rider_name = rider_info["name"] if rider_info else "이름없음"
-    rider_region = rider_info["region"] if rider_info else "권역미상"
-
-    print(f"   🏍 배정 라이더: {nearest_rider_id} ({rider_name}, {rider_region} 권역) — {float(nearest_dist):.2f}km")
-    print(f"   💰 예상 수익: {package_revenue:,.0f}원 (시간당 {hourly_revenue:,.0f}원)")
-    print(f"   ⭐ score: {best_score:.2f}")
-
-    orders_by_id = {o["order_id"]: o for o in cluster}
-    print_route_timeline(best_detail, orders_by_id)
-    print_consumer_eta(best_detail, orders_by_id)
+    print(f"   📢 제안됨 (수락 대기 중): package_id={package_id}")
     return True
 
 
@@ -103,30 +106,22 @@ def assign_solo(order, assigned_rider_ids):
     route, score, detail = calculate_solo_delivery(order, rider_start_pos)
     revenue, hourly = calculate_revenue([order], detail['total_time'])
 
-    assigned_rider_ids.add(nearest_rider_id)
-    set_rider_busy(nearest_rider_id)
+    orders_by_id = {order["order_id"]: order}  
 
     package_id = insert_package(
-        rider_id=nearest_rider_id,
+        rider_id=None,
         package_type="SOLO",
         order_ids=[order["order_id"]],
-        route_detail=_build_route_detail(route),
+        route_detail=_build_route_detail(route, orders_by_id),   # ← orders_by_id 추가
         score=round(score, 2),
         score_detail=_build_score_detail(detail),
         package_revenue=revenue,
         hourly_revenue=hourly,
+        status="OFFERED",
     )
     insert_orders([order], package_id=package_id)
 
-    rider_info = get_rider_info(nearest_rider_id)
-    rider_name = rider_info["name"] if rider_info else "이름없음"
-
-    print(f"   🏍 배정 라이더: {nearest_rider_id} ({rider_name}) — {float(nearest_dist):.2f}km")
-    print(f"   💰 예상 수익: {revenue:,.0f}원 (시간당 {hourly:,.0f}원)")
-
-    orders_by_id = {order["order_id"]: order}
-    print_route_timeline(detail, orders_by_id)
-    print_consumer_eta(detail, orders_by_id)
+    print(f"   📢 한집배달 제안됨 (수락 대기 중): package_id={package_id}")
     return True
 
 

@@ -3,6 +3,11 @@ from common.config.common import AVG_SPEED_KMH
 RIDER_COUNT = 500
 RIDER_STATUS_KEY_PREFIX = "rider:status:"
 
+DEMO_RIDER_IDS = [
+    "rider_12", "rider_13", "rider_19", "rider_23", "rider_31",  # 강남 5명
+    "rider_2", "rider_5", "rider_6",                              # 홍대 3명
+]
+
 RIDER_NAME_PREFIXES = [
     "번개", "질주", "칼배달", "무사고", "야간", "터줏대감", "국룰", "전국구",
     "새벽", "폭풍", "요기요", "총알", "레이싱", "속도광", "정시배달", "완주",

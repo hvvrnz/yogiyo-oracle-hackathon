@@ -7,8 +7,10 @@ from kafka import KafkaConsumer
 from stream_processor.orders.clustering.grouping import form_clusters
 from sequencing_engine.handler.assignment import process_clusters, process_unmatched
 from stream_processor.riders.location_simulator import simulate_rider_movement # 실시간 라이더 위치 동기화
+from sequencing_engine.repository.order_repo import insert_pending_order
+from db.connection import fetch_all
 
-WINDOW_SECONDS = 30
+WINDOW_SECONDS = 5
 
 consumer = KafkaConsumer(
     'order-events',
@@ -18,6 +20,8 @@ consumer = KafkaConsumer(
     group_id='order-processing-group'
 )
 
+
+# 접수되면 바로 저장하고, 30초마다 DB에서 COOKING 상태인 것만 다시 조회해서 클러스터링하는 구조로 변경
 
 if __name__ == "__main__":
     
@@ -35,18 +39,23 @@ if __name__ == "__main__":
         for topic_partition, messages in records.items():
             for message in messages:
                 order = message.value
-                print(f"🍚 주문 접수: [{order['order_id']}] {order['store_name']}")
-                buffer.append(order)
-
+                order_id = insert_pending_order(order)
+                print(f"🍚 주문 접수: [{order}] {order['store_name']}")
+            
         if time.time() - window_start >= WINDOW_SECONDS:
-            if buffer:
-                print(f"\n{'─'*60}")
-                print(f"⏱  30초 경과 — 배차 시작 (주문 {len(buffer)}건)")
-                print(f"{'─'*60}")
-
-                clusters, unmatched = form_clusters(buffer)
+            # 조리시작된(owner_cook_min이 채워진) 주문만 클러스터링 대상으로 조회
+            ready_orders = fetch_all("""
+                SELECT o.order_id, o.store_id, s.name AS store_name, s.category, s.region,
+                    s.lat AS store_lat, s.lng AS store_lng,
+                    o.owner_cook_min AS base_cooking_min,
+                    o.delivery_lat, o.delivery_lng, o.menu_items,
+                    o.created_at
+                FROM orders o
+                JOIN stores s ON o.store_id = s.store_id
+                WHERE o.status = 'COOKING'
+            """)
+            if ready_orders:
+                clusters, unmatched = form_clusters(ready_orders)
                 assigned_rider_ids, rejected_orders = process_clusters(clusters)
-                buffer = process_unmatched(unmatched + rejected_orders, assigned_rider_ids)
-
-                print(f"\n{'='*60}\n")
+                process_unmatched(unmatched + rejected_orders, assigned_rider_ids)
             window_start = time.time()
