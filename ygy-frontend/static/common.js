@@ -1,3 +1,7 @@
+if (window.self !== window.top) {
+  document.documentElement.classList.add('embedded');
+}
+
 window.Yogiyo = (() => {
   const config = window.__YGY_CONFIG__ || {};
   const useMock = String(config.useMock ?? 'false').toLowerCase() === 'true';
