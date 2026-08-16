@@ -121,6 +121,13 @@
       },
     }),
     merchants: Object.freeze({
+      nextToCook: async () => {
+        const order = newestOrder(Object.values(state.orders).filter(item => (
+          String(item.store_id) === '889' && item.status === 'NEW'
+        )));
+        if (!order) throw createError('다음 조리 시작 주문이 없습니다.', 404);
+        return clone(order);
+      },
       get: async storeId => {
         const store = state.stores.find(item => String(item.store_id) === String(storeId));
         const orders = Object.values(state.orders).filter(order => String(order.store_id) === String(storeId));

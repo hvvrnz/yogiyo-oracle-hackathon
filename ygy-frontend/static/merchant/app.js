@@ -123,6 +123,7 @@ async function getStore(storeIdToFind) {
 
 function renderMerchant(view, store) {
   currentMerchant = view;
+  const activeStoreId = view?.store_id ?? storeId;
   const orders = Array.isArray(view.orders) ? view.orders : [];
   const counts = orders.reduce((result, order) => {
     result[order.status] = (result[order.status] || 0) + 1;
@@ -136,8 +137,8 @@ function renderMerchant(view, store) {
   const riderId = activeOrder?.rider_id;
   const offeredPackage = hasOfferedPackage(activeOrder);
 
-  Yogiyo.el('merchantStoreName').textContent = store?.name || `매장 ${storeId}`;
-  Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || `매장 ${storeId} · 주문 API 기준`;
+  Yogiyo.el('merchantStoreName').textContent = store?.name || `매장 ${activeStoreId}`;
+  Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || `매장 ${activeStoreId} · 다음 조리 주문 API 기준`;
   Yogiyo.el('newCount').textContent = counts.NEW || 0;
   Yogiyo.el('cookingCount').textContent = Math.max(0, (counts.COOKING || 0) - offeredCount - matchedCount);
   Yogiyo.el('offeredCount').textContent = offeredCount;
@@ -185,7 +186,8 @@ function renderMerchant(view, store) {
 
 async function loadMerchant() {
   try {
-    const [view, store] = await Promise.all([loadMerchantView(), getStore(storeId)]);
+    const view = await loadMerchantView();
+    const store = await getStore(view.store_id ?? storeId);
     renderMerchant(view, store);
     setConnection(true);
   } catch (error) {
@@ -195,25 +197,16 @@ async function loadMerchant() {
 }
 
 async function loadMerchantView() {
-  const [view, nextToCook] = await Promise.all([
-    Yogiyo.apiClient.merchants.get(storeId),
-    // next-to-cook API는 시연 매장 889의 조리 대기 주문을 반환한다.
-    String(storeId) === '889'
-      ? Yogiyo.apiClient.merchants.nextToCook().catch(error => {
-        if (error?.status === 404) return null;
-        throw error;
-      })
-      : Promise.resolve(null),
-  ]);
-
-  if (!nextToCook) return view;
-
-  const currentOrder = (view.orders || []).find(order => String(order.order_id) === String(nextToCook.order_id));
-  return {
-    ...view,
-    // 주문 목록 조회의 상한에 걸려도 조리 대기 주문은 항상 목록 첫 번째에 보이게 한다.
-    orders: [{ ...nextToCook, ...currentOrder }, ...(view.orders || []).filter(order => String(order.order_id) !== String(nextToCook.order_id))],
-  };
+  try {
+    const nextToCook = await Yogiyo.apiClient.merchants.nextToCook();
+    return {
+      store_id: nextToCook.store_id ?? storeId,
+      orders: [nextToCook],
+    };
+  } catch (error) {
+    if (error?.status !== 404) throw error;
+    return { store_id: storeId, orders: [] };
+  }
 }
 
 async function startCooking(orderId, cookMin, button) {
@@ -224,7 +217,7 @@ async function startCooking(orderId, cookMin, button) {
   await Yogiyo.withPending(button, async () => {
     try {
       const trigger = await Yogiyo.apiClient.merchants.demoTrigger({
-        primaryStoreId: storeId,
+        primaryStoreId: currentMerchant?.store_id ?? storeId,
         primaryOrderId: orderId,
         ownerCookMin: cookMin,
       });
@@ -241,7 +234,7 @@ async function startCooking(orderId, cookMin, button) {
 }
 
 Yogiyo.poll(() => loadMerchantView(), async view => {
-  renderMerchant(view, await getStore(storeId));
+  renderMerchant(view, await getStore(view.store_id ?? storeId));
   setConnection(true);
 }, { intervalMs: 5000, onError: error => {
   setConnection(false);
