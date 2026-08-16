@@ -254,6 +254,13 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .offer-main span { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .offer-actions { display:flex; flex:0 0 auto; gap:6px; }
 .offer-actions button { min-height:34px; padding:7px 10px; border-radius:10px; font-size:11px; }
+.assigned-package-list { display:grid; gap:8px; }
+.assigned-package-row { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:64px; padding:10px 11px; border:1px solid #e9e9ef; border-left:4px solid var(--brand); border-radius:13px; background:var(--surface); }
+.assigned-package-main { display:grid; gap:4px; min-width:0; }
+.assigned-package-main strong { font-size:13px; }
+.assigned-package-main span { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.assigned-package-actions { display:flex; flex:0 0 auto; gap:6px; }
+.assigned-package-actions button { min-height:34px; padding:7px 10px; border-radius:10px; font-size:11px; }
 .run-status-card { display:grid; gap:7px; padding:14px; border:1px solid #dfe5ff; border-left:4px solid var(--brand); border-radius:14px; background:#f8f9ff; }
 .run-status-card > div { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .run-status-card strong { font-size:13px; }
@@ -306,7 +313,7 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .state-card strong { display:block; font-size:14px; line-height:1.4; }
 .state-card p { margin:4px 0 12px; color:var(--muted); font-size:12px; line-height:1.5; }
 .state-retry { min-height:38px; padding:8px 12px; border-radius:12px; font-size:12px; }
-@media(max-width:380px){.offer-row{align-items:flex-start;flex-direction:column}.offer-actions{width:100%}.offer-actions button{flex:1}}
+@media(max-width:380px){.offer-row,.assigned-package-row{align-items:flex-start;flex-direction:column}.offer-actions,.assigned-package-actions{width:100%}.offer-actions button,.assigned-package-actions button{flex:1}}
 
 .map-canvas.kakao-map-active { background:#eef2f5; }
 .map-canvas.kakao-map-active::before, .map-canvas.kakao-map-active::after { display:none; }

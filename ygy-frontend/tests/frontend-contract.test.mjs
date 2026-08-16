@@ -75,6 +75,9 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /동일 주문 조합 제안을 이 화면에서 숨겼습니다/);
   assert.match(screen, /includesSelectedOrder/);
   assert.match(screen, /주문 \$\{selectedOrderId\} 제안만 표시/);
+  assert.match(screen, /class="assigned-package-list"/);
+  assert.match(screen, /class="assigned-package-row/);
+  assert.match(screen, /패키지 \$\{pkg\.package_id\} 상세 배차 정보 보기/);
   assert.match(screen, /예상 패키지 수익/);
   assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
   assert.match(screen, /서버에는 저장되지 않습니다/);
@@ -83,6 +86,8 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(template, /id="nextRunReservation"/);
   assert.match(styles, /\.offer-list \{[^}]*max-height:340px/);
   assert.match(styles, /\.offer-list-notice/);
+  assert.match(styles, /\.assigned-package-list/);
+  assert.match(styles, /\.assigned-package-row/);
   assert.match(styles, /package-accepted-pulse/);
 });
 
