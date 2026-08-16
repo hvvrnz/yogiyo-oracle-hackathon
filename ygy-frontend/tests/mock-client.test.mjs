@@ -22,47 +22,49 @@ test('목업 초기 상태에서는 라이더에게 배차 제안이 없다', as
   const client = createMockClient();
   const { offers } = await client.riders.offers('rider_12');
   assert.equal(offers.length, 0);
-  assert.equal((await client.customers.getDemoActive()).order_id, 8891);
+  assert.equal((await client.customers.getDemoActive()).order_id, 8892);
 });
 
-test('목업 시연 트리거는 다른 시연 매장의 신규 주문만 조리 시작한다', async () => {
+test('목업 시연 트리거는 선택 주문과 다른 시연 매장의 최신 신규 주문을 함께 조리 시작한다', async () => {
   const client = createMockClient();
-  await client.merchants.updateCookTime(8941, 5);
-  const result = await client.merchants.demoTrigger();
+  const result = await client.merchants.demoTrigger({ primary_store_id: 889, primary_order_id: 8892, owner_cook_min: 15 });
 
-  assert.equal(result.started_order_count, 2);
-  assert.equal((await client.customers.get(8891)).status, 'COOKING');
+  assert.equal(result.started_order_count, 3);
   assert.equal((await client.customers.get(8892)).status, 'COOKING');
+  assert.equal((await client.customers.get(8892)).owner_cook_min, 15);
+  assert.equal((await client.customers.get(8941)).status, 'COOKING');
+  assert.equal((await client.customers.get(8841)).status, 'COOKING');
+  assert.equal((await client.customers.get(8891)).status, 'NEW');
   assert.equal((await client.customers.get(1)).status, 'NEW');
 });
 
 test('목업 주문은 조리 시작 후 제안·수락·픽업·완료 상태를 순서대로 전이한다', async () => {
   const client = createMockClient();
 
-  assert.equal((await client.customers.get(8941)).status, 'NEW');
-  await client.merchants.updateCookTime(8941, 20);
-  assert.equal((await client.customers.get(8941)).status, 'COOKING');
+  assert.equal((await client.customers.get(8892)).status, 'NEW');
+  await client.merchants.demoTrigger({ primary_store_id: 889, primary_order_id: 8892, owner_cook_min: 20 });
+  assert.equal((await client.customers.get(8892)).status, 'COOKING');
 
   await delay(1100);
-  const offer = (await client.riders.offers('rider_12')).offers.find(pkg => pkg.order_ids.includes(8941));
+  const offer = (await client.riders.offers('rider_12')).offers.find(pkg => pkg.order_ids.includes(8892));
   assert.ok(offer, '조리 시작한 주문의 배차 제안이 생성되어야 합니다.');
   assert.equal(offer.status, 'OFFERED');
 
   await client.riders.accept('rider_12', offer.package_id);
-  assert.equal((await client.customers.get(8941)).status, 'MATCHED');
+  assert.equal((await client.customers.get(8892)).status, 'MATCHED');
 
   await client.riders.pickup('rider_12', offer.package_id);
-  assert.equal((await client.customers.get(8941)).status, 'PICKED_UP');
+  assert.equal((await client.customers.get(8892)).status, 'PICKED_UP');
 
   await client.riders.complete('rider_12', offer.package_id);
-  assert.equal((await client.customers.get(8941)).status, 'DELIVERED');
+  assert.equal((await client.customers.get(8892)).status, 'DELIVERED');
 });
 
 test('목업 수락 API는 경쟁 수락과 없는 패키지를 실제 API와 같은 오류로 처리한다', async () => {
   const client = createMockClient();
-  await client.merchants.updateCookTime(8941, 20);
+  await client.merchants.demoTrigger({ primary_store_id: 889, primary_order_id: 8892, owner_cook_min: 20 });
   await delay(1100);
-  const offer = (await client.riders.offers('rider_12')).offers.find(pkg => pkg.order_ids.includes(8941));
+  const offer = (await client.riders.offers('rider_12')).offers.find(pkg => pkg.order_ids.includes(8892));
   assert.ok(offer, '조리 시작 후 생성된 제안이 있어야 합니다.');
 
   await client.riders.accept('rider_12', offer.package_id);

@@ -86,7 +86,7 @@ const renderMerchantFutureSlot = () => {
 
 const cookTimeControls = order => {
   if (order.status === 'NEW') {
-    return `<button class="primary-button full" data-cook-start="${order.order_id}" aria-label="주문 ${order.order_id} 시연 조리 시작">조리 시작</button>`;
+    return `<button class="primary-button full" data-cook-start="${order.order_id}" aria-label="주문 ${order.order_id} 조리 시작 및 조리시간 입력">조리 시작 · 조리시간 입력</button>`;
   }
   if (hasOfferedPackage(order)) {
     return '<button class="ghost-button full" disabled>배차 제안됨 · 라이더 수락 대기</button>';
@@ -155,7 +155,8 @@ function renderMerchant(view, store) {
   Yogiyo.el('merchantOrders').querySelectorAll('[data-cook-start]').forEach(button => {
     button.addEventListener('click', event => {
       const orderId = event.currentTarget.dataset.cookStart;
-      startCooking(orderId, event.currentTarget);
+      const value = window.prompt('예상 조리시간을 5분 단위로 입력해 주세요. (5~100분)', '15');
+      if (value !== null) startCooking(orderId, Number(value), event.currentTarget);
     });
   });
 
@@ -185,14 +186,22 @@ async function loadMerchant() {
   }
 }
 
-async function startCooking(orderId, button) {
+async function startCooking(orderId, cookMin, button) {
+  if (!Number.isInteger(cookMin) || cookMin < 5 || cookMin > 100 || cookMin % 5 !== 0) {
+    Yogiyo.toast('조리시간은 5~100분 사이의 5분 단위로 입력해 주세요.');
+    return;
+  }
   await Yogiyo.withPending(button, async () => {
     try {
-      const trigger = await Yogiyo.apiClient.merchants.demoTrigger();
+      const trigger = await Yogiyo.apiClient.merchants.demoTrigger({
+        primaryStoreId: storeId,
+        primaryOrderId: orderId,
+        ownerCookMin: cookMin,
+      });
       const startedCount = Number(trigger?.started_order_count);
       Yogiyo.toast(Number.isFinite(startedCount)
-        ? `주문 ${orderId} 조리 시작 · 시연 매장 ${startedCount}건을 자동 시작했습니다.`
-        : `주문 ${orderId} 조리 시작 · 시연 매장 주문을 자동 시작했습니다.`);
+        ? `주문 ${orderId}을 ${cookMin}분으로 조리 시작 · 시연 매장 ${startedCount}건을 자동 시작했습니다.`
+        : `주문 ${orderId}을 ${cookMin}분으로 조리 시작 · 다른 시연 매장 주문을 자동 시작했습니다.`);
       await loadMerchant();
     } catch (error) {
       showMerchantFailure(error, { action: true });

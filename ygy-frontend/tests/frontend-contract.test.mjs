@@ -49,8 +49,12 @@ test('사장님 화면은 배차 제안·수락 단계를 구분하고 조리 �
   assert.match(screen, /배차 제안됨 · 수락 대기/);
   assert.match(screen, /라이더 수락 완료 · 배차 완료/);
   assert.match(client, /\/api\/merchant\/demo-trigger/);
-  assert.match(screen, /apiClient\.merchants\.demoTrigger\(\)/);
-  assert.doesNotMatch(screen, /apiClient\.merchants\.updateCookTime\(orderId/);
+  assert.match(screen, /apiClient\.merchants\.demoTrigger\(\{/);
+  assert.match(screen, /primaryStoreId: storeId/);
+  assert.match(screen, /primaryOrderId: orderId/);
+  assert.match(screen, /ownerCookMin: cookMin/);
+  assert.match(client, /primary_store_id/);
+  assert.match(client, /primary_order_id/);
   assert.doesNotMatch(template, /demoBulkCookStartButton/);
   assert.match(template, /id="offeredCount"/);
 });

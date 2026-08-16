@@ -1,5 +1,5 @@
 (() => {
-  const storageKey = 'ygy-frontend-api-compatible-mock-v6';
+  const storageKey = 'ygy-frontend-api-compatible-mock-v7';
   const clone = value => JSON.parse(JSON.stringify(value));
   const createError = (message, status = 400) => Object.assign(new Error(message), { status });
   const initialState = () => ({
@@ -16,6 +16,7 @@
       8941: { order_id: 8941, store_id: 894, store_name: '목업 강남894점', store_lat: 37.5014, store_lng: 127.0310, delivery_lat: 37.5056, delivery_lng: 127.0361, menu_items: [{ menu: '후라이드치킨', qty: 1, price: 19000 }], amount: 19000, delivery_fee: 3500, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
       8891: { order_id: 8891, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.4938, delivery_lng: 127.0334, menu_items: [{ menu: '제육덮밥', qty: 1, price: 12000 }], amount: 12000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
       8892: { order_id: 8892, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.5015, delivery_lng: 127.0387, menu_items: [{ menu: '비빔밥', qty: 1, price: 11000 }], amount: 11000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
+      8841: { order_id: 8841, store_id: 884, store_name: '목업 홍대884점', store_lat: 37.5568, store_lng: 126.9239, delivery_lat: 37.5528, delivery_lng: 126.9274, menu_items: [{ menu: '떡볶이 세트', qty: 1, price: 13000 }], amount: 13000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
       1: { order_id: 1, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5398, delivery_lng: 127.0611, menu_items: [{ menu: '즉석국세트', qty: 1, price: 12000 }], amount: 12000, delivery_fee: 3000, status: 'NEW', eta_min: null, package_id: null, rider_id: null },
       2: { order_id: 2, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5482, delivery_lng: 127.0468, menu_items: [{ menu: '곰탕', qty: 1, price: 9500 }], amount: 9500, delivery_fee: 3000, status: 'MATCHED', eta_min: 22, package_id: null, rider_id: null },
       3: { order_id: 3, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5351, delivery_lng: 127.0583, menu_items: [{ menu: '제육덮밥', qty: 1, price: 10500 }], amount: 10500, delivery_fee: 3000, status: 'MATCHED', eta_min: 20, package_id: null, rider_id: null },
@@ -61,6 +62,7 @@
   };
   const packageForRider = riderId => Object.values(state.packages).filter(pkg => pkg.rider_id === riderId).map(clone);
   const nextPackageId = () => Math.max(0, ...Object.keys(state.packages).map(Number)) + 1;
+  const newestOrder = orders => orders.slice().sort((left, right) => Number(right.order_id) - Number(left.order_id))[0];
   const noHarmComparison = () => ({
     passed: true,
     single_eta_min: 34,
@@ -97,10 +99,10 @@
     customers: Object.freeze({
       getDemoActive: async () => {
         const orders = Object.values(state.orders);
-        const order = orders.find(item => String(item.store_id) === '889' && item.status !== 'CANCELLED')
-          || orders.find(item => (
+        const order = newestOrder(orders.filter(item => String(item.store_id) === '889' && item.status !== 'CANCELLED'))
+          || newestOrder(orders.filter(item => (
             ['889', '894', '884'].includes(String(item.store_id)) && item.status !== 'CANCELLED'
-          )) || orders.find(item => item.status !== 'CANCELLED');
+          ))) || newestOrder(orders.filter(item => item.status !== 'CANCELLED'));
         if (!order) throw createError('현재 시연할 주문이 없습니다.', 404);
         return { order_id: order.order_id };
       },
@@ -144,12 +146,21 @@
         }, 1000);
         return { order_id: order.order_id, status: order.status, owner_cook_min: order.owner_cook_min };
       },
-      demoTrigger: async () => {
-        const orders = Object.values(state.orders).filter(order => (
-          order.status === 'NEW' && ['889', '894', '884'].includes(String(order.store_id))
-        ));
-        orders.forEach(order => {
-          order.owner_cook_min = 10;
+      demoTrigger: async ({ primary_store_id: primaryStoreId, primary_order_id: primaryOrderId, owner_cook_min: ownerCookMin } = {}) => {
+        const primaryOrder = state.orders[String(primaryOrderId)];
+        const primaryCookMin = Number(ownerCookMin);
+        if (!primaryOrder || String(primaryOrder.store_id) !== String(primaryStoreId)) throw createError('선택한 매장의 주문을 찾을 수 없습니다.', 404);
+        if (primaryOrder.status !== 'NEW') throw createError('신규 주문만 조리를 시작할 수 있습니다.', 409);
+        if (!Number.isInteger(primaryCookMin) || primaryCookMin < 5 || primaryCookMin > 100 || primaryCookMin % 5 !== 0) {
+          throw createError('조리시간은 5~100분 사이의 5분 단위여야 합니다.');
+        }
+        const secondaryOrders = ['889', '894', '884']
+          .filter(id => id !== String(primaryStoreId))
+          .map(id => newestOrder(Object.values(state.orders).filter(order => order.status === 'NEW' && String(order.store_id) === id)))
+          .filter(Boolean);
+        const orders = [primaryOrder, ...secondaryOrders];
+        orders.forEach((order, index) => {
+          order.owner_cook_min = index === 0 ? primaryCookMin : 5 + Math.floor(Math.random() * 4) * 5;
           order.status = 'COOKING';
           window.setTimeout(() => {
             if (order.status === 'COOKING' && !order.package_id) {
@@ -159,7 +170,7 @@
           }, 1000);
         });
         save();
-        return { started_order_count: orders.length, status: 'TRIGGERED' };
+        return { started_order_count: orders.length, primary_order_id: primaryOrder.order_id, status: 'TRIGGERED' };
       },
     }),
     riders: Object.freeze({
