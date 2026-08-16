@@ -166,13 +166,17 @@ const routeActionControls = pkg => {
     return `<button class="ghost-button full" disabled>${Yogiyo.escape(packageStatus(pkg.status))}</button>`;
   }
   const nextStep = steps.find(step => !isStepDone(pkg, step));
-  return `<div class="route-stop-list" aria-label="패키지 ${pkg.package_id} 운행 단계">${steps.map(step => {
+  const completedCount = steps.filter(step => isStepDone(pkg, step)).length;
+  const nextLabel = nextStep
+    ? `다음: 주문 ${nextStep.order_id ?? '-'} ${isPickup(nextStep) ? '픽업' : '배달'}`
+    : '모든 방문 완료';
+  return `<div class="assigned-route-panel"><div class="assigned-route-head"><strong>방문 단계</strong><span>${completedCount}/${steps.length} 완료 · ${Yogiyo.escape(nextLabel)}</span></div><div class="route-stop-list" aria-label="패키지 ${pkg.package_id} 운행 단계">${steps.map(step => {
     const done = isStepDone(pkg, step);
     const active = !done && nextStep && routeStepKey(nextStep) === routeStepKey(step);
     const kind = isPickup(step) ? '픽업' : '배달';
     const label = `주문 ${step.order_id ?? '-'} ${kind} 완료`;
     return `<button class="${active ? 'primary-button' : 'ghost-button'} route-stop-button${done ? ' done' : ''}" ${active ? `data-route-step="${step.index}" data-package-id="${pkg.package_id}"` : 'disabled'} aria-label="패키지 ${pkg.package_id} ${label}">${done ? '✓ ' : ''}${Yogiyo.escape(label)}</button>`;
-  }).join('')}</div><p class="route-stop-help">각 매장·고객 방문을 순서대로 완료하세요. 모든 픽업 완료 시에만 고객 주문을 픽업 완료로 전환합니다.</p>`;
+  }).join('')}</div><p class="route-stop-help">각 매장·고객 방문을 순서대로 완료하세요. 모든 픽업 완료 시에만 고객 주문을 픽업 완료로 전환합니다.</p></div>`;
 };
 
 const packageDetailRow = (label, value) => `<div class="row"><span class="label">${Yogiyo.escape(label)}</span><span class="value">${Yogiyo.escape(value)}</span></div>`;

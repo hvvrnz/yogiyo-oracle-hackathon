@@ -100,6 +100,7 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /예상 패키지 수익/);
   assert.match(screen, /routeActionControls/);
   assert.match(screen, /data-route-step/);
+  assert.match(screen, /assigned-route-panel/);
   assert.match(screen, /모든 픽업 완료 시에만 고객 주문을 픽업 완료로 전환합니다/);
   assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
   assert.match(screen, /서버에는 저장되지 않습니다/);
@@ -110,6 +111,7 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(styles, /\.offer-list-notice/);
   assert.match(styles, /\.assigned-package-list/);
   assert.match(styles, /\.assigned-package-row/);
+  assert.match(styles, /\.assigned-route-panel/);
   assert.match(styles, /package-accepted-pulse/);
 });
 
