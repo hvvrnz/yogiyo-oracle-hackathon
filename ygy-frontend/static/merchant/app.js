@@ -47,7 +47,7 @@ const setConnection = online => {
   const connection = Yogiyo.el('connection');
   connection.classList.toggle('online', online);
   connection.classList.toggle('offline', !online);
-  connection.querySelector('span').textContent = online ? '실시간 조회 중' : '연결 확인 필요';
+  connection.querySelector('span').textContent = online ? '영업중' : '연결 확인 필요';
 };
 
 const menuSummary = items => {
