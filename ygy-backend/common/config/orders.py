@@ -41,6 +41,7 @@ FOOD_CATEGORY_URGENCY = {
 STORE_MENU_COUNT_RANGE = (3, 6) 
 
 URGENCY_MISMATCH_PENALTY_KM = 1.0  # ⚠️ 임의값, 추후 튜닝 필요
+DEMO_STORE_IDS = [889, 894, 884]
 
 # ========== 클러스터링 ==========
 
