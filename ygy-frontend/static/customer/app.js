@@ -1,7 +1,10 @@
 let orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 const isDirectOrderLookup = /^\d+$/.test(orderId);
+const useDemoActiveOrder = Yogiyo.qs('demoActive') === '1';
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
+let usingDemoActiveOrder = false;
+let demoAcceptedAssignment;
 let currentOrder;
 let stopPolling;
 let stopRiderPolling;
@@ -13,9 +16,11 @@ let customerExplanationPackageId;
 let customerExplanationRequestId = 0;
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED']);
-const assignmentConfirmedStatuses = new Set(['MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
-const hasConfirmedAssignment = order => assignmentConfirmedStatuses.has(order?.status) && order?.package_id != null && order?.package_id !== '';
-const hasOfferedPackage = order => order?.status === 'COOKING' && order?.package_id != null && order?.package_id !== '';
+const assignmentConfirmedStatuses = new Set(['MATCHING', 'MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
+const hasPackage = order => order?.package_id != null && order?.package_id !== '';
+const hasAssignedRider = order => order?.rider_id != null && order?.rider_id !== '';
+const hasConfirmedAssignment = order => hasPackage(order) && (assignmentConfirmedStatuses.has(order?.status) || hasAssignedRider(order));
+const hasOfferedPackage = order => order?.status === 'COOKING' && hasPackage(order) && !hasAssignedRider(order);
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
 const showCustomerFailure = (error, { action = false } = {}) => {
   setConnection(false);
@@ -122,6 +127,9 @@ function syncCustomerExplanation(order) {
 }
 
 function customerStatusMeta(order) {
+  if (hasConfirmedAssignment(order) && !['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED'].includes(order?.status)) {
+    return statusMeta.MATCHED;
+  }
   if (hasOfferedPackage(order)) {
     return {
       label: '배차 제안됨',
@@ -157,7 +165,7 @@ function renderCustomer(order) {
   Yogiyo.el('etaWindow').textContent = etaLabel;
   Yogiyo.el('currentMessage').textContent = meta.message;
   Yogiyo.el('deliveryOrder').textContent = meta.label;
-  Yogiyo.el('etaUpdated').textContent = isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
+  Yogiyo.el('etaUpdated').textContent = usingDemoActiveOrder ? '현재 시연 주문 자동 조회' : isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
   Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(meta.label)}`;
   Yogiyo.el('storeName').textContent = order.store_name;
   Yogiyo.el('menuSummary').textContent = menuSummary(items);
@@ -225,10 +233,26 @@ function syncAssignedRider(order) {
   startRiderPolling(riderId);
 }
 
+function mergeDemoAcceptedAssignment(order) {
+  const assignment = demoAcceptedAssignment;
+  if (!assignment || !order) return order;
+  const orderIds = assignment.orderIds || [];
+  const matchesPackage = String(order.package_id ?? '') === String(assignment.packageId);
+  const matchesOrder = orderIds.some(orderId => String(orderId) === String(order.order_id));
+  if (!matchesPackage && !matchesOrder) return order;
+  return {
+    ...order,
+    package_id: order.package_id ?? assignment.packageId,
+    rider_id: order.rider_id ?? assignment.riderId,
+    status: ['COOKING', 'MATCHING'].includes(order.status) ? 'MATCHED' : order.status,
+  };
+}
+
 function refreshCustomer(order) {
-  syncAssignedRider(order);
-  syncCustomerExplanation(order);
-  renderCustomer(order);
+  const resolvedOrder = mergeDemoAcceptedAssignment(order);
+  syncAssignedRider(resolvedOrder);
+  syncCustomerExplanation(resolvedOrder);
+  renderCustomer(resolvedOrder);
 }
 
 function noStoreOrderError() {
@@ -238,7 +262,17 @@ function noStoreOrderError() {
 }
 
 async function loadSelectedCustomerOrder() {
-  if (/^\d+$/.test(orderId)) return Yogiyo.apiClient.customers.get(orderId);
+  if (isDirectOrderLookup && !useDemoActiveOrder) return Yogiyo.apiClient.customers.get(orderId);
+  try {
+    const active = await Yogiyo.apiClient.customers.getDemoActive();
+    const activeOrderId = String(active?.order_id || '');
+    if (!/^\d+$/.test(activeOrderId)) throw noStoreOrderError();
+    usingDemoActiveOrder = true;
+    return Yogiyo.apiClient.customers.get(activeOrderId);
+  } catch (error) {
+    if (error?.status !== 404) throw error;
+    usingDemoActiveOrder = false;
+  }
   if (!/^\d+$/.test(storeId)) throw noStoreOrderError();
 
   const merchant = await Yogiyo.apiClient.merchants.get(storeId);
@@ -276,25 +310,28 @@ async function cancelOrder() {
 
 Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, cancelOrder));
 
-if (!/^\d+$/.test(orderId) && !/^\d+$/.test(storeId)) {
-  setContentVisible(false);
-  Yogiyo.renderLoadState('customerLoadState', {
-    tone: 'empty',
-    title: '조회 대상을 확인할 수 없습니다.',
-    description: '통합 시연에서 매장을 선택하거나 URL의 매장 번호를 확인해 주세요.',
-  });
-} else {
-  stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {
-    refreshCustomer(order);
-  }, {
-    intervalMs: 5000,
-    onError: error => {
-      setConnection(false);
-      if (!currentOrder) showCustomerFailure(error);
-      console.warn('customer polling failed', error);
-    },
-  });
-}
+window.addEventListener('message', event => {
+  if (event.origin !== window.location.origin || event.source !== window.parent) return;
+  const { type, packageId, riderId, orderIds } = event.data || {};
+  if (type !== 'ygy:customer-package-accepted' || packageId == null || !riderId) return;
+  demoAcceptedAssignment = {
+    packageId,
+    riderId,
+    orderIds: Array.isArray(orderIds) ? orderIds : [],
+  };
+  if (currentOrder) refreshCustomer(currentOrder);
+});
+
+stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {
+  refreshCustomer(order);
+}, {
+  intervalMs: 5000,
+  onError: error => {
+    setConnection(false);
+    if (!currentOrder) showCustomerFailure(error);
+    console.warn('customer polling failed', error);
+  },
+});
 window.addEventListener('beforeunload', () => {
   stopPolling?.();
   stopRiderPolling?.();

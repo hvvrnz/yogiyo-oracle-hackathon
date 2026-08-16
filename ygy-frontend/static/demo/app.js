@@ -57,9 +57,9 @@ const syncRiderOptions = () => {
 };
 
 if (mockMode) {
-  if (!demoQuery.has('storeId')) demoStoreSelect.value = '894';
+  if (!demoQuery.has('storeId')) demoStoreSelect.value = '889';
   if (!demoQuery.has('riderId')) demoRiderSelect.value = 'rider_12';
-  Yogiyo.el('demoSelectorHelp').textContent = '목업 전체 흐름: 매장 894 주문 중 한 건을 고객으로 표시하고, 매장 894에서 조리 시작 → 약 1초 뒤 rider_12가 제안을 수락 → 픽업·완료를 진행하세요.';
+  Yogiyo.el('demoSelectorHelp').textContent = '목업 전체 흐름: 889점의 현재 시연 주문을 고객으로 표시하고, 889점에서 조리 시작 → 약 1초 뒤 rider_12가 제안을 수락 → 픽업·완료를 진행하세요.';
   Yogiyo.el('resetMockDemo').hidden = false;
   hongdaeSoloPresetButton.disabled = true;
   hongdaeSoloPresetButton.title = '홍대 SOLO 목업 주문은 시연 데이터 작업 후 사용할 수 있습니다.';
@@ -90,9 +90,14 @@ const appendDemoEvent = (code, message) => {
 
 window.addEventListener('message', event => {
   if (event.origin !== window.location.origin || event.source !== Yogiyo.el('demoRiderFrame').contentWindow) return;
-  const { type, packageId, riderId } = event.data || {};
+  const { type, packageId, riderId, orderIds } = event.data || {};
   if (type !== 'ygy:package-accepted') return;
-  refreshDemoFrame('demoCustomerFrame');
+  Yogiyo.el('demoCustomerFrame').contentWindow?.postMessage({
+    type: 'ygy:customer-package-accepted',
+    packageId,
+    riderId,
+    orderIds: Array.isArray(orderIds) ? orderIds : [],
+  }, window.location.origin);
   refreshDemoFrame('demoMerchantFrame');
   const message = `패키지 ${packageId}를 ${riderId}가 수락했습니다. 고객·사장님 화면을 즉시 갱신했습니다.`;
   appendDemoEvent('PACKAGE_ACCEPTED', message);
@@ -125,11 +130,14 @@ const applyDemoSelection = async ({ futureSlot = false } = {}) => {
     `라이더 · ${riderId} · 주문 연결 중`);
 
   try {
-    const orderId = String(demoOrderCandidate((await Yogiyo.apiClient.merchants.get(storeId)).orders)?.order_id || '');
+    const orderId = storeId === '889'
+      ? String((await Yogiyo.apiClient.customers.getDemoActive())?.order_id || '')
+      : String(demoOrderCandidate((await Yogiyo.apiClient.merchants.get(storeId)).orders)?.order_id || '');
     if (requestId !== demoSelectionRequestId) return;
     if (!/^\d+$/.test(orderId)) throw new Error('선택한 매장에 시연할 주문이 없습니다. 주문 데이터를 확인해 주세요.');
-    const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
-    const riderUrl = `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
+    const activeOrderQuery = storeId === '889' ? '&demoActive=1' : '';
+    const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${activeOrderQuery}${futureSlotQuery}`;
+    const riderUrl = `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${activeOrderQuery}${futureSlotQuery}`;
     setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
       futureSlot ? `고객 · Future Slot · 주문 ${orderId}` : `고객 · 주문 ${orderId}`);
     setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', riderUrl,
@@ -208,7 +216,7 @@ demoStoreSelect.addEventListener('change', syncRiderOptions);
 hongdaeSoloPresetButton.addEventListener('click', () => applyHongdaeSoloPreset());
 futureSlotPresetButton.addEventListener('click', () => {
   if (mockMode) {
-    demoStoreSelect.value = '894';
+    demoStoreSelect.value = '889';
     syncRiderOptions();
     demoRiderSelect.value = 'rider_12';
     applyDemoSelection({ futureSlot: true });
@@ -220,7 +228,7 @@ futureSlotPresetButton.addEventListener('click', () => {
 Yogiyo.el('resetMockDemo').addEventListener('click', () => {
   if (!mockMode) return;
   Yogiyo.resetMock();
-  location.assign('/demo?storeId=894&riderId=rider_12');
+  location.assign('/demo?storeId=889&riderId=rider_12');
 });
 if (activePreset && !mockMode) applyHongdaeSoloPreset({ useQueryOrder: true, futureSlot: activePreset === futureSlotPreset.id });
 else applyDemoSelection({ futureSlot: activePreset === futureSlotPreset.id });

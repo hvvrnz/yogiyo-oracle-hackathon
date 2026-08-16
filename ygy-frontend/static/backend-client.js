@@ -54,6 +54,14 @@
     lng: toNumber(rider.lng ?? rider.current_lng),
     completed_order_count: Number(rider.completed_order_count ?? 0),
   });
+  const normalizeMerchantOrder = order => ({
+    ...order,
+    menu_items: normalizeMenuItems(order.menu_items),
+    route_detail: normalizeRoute(order.route_detail),
+    owner_cook_min: toNumber(order.owner_cook_min),
+    predicted_cook_min: toNumber(order.predicted_cook_min),
+    eta_min: toNumber(order.eta_min),
+  });
 
   const request = async (path, options = {}) => {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
@@ -76,6 +84,7 @@
 
   const apiClient = Object.freeze({
     customers: Object.freeze({
+      getDemoActive: () => request(endpoint('customerDemoActive', '/api/customer/demo/active')),
       get: async orderId => {
         const data = await request(endpoint('customer', '/api/customer/:orderId', { orderId }));
         return { ...data, menu_items: normalizeMenuItems(data.menu_items), eta_min: toNumber(data.eta_min) };
@@ -87,19 +96,24 @@
         const data = await request(endpoint('merchant', '/api/merchant/:storeId', { storeId }));
         return {
           ...data,
-          orders: asArray(data.orders).map(order => ({
-            ...order,
-            menu_items: normalizeMenuItems(order.menu_items),
-            route_detail: normalizeRoute(order.route_detail),
-            owner_cook_min: toNumber(order.owner_cook_min),
-            predicted_cook_min: toNumber(order.predicted_cook_min),
-            eta_min: toNumber(order.eta_min),
-          })),
+          orders: asArray(data.orders).map(normalizeMerchantOrder),
         };
       },
+      nextToCook: async () => normalizeMerchantOrder(await request(endpoint('merchantNextToCook', '/api/merchant/next-to-cook'))),
       updateCookTime: (orderId, ownerCookMin) => request(
         endpoint('merchantCookTime', '/api/merchant/orders/:orderId/cook-time', { orderId }),
         { method: 'PUT', body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }) },
+      ),
+      demoTrigger: ({ primaryStoreId, primaryOrderId, ownerCookMin }) => request(
+        endpoint('merchantDemoTrigger', '/api/merchant/demo-trigger'),
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            primary_store_id: Number(primaryStoreId),
+            primary_order_id: Number(primaryOrderId),
+            owner_cook_min: Number(ownerCookMin),
+          }),
+        },
       ),
     }),
     riders: Object.freeze({

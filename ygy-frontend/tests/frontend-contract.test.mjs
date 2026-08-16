@@ -12,19 +12,27 @@ test('고객 화면은 전체 주문 상태와 배차 단계 안내를 유지한
   assert.match(source, /배차 제안 생성 대기 중/);
   assert.match(source, /배차 제안됨/);
   assert.match(source, /라이더 수락 대기 중/);
+  assert.match(source, /hasAssignedRider/);
+  assert.match(source, /MATCHING/);
+  assert.match(source, /ygy:customer-package-accepted/);
+  assert.match(source, /mergeDemoAcceptedAssignment/);
   assert.match(source, /hasOfferedPackage/);
   assert.match(source, /LLM 배차 안내 생성 준비 중입니다/);
 });
 
 test('고객 화면은 매장 주문 중 취소되지 않은 한 건을 선택해 조회한다', () => {
   const source = read('../static/customer/app.js');
+  const client = read('../static/backend-client.js');
   const template = read('../static/customer/index.html');
   assert.match(source, /apiClient\.merchants\.get\(storeId\)/);
   assert.match(source, /order\.status !== 'CANCELLED'/);
   assert.match(source, /Math\.random\(\) \* availableOrders\.length/);
   assert.match(source, /Yogiyo\.qs\('storeId', Yogiyo\.defaultIds\.merchant\)/);
   assert.match(source, /Yogiyo\.qs\('orderId', Yogiyo\.defaultIds\.customer\)/);
-  assert.match(source, /if \(\/\^\\d\+\$\/\.test\(orderId\)\) return Yogiyo\.apiClient\.customers\.get\(orderId\)/);
+  assert.match(source, /if \(isDirectOrderLookup && !useDemoActiveOrder\) return Yogiyo\.apiClient\.customers\.get\(orderId\)/);
+  assert.match(source, /apiClient\.customers\.getDemoActive\(\)/);
+  assert.match(source, /현재 시연 주문 자동 조회/);
+  assert.match(client, /\/api\/customer\/demo\/active/);
   assert.doesNotMatch(template, /storeIdInput|orderIdInput|loadStoreButton/);
 });
 
@@ -37,15 +45,24 @@ test('역할 화면은 상단 대상 정보와 중복되는 조회 입력 영역
   assert.doesNotMatch(rider, /<h2>라이더 조회<\/h2>|loadRiderButton|riderIdInput/);
 });
 
-test('사장님 화면은 배차 제안·수락 단계를 구분하고 시연 주문을 일괄 조리 시작한다', () => {
+test('사장님 화면은 배차 제안·수락 단계를 구분하고 조리 시작 뒤 시연 트리거를 호출한다', () => {
+  const client = read('../static/backend-client.js');
   const screen = read('../static/merchant/app.js');
   const template = read('../static/merchant/index.html');
   assert.match(screen, /hasOfferedPackage/);
   assert.match(screen, /배차 제안됨 · 수락 대기/);
   assert.match(screen, /라이더 수락 완료 · 배차 완료/);
-  assert.match(screen, /const demoStoreIds = Object\.freeze\(\['889', '894', '884'\]\)/);
-  assert.match(screen, /Promise\.allSettled/);
-  assert.match(template, /id="demoBulkCookStartButton"/);
+  assert.match(client, /\/api\/merchant\/demo-trigger/);
+  assert.match(screen, /apiClient\.merchants\.demoTrigger\(\{/);
+  assert.match(screen, /primaryStoreId: currentMerchant\?\.store_id \?\? storeId/);
+  assert.match(screen, /primaryOrderId: orderId/);
+  assert.match(screen, /ownerCookMin: cookMin/);
+  assert.match(screen, /apiClient\.merchants\.nextToCook\(\)/);
+  assert.doesNotMatch(screen, /apiClient\.merchants\.get\(storeId\)/);
+  assert.match(client, /\/api\/merchant\/next-to-cook/);
+  assert.match(client, /primary_store_id/);
+  assert.match(client, /primary_order_id/);
+  assert.doesNotMatch(template, /demoBulkCookStartButton/);
   assert.match(template, /id="offeredCount"/);
 });
 
@@ -79,6 +96,8 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /class="assigned-package-row/);
   assert.match(screen, /패키지 \$\{pkg\.package_id\} 상세 배차 정보 보기/);
   assert.match(screen, /예상 패키지 수익/);
+  assert.match(screen, /픽업 후 \$\{completeLabel\}/);
+  assert.match(screen, /\$\{pickupCount\}곳 픽업 완료/);
   assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
   assert.match(screen, /서버에는 저장되지 않습니다/);
   assert.match(screen, /isFutureReservation/);
@@ -119,6 +138,8 @@ test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공
   assert.match(source, /futureSlot=demo/);
   assert.match(source, /목업 Future Slot 시연을 적용했습니다/);
   assert.match(source, /apiClient\.merchants\.get\(preset\.storeId\)/);
+  assert.match(source, /apiClient\.customers\.getDemoActive\(\)/);
+  assert.match(source, /demoActive=1/);
   assert.match(source, /&orderId=\$\{encodeURIComponent\(orderId\)\}/);
   assert.match(source, /주문 \$\{orderId\}/);
   assert.match(source, /order\.status === 'NEW' && !order\.package_id/);
@@ -148,9 +169,10 @@ test('통합 시연은 라이더 수락 이벤트를 받아 고객·사장님 �
   const rider = read('../static/rider/app.js');
   assert.match(rider, /notifyDemoPackageAccepted/);
   assert.match(rider, /type: 'ygy:package-accepted'/);
+  assert.match(rider, /orderIds/);
   assert.match(demo, /window\.addEventListener\('message'/);
   assert.match(demo, /event\.origin !== window\.location\.origin/);
-  assert.match(demo, /refreshDemoFrame\('demoCustomerFrame'\)/);
+  assert.match(demo, /ygy:customer-package-accepted/);
   assert.match(demo, /refreshDemoFrame\('demoMerchantFrame'\)/);
   assert.match(demo, /PACKAGE_ACCEPTED/);
 });
