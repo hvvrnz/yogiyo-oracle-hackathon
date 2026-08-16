@@ -101,6 +101,7 @@
         endpoint('merchantCookTime', '/api/merchant/orders/:orderId/cook-time', { orderId }),
         { method: 'PUT', body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }) },
       ),
+      demoTrigger: () => request(endpoint('merchantDemoTrigger', '/api/merchant/demo-trigger'), { method: 'POST' }),
     }),
     riders: Object.freeze({
       list: async () => {

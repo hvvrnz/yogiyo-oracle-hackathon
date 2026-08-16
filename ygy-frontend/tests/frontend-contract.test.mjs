@@ -37,15 +37,16 @@ test('역할 화면은 상단 대상 정보와 중복되는 조회 입력 영역
   assert.doesNotMatch(rider, /<h2>라이더 조회<\/h2>|loadRiderButton|riderIdInput/);
 });
 
-test('사장님 화면은 배차 제안·수락 단계를 구분하고 시연 주문을 일괄 조리 시작한다', () => {
+test('사장님 화면은 배차 제안·수락 단계를 구분하고 조리 시작 뒤 시연 트리거를 호출한다', () => {
+  const client = read('../static/backend-client.js');
   const screen = read('../static/merchant/app.js');
   const template = read('../static/merchant/index.html');
   assert.match(screen, /hasOfferedPackage/);
   assert.match(screen, /배차 제안됨 · 수락 대기/);
   assert.match(screen, /라이더 수락 완료 · 배차 완료/);
-  assert.match(screen, /const demoStoreIds = Object\.freeze\(\['889', '894', '884'\]\)/);
-  assert.match(screen, /Promise\.allSettled/);
-  assert.match(template, /id="demoBulkCookStartButton"/);
+  assert.match(client, /\/api\/merchant\/demo-trigger/);
+  assert.match(screen, /apiClient\.merchants\.demoTrigger\(\)/);
+  assert.doesNotMatch(template, /demoBulkCookStartButton/);
   assert.match(template, /id="offeredCount"/);
 });
 

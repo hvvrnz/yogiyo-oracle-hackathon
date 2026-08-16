@@ -135,6 +135,23 @@
         }, 1000);
         return { order_id: order.order_id, status: order.status, owner_cook_min: order.owner_cook_min };
       },
+      demoTrigger: async () => {
+        const orders = Object.values(state.orders).filter(order => (
+          order.status === 'NEW' && ['889', '894', '884'].includes(String(order.store_id))
+        ));
+        orders.forEach(order => {
+          order.owner_cook_min = 10;
+          order.status = 'COOKING';
+          window.setTimeout(() => {
+            if (order.status === 'COOKING' && !order.package_id) {
+              createOfferForOrder(order);
+              save();
+            }
+          }, 1000);
+        });
+        save();
+        return { started_order_count: orders.length, status: 'TRIGGERED' };
+      },
     }),
     riders: Object.freeze({
       list: async () => ({ count: Object.keys(state.riders).length, riders: Object.values(state.riders).map(clone) }),

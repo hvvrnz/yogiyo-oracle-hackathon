@@ -24,6 +24,17 @@ test('목업 초기 상태에서는 라이더에게 배차 제안이 없다', as
   assert.equal(offers.length, 0);
 });
 
+test('목업 시연 트리거는 다른 시연 매장의 신규 주문만 조리 시작한다', async () => {
+  const client = createMockClient();
+  await client.merchants.updateCookTime(8941, 5);
+  const result = await client.merchants.demoTrigger();
+
+  assert.equal(result.started_order_count, 2);
+  assert.equal((await client.customers.get(8891)).status, 'COOKING');
+  assert.equal((await client.customers.get(8892)).status, 'COOKING');
+  assert.equal((await client.customers.get(1)).status, 'NEW');
+});
+
 test('목업 주문은 조리 시작 후 제안·수락·픽업·완료 상태를 순서대로 전이한다', async () => {
   const client = createMockClient();
 

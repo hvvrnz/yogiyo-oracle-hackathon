@@ -1,6 +1,4 @@
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
-const demoStoreIds = Object.freeze(['889', '894', '884']);
-const demoCookTime = 20;
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let storeDirectory;
 let currentMerchant;
@@ -196,39 +194,16 @@ async function startCooking(orderId, cookMin, button) {
   await Yogiyo.withPending(button, async () => {
     try {
       await Yogiyo.apiClient.merchants.updateCookTime(orderId, cookMin);
-      Yogiyo.toast(`주문 ${orderId}의 조리를 시작했습니다. (${cookMin}분)`);
-      await loadMerchant();
-    } catch (error) {
-      showMerchantFailure(error, { action: true });
-      Yogiyo.toast(error.message);
-    }
-  });
-}
-
-async function startDemoOrders(button) {
-  if (!window.confirm(`시연 매장 ${demoStoreIds.join('·')}의 신규 주문을 모두 ${demoCookTime}분 조리로 시작할까요?\n실제 API 모드에서는 DB 상태가 변경됩니다.`)) return;
-  await Yogiyo.withPending(button, async () => {
-    try {
-      const views = await Promise.all(demoStoreIds.map(async demoStoreId => {
-        try { return await Yogiyo.apiClient.merchants.get(demoStoreId); }
-        catch (error) {
-          if (error?.status === 404) return undefined;
-          throw error;
-        }
-      }));
-      const newOrders = views.flatMap(view => (view?.orders || []).filter(order => order.status === 'NEW'));
-      if (!newOrders.length) {
-        Yogiyo.toast('시연 매장에 조리 시작할 신규 주문이 없습니다.');
-        return;
+      try {
+        const trigger = await Yogiyo.apiClient.merchants.demoTrigger();
+        const startedCount = Number(trigger?.started_order_count);
+        Yogiyo.toast(Number.isFinite(startedCount)
+          ? `주문 ${orderId} 조리 시작 · 다른 시연 매장 ${startedCount}건도 자동 시작했습니다.`
+          : `주문 ${orderId} 조리 시작 · 다른 시연 매장 주문도 자동 시작했습니다.`);
+      } catch (triggerError) {
+        Yogiyo.toast(`주문 ${orderId}의 조리를 시작했습니다. 다른 시연 매장 자동 시작 요청은 실패했습니다.`);
+        console.warn('demo trigger failed', triggerError);
       }
-      const results = await Promise.allSettled(newOrders.map(order => (
-        Yogiyo.apiClient.merchants.updateCookTime(order.order_id, demoCookTime)
-      )));
-      const failedCount = results.filter(result => result.status === 'rejected').length;
-      const startedCount = results.length - failedCount;
-      Yogiyo.toast(failedCount
-        ? `${startedCount}건 조리 시작 · ${failedCount}건 실패했습니다.`
-        : `시연 주문 ${startedCount}건을 ${demoCookTime}분 조리로 시작했습니다.`);
       await loadMerchant();
     } catch (error) {
       showMerchantFailure(error, { action: true });
@@ -236,8 +211,6 @@ async function startDemoOrders(button) {
     }
   });
 }
-
-Yogiyo.el('demoBulkCookStartButton').addEventListener('click', event => startDemoOrders(event.currentTarget));
 
 Yogiyo.poll(() => Yogiyo.apiClient.merchants.get(storeId), async view => {
   renderMerchant(view, await getStore(storeId));
