@@ -52,3 +52,12 @@ test('패키지 상세 바텀시트는 포커스 복귀·포커스 가두기와 
   assert.match(screen, /aria-label="패키지 \$\{pkg\.package_id\} 제안 수락"/);
   assert.match(template, /aria-describedby="packageDetailSummary"/);
 });
+
+test('역할 화면과 통합 시연 프레임은 모바일 세로 비율을 유지한다', () => {
+  const styles = read('../static/common.css');
+  const demo = read('../static/demo/index.html');
+  assert.match(styles, /aspect-ratio: 390 \/ 844/);
+  assert.match(styles, /html\.embedded \.mobile-shell/);
+  assert.match(demo, /aspect-ratio:390\/844/);
+  assert.match(demo, /repeat\(auto-fit,minmax\(280px,390px\)\)/);
+});
