@@ -17,11 +17,14 @@
         <section class="section">
           <div class="card">
             <div class="section-title-row"><h2>주문 현황</h2><button class="icon-button" aria-label="통합 시연으로 이동" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
-            <div class="metric-grid">
+            <div class="metric-grid merchant-metric-grid">
               <div class="metric"><span class="metric-label">신규 주문</span><strong id="newCount">0</strong><small>건</small></div>
               <div class="metric"><span class="metric-label">조리 중</span><strong id="cookingCount">0</strong><small>건</small></div>
+              <div class="metric"><span class="metric-label">수락 대기</span><strong id="offeredCount">0</strong><small>건</small></div>
               <div class="metric"><span class="metric-label">배차 완료</span><strong id="readyCount">0</strong><small>건</small></div>
             </div>
+            <button id="demoBulkCookStartButton" type="button" class="ghost-button full" style="margin-top:12px">시연용 전체 주문 조리 시작</button>
+            <p class="subtext" style="margin:8px 2px 0">시연 매장 889·894·884의 신규 주문을 20분 조리로 함께 시작합니다.</p>
           </div>
         </section>
         <section id="merchantLoadState" class="section" aria-live="polite" hidden></section>

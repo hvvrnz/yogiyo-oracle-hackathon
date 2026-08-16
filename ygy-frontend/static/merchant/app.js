@@ -1,4 +1,6 @@
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
+const demoStoreIds = Object.freeze(['889', '894', '884']);
+const demoCookTime = 20;
 let storeDirectory;
 let currentMerchant;
 
@@ -32,6 +34,13 @@ const statusTones = Object.freeze({
   COMPLETED: 'good',
   CANCELLED: 'neutral',
 });
+
+const hasOfferedPackage = order => order?.status === 'COOKING' && order?.package_id != null && order?.package_id !== '';
+const merchantOrderStatus = order => {
+  if (hasOfferedPackage(order)) return { label: '배차 제안됨 · 수락 대기', tone: 'warn' };
+  if (order?.status === 'MATCHED') return { label: '라이더 수락 완료 · 배차 완료', tone: 'brand' };
+  return { label: statusLabels[order?.status] || order?.status || '상태 정보 없음', tone: statusTones[order?.status] || 'neutral' };
+};
 
 const setConnection = online => {
   const connection = Yogiyo.el('connection');
@@ -71,10 +80,16 @@ const routeSummary = route => {
 
 const cookTimeControls = order => {
   if (order.status === 'NEW') {
-    return `<button class="primary-button full" data-cook-start="${order.order_id}">조리 시작</button>`;
+    return `<button class="primary-button full" data-cook-start="${order.order_id}" aria-label="주문 ${order.order_id} 조리 시작 및 조리시간 입력">조리 시작 · 조리시간 입력</button>`;
+  }
+  if (hasOfferedPackage(order)) {
+    return '<button class="ghost-button full" disabled>배차 제안됨 · 라이더 수락 대기</button>';
   }
   if (order.status === 'COOKING') {
     return '<button class="ghost-button full" disabled>조리 중 · 배차 제안 생성 대기</button>';
+  }
+  if (order.status === 'MATCHED') {
+    return '<button class="ghost-button full" disabled>라이더 수락 완료 · 배차 완료</button>';
   }
   if (order.status === 'CANCELLED') {
     return '<button class="ghost-button full" disabled>취소된 주문</button>';
@@ -100,15 +115,18 @@ function renderMerchant(view, store) {
     result[order.status] = (result[order.status] || 0) + 1;
     return result;
   }, {});
-  const activeOrder = orders.find(order => order.package_id || order.rider_id) || orders[0];
+  const offeredCount = orders.filter(hasOfferedPackage).length;
+  const activeOrder = orders.find(order => order.rider_id) || orders.find(hasOfferedPackage) || orders[0];
   const route = activeOrder?.route_detail || [];
   const packageId = activeOrder?.package_id;
   const riderId = activeOrder?.rider_id;
+  const offeredPackage = hasOfferedPackage(activeOrder);
 
   Yogiyo.el('merchantStoreName').textContent = store?.name || `매장 ${storeId}`;
   Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || `매장 ${storeId} · 주문 API 기준`;
   Yogiyo.el('newCount').textContent = counts.NEW || 0;
-  Yogiyo.el('cookingCount').textContent = counts.COOKING || 0;
+  Yogiyo.el('cookingCount').textContent = Math.max(0, (counts.COOKING || 0) - offeredCount);
+  Yogiyo.el('offeredCount').textContent = offeredCount;
   Yogiyo.el('readyCount').textContent = counts.MATCHED || 0;
   Yogiyo.el('orderCountLabel').textContent = `${orders.length}건`;
 
@@ -121,8 +139,7 @@ function renderMerchant(view, store) {
   });
   setContentVisible(true);
   Yogiyo.el('merchantOrders').innerHTML = orders.map(order => {
-    const status = statusLabels[order.status] || order.status || '상태 정보 없음';
-    const statusTone = statusTones[order.status] || 'neutral';
+    const { label: status, tone: statusTone } = merchantOrderStatus(order);
     const predicted = order.predicted_cook_min != null && order.predicted_cook_min !== '' && Number.isFinite(Number(order.predicted_cook_min)) ? `시스템 예측 조리시간 ${order.predicted_cook_min}분` : '시스템 예측 조리시간 미제공';
     const ownerCookTime = order.owner_cook_min != null && order.owner_cook_min !== '' && Number.isFinite(Number(order.owner_cook_min)) ? `사장님 설정 조리시간 ${order.owner_cook_min}분` : '조리시간 미입력';
     const packageText = order.package_id ? `패키지 ${order.package_id}` : '아직 패키지 정보 없음';
@@ -137,13 +154,15 @@ function renderMerchant(view, store) {
     });
   });
 
-  Yogiyo.el('riderAssignedBadge').textContent = riderId ? '배정 완료' : '배정 전';
-  Yogiyo.el('assignedRiderId').textContent = riderIdentity(activeOrder);
-  Yogiyo.el('packageStatus').textContent = packageId ? `패키지 ${packageId}` : '배차 전';
+  Yogiyo.el('riderAssignedBadge').textContent = riderId ? '라이더 수락 완료' : offeredPackage ? '라이더 수락 대기' : '배정 전';
+  Yogiyo.el('assignedRiderId').textContent = riderId ? riderIdentity(activeOrder) : offeredPackage ? '라이더 제안 발송 완료' : riderIdentity(activeOrder);
+  Yogiyo.el('packageStatus').textContent = packageId ? `${offeredPackage ? '제안 패키지' : '패키지'} ${packageId}` : '배차 전';
   Yogiyo.el('packageSize').textContent = packageId ? `${orders.filter(order => String(order.package_id) === String(packageId)).length}건` : '0건';
   Yogiyo.el('packageStrategy').textContent = routeSummary(route);
-  Yogiyo.el('packageReason').textContent = packageId
-    ? '주문 API가 제공하는 패키지·라이더·방문 순서 정보입니다.'
+  Yogiyo.el('packageReason').textContent = riderId
+    ? '라이더가 제안을 수락했습니다. 주문 API가 제공하는 패키지·라이더·방문 순서 정보입니다.'
+    : offeredPackage
+      ? '클러스터링이 패키지를 생성했습니다. 라이더 수락 뒤 배차 완료로 전환됩니다.'
     : counts.COOKING
       ? '조리 중 주문을 30초 단위로 클러스터링해 라이더에게 배차 제안을 생성합니다.'
       : '조리 시작 후 배차 제안이 생성되면 패키지와 라이더 정보가 표시됩니다.';
@@ -176,6 +195,40 @@ async function startCooking(orderId, cookMin, button) {
     }
   });
 }
+
+async function startDemoOrders(button) {
+  if (!window.confirm(`시연 매장 ${demoStoreIds.join('·')}의 신규 주문을 모두 ${demoCookTime}분 조리로 시작할까요?\n실제 API 모드에서는 DB 상태가 변경됩니다.`)) return;
+  await Yogiyo.withPending(button, async () => {
+    try {
+      const views = await Promise.all(demoStoreIds.map(async demoStoreId => {
+        try { return await Yogiyo.apiClient.merchants.get(demoStoreId); }
+        catch (error) {
+          if (error?.status === 404) return undefined;
+          throw error;
+        }
+      }));
+      const newOrders = views.flatMap(view => (view?.orders || []).filter(order => order.status === 'NEW'));
+      if (!newOrders.length) {
+        Yogiyo.toast('시연 매장에 조리 시작할 신규 주문이 없습니다.');
+        return;
+      }
+      const results = await Promise.allSettled(newOrders.map(order => (
+        Yogiyo.apiClient.merchants.updateCookTime(order.order_id, demoCookTime)
+      )));
+      const failedCount = results.filter(result => result.status === 'rejected').length;
+      const startedCount = results.length - failedCount;
+      Yogiyo.toast(failedCount
+        ? `${startedCount}건 조리 시작 · ${failedCount}건 실패했습니다.`
+        : `시연 주문 ${startedCount}건을 ${demoCookTime}분 조리로 시작했습니다.`);
+      await loadMerchant();
+    } catch (error) {
+      showMerchantFailure(error, { action: true });
+      Yogiyo.toast(error.message);
+    }
+  });
+}
+
+Yogiyo.el('demoBulkCookStartButton').addEventListener('click', event => startDemoOrders(event.currentTarget));
 
 Yogiyo.poll(() => Yogiyo.apiClient.merchants.get(storeId), async view => {
   renderMerchant(view, await getStore(storeId));
