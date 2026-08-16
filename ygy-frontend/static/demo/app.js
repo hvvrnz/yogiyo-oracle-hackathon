@@ -1,4 +1,6 @@
 const mockMode = Yogiyo.useMock;
+const demoStartupQuery = new URLSearchParams(location.search);
+if (mockMode && !demoStartupQuery.has('keepMock')) Yogiyo.resetMock();
 const controlRoot = document.querySelector('.control-groups');
 if (controlRoot) {
   controlRoot.innerHTML = mockMode
@@ -105,7 +107,7 @@ const syncPresetButton = () => {
 
 const demoOrderCandidate = orders => (orders || []).find(order => (
   order.status === 'NEW' && !order.package_id
-)) || (orders || []).find(order => order.status !== 'CANCELLED');
+));
 
 const applyDemoSelection = async ({ futureSlot = false } = {}) => {
   activePreset = futureSlot ? futureSlotPreset.id : undefined;
@@ -143,6 +145,8 @@ const applyDemoSelection = async ({ futureSlot = false } = {}) => {
     syncPresetButton();
     Yogiyo.el('demoCustomerTitle').textContent = '고객 · 시연 주문 없음';
     Yogiyo.el('demoRiderTitle').textContent = `라이더 · ${riderId} · 주문 연결 실패`;
+    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', '/customer?orderId=0', '고객 · 시연할 새 주문 없음');
+    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}&orderId=0`, `라이더 · ${riderId} · 시연 주문 없음`);
     Yogiyo.toast(error.message);
   }
 };
@@ -193,7 +197,8 @@ const applyHongdaeSoloPreset = async ({ useQueryOrder = false, futureSlot = fals
     if (requestId !== demoSelectionRequestId) return;
     activePreset = undefined;
     syncPresetButton();
-    Yogiyo.el('demoCustomerTitle').textContent = '고객 · 홍대 시연 주문 없음';
+    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', '/customer?orderId=0', '고객 · 홍대 시연 주문 없음');
+    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${preset.riderId}&orderId=0`, `라이더 · ${preset.riderId} · 시연 주문 없음`);
     Yogiyo.toast(error.message);
   }
 };

@@ -93,6 +93,8 @@ test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공
   assert.match(source, /syncRiderOptions/);
   assert.match(source, /history\.replaceState/);
   assert.match(source, /resetMockDemo/);
+  assert.match(source, /mockMode && !demoStartupQuery\.has\('keepMock'\)/);
+  assert.match(source, /Yogiyo\.resetMock\(\)/);
   assert.match(source, /customer\?storeId=/);
   assert.doesNotMatch(source, /demoOrderId/);
   assert.match(source, /hongdaeSoloPreset/);
@@ -102,6 +104,8 @@ test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공
   assert.match(source, /apiClient\.merchants\.get\(preset\.storeId\)/);
   assert.match(source, /&orderId=\$\{encodeURIComponent\(orderId\)\}/);
   assert.match(source, /주문 \$\{orderId\}/);
+  assert.match(source, /order\.status === 'NEW' && !order\.package_id/);
+  assert.doesNotMatch(source, /order\.status !== 'CANCELLED'/);
   assert.match(template, /id="hongdaeSoloPresetButton"/);
   assert.match(template, /id="futureSlotPresetButton"/);
 });
