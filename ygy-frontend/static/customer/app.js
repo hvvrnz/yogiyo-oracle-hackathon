@@ -10,6 +10,8 @@ let customerExplanationPackageId;
 let customerExplanationRequestId = 0;
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED']);
+const assignmentConfirmedStatuses = new Set(['MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
+const hasConfirmedAssignment = order => assignmentConfirmedStatuses.has(order?.status) && order?.package_id != null && order?.package_id !== '';
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
 const showCustomerFailure = (error, { action = false } = {}) => {
   setConnection(false);
@@ -22,7 +24,8 @@ const showCustomerFailure = (error, { action = false } = {}) => {
 };
 
 const statusMeta = {
-  NEW: { label: '신규 주문', progress: 0, message: '주문이 접수되어 배차를 기다리고 있어요.' },
+  NEW: { label: '신규 주문', progress: 0, message: '주문이 접수되었습니다. 매장에서 주문을 확인하고 있어요.' },
+  COOKING: { label: '조리 중', progress: 1, message: '음식을 조리하고 있어요. 배차를 준비하고 있습니다.' },
   MATCHED: { label: '배차 완료', progress: 3, message: '배차가 완료되었습니다. 라이더가 픽업을 준비하고 있어요.' },
   PICKED_UP: { label: '픽업 완료', progress: 5, message: '라이더가 음식을 픽업해 배달 중이에요.' },
   DELIVERED: { label: '배달 완료', progress: 6, message: '배달이 완료되었습니다.' },
@@ -105,7 +108,7 @@ async function loadCustomerExplanation(packageId, { force = false } = {}) {
 
 function syncCustomerExplanation(order) {
   const packageId = order.package_id;
-  if (packageId == null || packageId === '') {
+  if (!hasConfirmedAssignment(order)) {
     customerExplanationRequestId += 1;
     customerExplanationPackageId = undefined;
     customerExplanation = undefined;
@@ -117,7 +120,10 @@ function syncCustomerExplanation(order) {
 function renderCustomer(order) {
   currentOrder = order;
   const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
-  const etaLabel = order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
+  const assignmentConfirmed = hasConfirmedAssignment(order);
+  const etaLabel = !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
+    ? order.status === 'COOKING' ? '배차 준비 중' : 'ETA 계산 중'
+    : order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
   const riderMap = currentRider
     ? Yogiyo.mapData.fromRiderProfile({ ...currentRider, rider_id: currentRiderId, meta: { selected: true } })
@@ -133,7 +139,10 @@ function renderCustomer(order) {
   Yogiyo.el('storeName').textContent = order.store_name;
   Yogiyo.el('menuSummary').textContent = menuSummary(items);
   Yogiyo.el('remainingMin').textContent = order.status === 'CANCELLED' ? '취소됨' : etaLabel;
-  Yogiyo.el('packageId').textContent = order.package_id == null ? '배차 번호 배정 전' : `배차 번호 ${order.package_id}`;
+  Yogiyo.el('packageId').textContent = assignmentConfirmed
+    ? `배차 번호 ${order.package_id}`
+    : order.status === 'COOKING' ? '배차 준비 중'
+      : order.status === 'CANCELLED' ? '배차 취소됨' : '배차 번호 배정 전';
   [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= meta.progress));
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
