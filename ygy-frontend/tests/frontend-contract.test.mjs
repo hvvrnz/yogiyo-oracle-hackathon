@@ -113,6 +113,18 @@ test('Future Slot 시연은 세 역할 화면에 미래 시간 예약과 경로 
   assert.match(styles, /\.future-slot-card/);
 });
 
+test('라이더 패키지 상세는 No-Harm 품질 보증 비교와 데이터 미제공 상태를 표시한다', () => {
+  const screen = read('../static/rider/app.js');
+  const styles = read('../static/common.css');
+  const mock = read('../static/mock-client.js');
+  assert.match(screen, /noHarmGuaranteeCard/);
+  assert.match(screen, /No-Harm 품질 보증서/);
+  assert.match(screen, /단건 기준 ETA·음식 방치시간·라이더 수익 비교 데이터/);
+  assert.match(screen, /보증 통과/);
+  assert.match(styles, /\.quality-comparison/);
+  assert.match(mock, /no_harm/);
+});
+
 test('패키지 상세 바텀시트는 포커스 복귀·포커스 가두기와 맥락 있는 버튼 레이블을 제공한다', () => {
   const screen = read('../static/rider/app.js');
   const template = read('../static/rider/index.html');

@@ -267,6 +267,13 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .future-slot-grid b { color:var(--ink); font-size:12px; }
 .future-slot-card p { margin:0; color:var(--muted); font-size:11px; line-height:1.55; }
 .route-lock-badge { justify-self:start; padding:5px 8px; border-radius:999px; background:#e9f8f0; color:#197046; font-size:10px; font-weight:750; }
+.quality-comparison { overflow:hidden; border:1px solid #ececf2; border-radius:12px; }
+.quality-comparison-head, .quality-comparison-row { display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:6px; align-items:center; padding:9px 10px; font-size:11px; }
+.quality-comparison-head { background:#f6f6fa; color:var(--muted); font-size:10px; }
+.quality-comparison-row + .quality-comparison-row { border-top:1px solid #efeff4; }
+.quality-comparison-row strong { font-size:11px; }
+.quality-comparison-row span { color:var(--muted); text-align:right; }
+.quality-comparison-row span:last-child { color:var(--ink); font-weight:750; }
 .package-accepted { animation:package-accepted-pulse 1.8s ease-out; }
 @keyframes package-accepted-pulse { 0% { box-shadow:0 0 0 0 rgba(255,92,112,.35); } 45% { box-shadow:0 0 0 10px rgba(255,92,112,0); } 100% { box-shadow:0 6px 20px rgba(23,23,27,.045); } }
 .order-menu { font-size:15px; font-weight:800; margin:8px 0 3px; }

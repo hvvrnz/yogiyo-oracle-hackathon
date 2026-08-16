@@ -145,6 +145,34 @@ const packageDetailTimeline = timeline => {
   }).join('')}</div>`;
 };
 
+const noHarmMinutes = value => Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}분` : '정보 없음';
+const noHarmMoney = value => Number.isFinite(Number(value)) ? Yogiyo.money(value) : '정보 없음';
+
+const noHarmGuaranteeCard = pkg => {
+  const guarantee = pkg?.score_detail?.no_harm;
+  const hasComparison = guarantee && [
+    guarantee.single_eta_min,
+    guarantee.bundle_eta_min,
+    guarantee.single_food_sitting_min,
+    guarantee.bundle_food_sitting_min,
+    guarantee.single_hourly_revenue,
+    guarantee.bundle_hourly_revenue,
+  ].some(value => Number.isFinite(Number(value)));
+  if (!hasComparison) {
+    return '<div class="card"><div class="section-title-row"><h2>No-Harm 품질 보증서</h2><span class="badge neutral">비교 데이터 준비 중</span></div><p class="subtext">단건 기준 ETA·음식 방치시간·라이더 수익 비교 데이터가 제공되면 이 패키지의 품질 보증 결과를 표시합니다.</p></div>';
+  }
+  const passed = guarantee.passed !== false;
+  const metrics = [
+    ['고객 ETA', noHarmMinutes(guarantee.single_eta_min), noHarmMinutes(guarantee.bundle_eta_min)],
+    ['음식 방치시간', noHarmMinutes(guarantee.single_food_sitting_min), noHarmMinutes(guarantee.bundle_food_sitting_min)],
+    ['라이더 시간당 수익', noHarmMoney(guarantee.single_hourly_revenue), noHarmMoney(guarantee.bundle_hourly_revenue)],
+  ];
+  const reason = guarantee.reason || (passed
+    ? '모든 비교 기준이 허용 범위 안에 있어 이 배차를 추천합니다.'
+    : '일부 비교 기준이 허용 범위를 벗어나 이 배차는 추천하지 않습니다.');
+  return `<div class="card"><div class="section-title-row"><h2>No-Harm 품질 보증서</h2><span class="badge ${passed ? 'good' : 'warn'}">${passed ? '보증 통과' : '보증 미통과'}</span></div><div class="quality-comparison"><div class="quality-comparison-head"><span>비교 기준</span><span>단건</span><span>AI 배차</span></div>${metrics.map(([label, single, bundled]) => `<div class="quality-comparison-row"><strong>${Yogiyo.escape(label)}</strong><span>${Yogiyo.escape(single)}</span><span>${Yogiyo.escape(bundled)}</span></div>`).join('')}</div><div class="notice ${passed ? 'info' : 'warn'}" style="margin-top:12px"><span>${passed ? '✓' : '!'}</span><div><strong>${passed ? '이 배차를 추천하는 이유' : '보증 기준 미통과'}</strong><span>${Yogiyo.escape(reason)}</span></div></div></div>`;
+};
+
 const setDetailBackgroundInert = isInert => {
   document.querySelectorAll('.mobile-scroll, .bottom-nav').forEach(background => {
     background.inert = isInert;
@@ -175,7 +203,7 @@ function renderPackageDetail(pkg, explanation = { status: 'loading' }) {
   const totalTime = Number.isFinite(Number(detail.total_time)) ? `${Number(detail.total_time).toFixed(1)}분` : '정보 없음';
   const revenue = Number.isFinite(Number(pkg.package_revenue)) ? Yogiyo.money(pkg.package_revenue) : '정보 없음';
   const hourlyRevenue = Number.isFinite(Number(pkg.hourly_revenue)) ? Yogiyo.money(pkg.hourly_revenue) : '정보 없음';
-  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card"><div class="section-title-row"><h2>제안 핵심 정보</h2><span>수락 전 확인</span></div>${packageDetailRow('예상 패키지 수익', revenue)}${packageDetailRow('예상 시간당 수익', hourlyRevenue)}${packageDetailRow('총 예상 소요시간', totalTime)}<div class="route-strategy-box"><strong>추천 방문 순서</strong><span>${Yogiyo.escape(routeSummary(pkg.route_detail))}</span></div></div><div class="card"><div class="section-title-row"><h2>패키지 정보</h2></div>${packageDetailRow('패키지 유형', pkg.package_type || '정보 없음')}${packageDetailRow('상태', packageStatus(pkg.status))}${packageDetailRow('묶음 주문 수', `${pkg.bundle_size ?? '-'}건`)}${packageDetailRow('매칭 점수', Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '정보 없음')}${packageDetailRow('생성 시각', createdAt)}</div><div class="card"><div class="section-title-row"><h2>배차 시간 분석</h2></div>${packageDetailRow('라이더 대기시간', Number.isFinite(Number(detail.courier_wait_time)) ? `${Number(detail.courier_wait_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 대기시간', Number.isFinite(Number(detail.food_sitting_time)) ? `${Number(detail.food_sitting_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 보관시간', Number.isFinite(Number(detail.bag_time)) ? `${Number(detail.bag_time).toFixed(1)}분` : '정보 없음')}</div><div class="card"><div class="section-title-row"><h2>상세 방문 순서</h2></div>${packageDetailTimeline(detail.timeline)}</div>${packageExplanationCard(explanation)}`;
+  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card"><div class="section-title-row"><h2>제안 핵심 정보</h2><span>수락 전 확인</span></div>${packageDetailRow('예상 패키지 수익', revenue)}${packageDetailRow('예상 시간당 수익', hourlyRevenue)}${packageDetailRow('총 예상 소요시간', totalTime)}<div class="route-strategy-box"><strong>추천 방문 순서</strong><span>${Yogiyo.escape(routeSummary(pkg.route_detail))}</span></div></div>${noHarmGuaranteeCard(pkg)}<div class="card"><div class="section-title-row"><h2>패키지 정보</h2></div>${packageDetailRow('패키지 유형', pkg.package_type || '정보 없음')}${packageDetailRow('상태', packageStatus(pkg.status))}${packageDetailRow('묶음 주문 수', `${pkg.bundle_size ?? '-'}건`)}${packageDetailRow('매칭 점수', Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '정보 없음')}${packageDetailRow('생성 시각', createdAt)}</div><div class="card"><div class="section-title-row"><h2>배차 시간 분석</h2></div>${packageDetailRow('라이더 대기시간', Number.isFinite(Number(detail.courier_wait_time)) ? `${Number(detail.courier_wait_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 대기시간', Number.isFinite(Number(detail.food_sitting_time)) ? `${Number(detail.food_sitting_time).toFixed(1)}분` : '정보 없음')}${packageDetailRow('음식 보관시간', Number.isFinite(Number(detail.bag_time)) ? `${Number(detail.bag_time).toFixed(1)}분` : '정보 없음')}</div><div class="card"><div class="section-title-row"><h2>상세 방문 순서</h2></div>${packageDetailTimeline(detail.timeline)}</div>${packageExplanationCard(explanation)}`;
   Yogiyo.el('packageDetailContent').querySelector('[data-package-explanation-retry]')?.addEventListener('click', () => {
     const requestId = ++packageDetailRequestId;
     loadPackageExplanation(pkg, requestId);
