@@ -132,7 +132,7 @@ const applyDemoSelection = async ({ futureSlot = false } = {}) => {
     if (!/^\d+$/.test(orderId)) throw new Error('선택한 매장에 시연할 주문이 없습니다. 주문 데이터를 확인해 주세요.');
     const activeOrderQuery = storeId === '889' ? '&demoActive=1' : '';
     const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${activeOrderQuery}${futureSlotQuery}`;
-    const riderUrl = `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
+    const riderUrl = `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${activeOrderQuery}${futureSlotQuery}`;
     setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
       futureSlot ? `고객 · Future Slot · 주문 ${orderId}` : `고객 · 주문 ${orderId}`);
     setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', riderUrl,

@@ -12,6 +12,8 @@ test('고객 화면은 전체 주문 상태와 배차 단계 안내를 유지한
   assert.match(source, /배차 제안 생성 대기 중/);
   assert.match(source, /배차 제안됨/);
   assert.match(source, /라이더 수락 대기 중/);
+  assert.match(source, /hasAssignedRider/);
+  assert.match(source, /MATCHING/);
   assert.match(source, /hasOfferedPackage/);
   assert.match(source, /LLM 배차 안내 생성 준비 중입니다/);
 });

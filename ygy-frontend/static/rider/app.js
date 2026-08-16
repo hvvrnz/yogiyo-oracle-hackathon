@@ -1,6 +1,7 @@
 const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
-const selectedOrderId = Yogiyo.qs('orderId');
-const hasSelectedOrder = /^\d+$/.test(selectedOrderId || '');
+let selectedOrderId = Yogiyo.qs('orderId');
+const useDemoActiveOrder = Yogiyo.qs('demoActive') === '1';
+const hasSelectedOrder = () => /^\d+$/.test(selectedOrderId || '');
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let currentRider;
 let stopRiderViewPolling;
@@ -51,7 +52,7 @@ const offerKey = pkg => {
   return orderIds.length ? orderIds.join(',') : `package:${pkg?.package_id}`;
 };
 
-const includesSelectedOrder = pkg => !hasSelectedOrder || (
+const includesSelectedOrder = pkg => !hasSelectedOrder() || (
   Array.isArray(pkg?.order_ids) && pkg.order_ids.some(orderId => String(orderId) === String(selectedOrderId))
 );
 
@@ -302,7 +303,7 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
   const position = locationAddress || (coordinate ? '주소 확인 중' : '위치 정보 미제공');
 
   Yogiyo.el('riderName').textContent = name;
-  Yogiyo.el('riderMeta').textContent = [profile?.region, profile?.status, hasSelectedOrder ? `주문 ${selectedOrderId} 제안만 표시` : undefined].filter(Boolean).join(' · ') || '라이더 정보를 확인 중';
+  Yogiyo.el('riderMeta').textContent = [profile?.region, profile?.status, hasSelectedOrder() ? `주문 ${selectedOrderId} 제안만 표시` : undefined].filter(Boolean).join(' · ') || '라이더 정보를 확인 중';
   Yogiyo.el('packageState').textContent = activePackages.length ? `진행 패키지 ${activePackages.length}건` : uniqueOffers.length ? `배차 제안 ${uniqueOffers.length}건` : '진행 중인 패키지 없음';
   Yogiyo.el('packageCount').textContent = `${packages.length}건`;
   Yogiyo.el('offerCount').textContent = offersError ? '조회 실패' : `${uniqueOffers.length}건${overflowOfferCount ? ` 중 ${displayedOffers.length}건 표시` : ''}`;
@@ -337,7 +338,7 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
   } else if (!canAcceptOffer) {
     Yogiyo.el('riderOffers').innerHTML = '<div class="state-card empty"><div class="state-icon" aria-hidden="true">🛵</div><div><strong>현재 패키지를 먼저 완료해 주세요.</strong><p>진행 중인 패키지가 있어 새로운 배차 제안은 수락할 수 없습니다.</p></div></div>';
   } else if (!uniqueOffers.length) {
-    Yogiyo.el('riderOffers').innerHTML = `<div class="state-card empty"><div class="state-icon" aria-hidden="true">⌕</div><div><strong>확인할 배차 제안이 없습니다.</strong><p>${declinedOfferCount ? `이 화면에서 거절한 제안 ${declinedOfferCount}건을 제외했습니다. 거절은 서버에 저장되지 않습니다.` : hasSelectedOrder ? `주문 ${selectedOrderId}의 배차 제안을 기다리고 있습니다. 조리 시작 후 클러스터링 주기와 다음 5초 조회가 지나면 표시됩니다.` : '조리 시작 후 백엔드의 30초 클러스터링 주기가 지나면, 다음 5초 조회에 표시됩니다.'}</p></div></div>`;
+    Yogiyo.el('riderOffers').innerHTML = `<div class="state-card empty"><div class="state-icon" aria-hidden="true">⌕</div><div><strong>확인할 배차 제안이 없습니다.</strong><p>${declinedOfferCount ? `이 화면에서 거절한 제안 ${declinedOfferCount}건을 제외했습니다. 거절은 서버에 저장되지 않습니다.` : hasSelectedOrder() ? `주문 ${selectedOrderId}의 배차 제안을 기다리고 있습니다. 조리 시작 후 클러스터링 주기와 다음 5초 조회가 지나면 표시됩니다.` : '조리 시작 후 백엔드의 30초 클러스터링 주기가 지나면, 다음 5초 조회에 표시됩니다.'}</p></div></div>`;
   } else {
     const offerNotice = duplicateOfferCount || overflowOfferCount
       ? `<p class="offer-list-notice">${duplicateOfferCount ? `동일 주문 조합의 경로안 ${duplicateOfferCount}건은 매칭 점수가 가장 높은 제안으로 정리했습니다.` : ''}${duplicateOfferCount && overflowOfferCount ? ' ' : ''}${overflowOfferCount ? `상위 ${maxVisibleOffers}건만 표시합니다.` : ''}</p>`
@@ -379,6 +380,11 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
 }
 
 async function fetchRiderView() {
+  if (useDemoActiveOrder) {
+    const active = await Yogiyo.apiClient.customers.getDemoActive();
+    const activeOrderId = String(active?.order_id || '');
+    if (/^\d+$/.test(activeOrderId)) selectedOrderId = activeOrderId;
+  }
   const profile = await Yogiyo.apiClient.riders.profile(riderId);
   const earningsResult = Yogiyo.apiClient.riders.getEarnings(riderId)
     .then(earnings => ({ earnings, earningsError: undefined }))

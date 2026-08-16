@@ -34,8 +34,12 @@ const statusTones = Object.freeze({
   CANCELLED: 'neutral',
 });
 
-const hasOfferedPackage = order => order?.status === 'COOKING' && order?.package_id != null && order?.package_id !== '';
+const hasPackage = order => order?.package_id != null && order?.package_id !== '';
+const hasAssignedRider = order => order?.rider_id != null && order?.rider_id !== '';
+const hasConfirmedAssignment = order => hasPackage(order) && (order?.status === 'MATCHING' || order?.status === 'MATCHED' || hasAssignedRider(order));
+const hasOfferedPackage = order => order?.status === 'COOKING' && hasPackage(order) && !hasAssignedRider(order);
 const merchantOrderStatus = order => {
+  if (hasConfirmedAssignment(order)) return { label: '라이더 수락 완료 · 배차 완료', tone: 'brand' };
   if (hasOfferedPackage(order)) return { label: '배차 제안됨 · 수락 대기', tone: 'warn' };
   if (order?.status === 'MATCHED') return { label: '라이더 수락 완료 · 배차 완료', tone: 'brand' };
   return { label: statusLabels[order?.status] || order?.status || '상태 정보 없음', tone: statusTones[order?.status] || 'neutral' };
@@ -91,6 +95,9 @@ const cookTimeControls = order => {
   if (hasOfferedPackage(order)) {
     return '<button class="ghost-button full" disabled>배차 제안됨 · 라이더 수락 대기</button>';
   }
+  if (hasConfirmedAssignment(order)) {
+    return '<button class="ghost-button full" disabled>라이더 수락 완료 · 배차 완료</button>';
+  }
   if (order.status === 'COOKING') {
     return '<button class="ghost-button full" disabled>조리 중 · 배차 제안 생성 대기</button>';
   }
@@ -122,6 +129,7 @@ function renderMerchant(view, store) {
     return result;
   }, {});
   const offeredCount = orders.filter(hasOfferedPackage).length;
+  const matchedCount = orders.filter(hasConfirmedAssignment).length;
   const activeOrder = orders.find(order => order.rider_id) || orders.find(hasOfferedPackage) || orders[0];
   const route = activeOrder?.route_detail || [];
   const packageId = activeOrder?.package_id;
@@ -131,9 +139,9 @@ function renderMerchant(view, store) {
   Yogiyo.el('merchantStoreName').textContent = store?.name || `매장 ${storeId}`;
   Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || `매장 ${storeId} · 주문 API 기준`;
   Yogiyo.el('newCount').textContent = counts.NEW || 0;
-  Yogiyo.el('cookingCount').textContent = Math.max(0, (counts.COOKING || 0) - offeredCount);
+  Yogiyo.el('cookingCount').textContent = Math.max(0, (counts.COOKING || 0) - offeredCount - matchedCount);
   Yogiyo.el('offeredCount').textContent = offeredCount;
-  Yogiyo.el('readyCount').textContent = counts.MATCHED || 0;
+  Yogiyo.el('readyCount').textContent = matchedCount;
   Yogiyo.el('orderCountLabel').textContent = `${orders.length}건`;
 
   if (orders.length) Yogiyo.clearLoadState('merchantLoadState');

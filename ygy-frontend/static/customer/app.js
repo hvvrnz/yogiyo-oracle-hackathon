@@ -15,9 +15,11 @@ let customerExplanationPackageId;
 let customerExplanationRequestId = 0;
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED']);
-const assignmentConfirmedStatuses = new Set(['MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
-const hasConfirmedAssignment = order => assignmentConfirmedStatuses.has(order?.status) && order?.package_id != null && order?.package_id !== '';
-const hasOfferedPackage = order => order?.status === 'COOKING' && order?.package_id != null && order?.package_id !== '';
+const assignmentConfirmedStatuses = new Set(['MATCHING', 'MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
+const hasPackage = order => order?.package_id != null && order?.package_id !== '';
+const hasAssignedRider = order => order?.rider_id != null && order?.rider_id !== '';
+const hasConfirmedAssignment = order => hasPackage(order) && (assignmentConfirmedStatuses.has(order?.status) || hasAssignedRider(order));
+const hasOfferedPackage = order => order?.status === 'COOKING' && hasPackage(order) && !hasAssignedRider(order);
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
 const showCustomerFailure = (error, { action = false } = {}) => {
   setConnection(false);
@@ -124,6 +126,9 @@ function syncCustomerExplanation(order) {
 }
 
 function customerStatusMeta(order) {
+  if (hasConfirmedAssignment(order) && !['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED'].includes(order?.status)) {
+    return statusMeta.MATCHED;
+  }
   if (hasOfferedPackage(order)) {
     return {
       label: '배차 제안됨',
