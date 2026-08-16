@@ -1,5 +1,5 @@
 (() => {
-  const storageKey = 'ygy-frontend-api-compatible-mock-v5';
+  const storageKey = 'ygy-frontend-api-compatible-mock-v6';
   const clone = value => JSON.parse(JSON.stringify(value));
   const createError = (message, status = 400) => Object.assign(new Error(message), { status });
   const initialState = () => ({
@@ -14,8 +14,8 @@
     ],
     orders: {
       8941: { order_id: 8941, store_id: 894, store_name: '목업 강남894점', store_lat: 37.5014, store_lng: 127.0310, delivery_lat: 37.5056, delivery_lng: 127.0361, menu_items: [{ menu: '후라이드치킨', qty: 1, price: 19000 }], amount: 19000, delivery_fee: 3500, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
-      8891: { order_id: 8891, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.4938, delivery_lng: 127.0334, menu_items: [{ menu: '제육덮밥', qty: 1, price: 12000 }], amount: 12000, delivery_fee: 3000, status: 'COOKING', owner_cook_min: 20, eta_min: null, package_id: 990, rider_id: null },
-      8892: { order_id: 8892, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.5015, delivery_lng: 127.0387, menu_items: [{ menu: '비빔밥', qty: 1, price: 11000 }], amount: 11000, delivery_fee: 3000, status: 'COOKING', owner_cook_min: 20, eta_min: null, package_id: 990, rider_id: null },
+      8891: { order_id: 8891, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.4938, delivery_lng: 127.0334, menu_items: [{ menu: '제육덮밥', qty: 1, price: 12000 }], amount: 12000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
+      8892: { order_id: 8892, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.5015, delivery_lng: 127.0387, menu_items: [{ menu: '비빔밥', qty: 1, price: 11000 }], amount: 11000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
       1: { order_id: 1, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5398, delivery_lng: 127.0611, menu_items: [{ menu: '즉석국세트', qty: 1, price: 12000 }], amount: 12000, delivery_fee: 3000, status: 'NEW', eta_min: null, package_id: null, rider_id: null },
       2: { order_id: 2, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5482, delivery_lng: 127.0468, menu_items: [{ menu: '곰탕', qty: 1, price: 9500 }], amount: 9500, delivery_fee: 3000, status: 'MATCHED', eta_min: 22, package_id: null, rider_id: null },
       3: { order_id: 3, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5351, delivery_lng: 127.0583, menu_items: [{ menu: '제육덮밥', qty: 1, price: 10500 }], amount: 10500, delivery_fee: 3000, status: 'MATCHED', eta_min: 20, package_id: null, rider_id: null },
@@ -37,7 +37,6 @@
       rider_105: { rider_id: 'rider_105', name: '목업 안전라이더', region: '노원', status: 'ASSIGNED', completed_order_count: 7, lat: 37.6521, lng: 127.0594 },
     },
     packages: {
-      990: { package_id: 990, rider_id: null, package_type: 'BUNDLE', status: 'OFFERED', bundle_size: 2, score: 72.4, package_revenue: 6800, hourly_revenue: 20400, order_ids: [8891, 8892], route_detail: [{ order_id: 8891, type: 'pickup', sequence: 1 }, { order_id: 8892, type: 'pickup', sequence: 2 }, { order_id: 8891, type: 'dropoff', sequence: 3 }, { order_id: 8892, type: 'dropoff', sequence: 4 }], score_detail: {}, created_at: '2026-08-16T10:00:00Z' },
       740: { package_id: 740, rider_id: 'rider_102', package_type: 'SOLO', status: 'MATCHING', bundle_size: 1, score: 82.5, package_revenue: 4200, hourly_revenue: 12600, order_ids: [118], route_detail: [{ order_id: 118, type: 'pickup', sequence: 1 }, { order_id: 118, type: 'dropoff', sequence: 2 }], score_detail: {}, created_at: '2026-01-01T10:00:00Z' },
       638: { package_id: 638, rider_id: 'rider_103', package_type: 'SOLO', status: 'MATCHING', bundle_size: 1, score: 78.4, package_revenue: 4200, hourly_revenue: 11800, order_ids: [184], route_detail: [{ order_id: 184, type: 'pickup', sequence: 1 }, { order_id: 184, type: 'dropoff', sequence: 2 }], score_detail: {}, created_at: '2026-01-01T10:00:00Z' },
       635: { package_id: 635, rider_id: 'rider_105', package_type: 'SOLO', status: 'MATCHING', bundle_size: 1, score: 74.1, package_revenue: 4200, hourly_revenue: 10900, order_ids: [226], route_detail: [{ order_id: 226, type: 'pickup', sequence: 1 }, { order_id: 226, type: 'dropoff', sequence: 2 }], score_detail: {}, created_at: '2026-01-01T10:00:00Z' },
@@ -62,6 +61,16 @@
   };
   const packageForRider = riderId => Object.values(state.packages).filter(pkg => pkg.rider_id === riderId).map(clone);
   const nextPackageId = () => Math.max(0, ...Object.keys(state.packages).map(Number)) + 1;
+  const noHarmComparison = () => ({
+    passed: true,
+    single_eta_min: 34,
+    bundle_eta_min: 36,
+    single_food_sitting_min: 8,
+    bundle_food_sitting_min: 3,
+    single_hourly_revenue: 16800,
+    bundle_hourly_revenue: 20400,
+    reason: '고객 도착시간은 허용 범위 안이며, 음식 방치시간과 라이더 수익이 모두 개선되었습니다.',
+  });
   const createOfferForOrder = order => {
     if (order.package_id) return;
     const packageId = nextPackageId();
@@ -79,7 +88,7 @@
         { order_id: order.order_id, type: 'pickup', sequence: 1 },
         { order_id: order.order_id, type: 'dropoff', sequence: 2 },
       ],
-      score_detail: { timeline: [] },
+      score_detail: { timeline: [], no_harm: noHarmComparison() },
       created_at: new Date().toISOString(),
     };
     order.package_id = packageId;
