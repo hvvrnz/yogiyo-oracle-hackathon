@@ -23,6 +23,7 @@ Yogiyo.el('eventList').innerHTML = mockMode
 
 const demoStoreSelect = Yogiyo.el('demoStoreId');
 const demoRiderSelect = Yogiyo.el('demoRiderId');
+const hongdaeSoloPresetButton = Yogiyo.el('hongdaeSoloPresetButton');
 const regionByStoreId = Object.freeze({
   889: 'gangnam',
   894: 'gangnam',
@@ -33,6 +34,9 @@ const riderIdsByRegion = Object.freeze({
   hongdae: ['rider_2', 'rider_5', 'rider_6'],
 });
 const demoQuery = new URLSearchParams(location.search);
+const hongdaeSoloPreset = Object.freeze({ id: 'hongdae-solo', storeId: '884', riderId: 'rider_2' });
+let activePreset = demoQuery.get('preset') === hongdaeSoloPreset.id ? hongdaeSoloPreset.id : undefined;
+let demoSelectionRequestId = 0;
 
 if (regionByStoreId[demoQuery.get('storeId')]) demoStoreSelect.value = demoQuery.get('storeId');
 if ([...demoRiderSelect.options].some(option => option.value === demoQuery.get('riderId'))) demoRiderSelect.value = demoQuery.get('riderId');
@@ -52,6 +56,8 @@ if (mockMode) {
   if (!demoQuery.has('riderId')) demoRiderSelect.value = 'rider_12';
   Yogiyo.el('demoSelectorHelp').textContent = '목업 전체 흐름: 매장 894 주문 중 한 건을 고객으로 표시하고, 매장 894에서 조리 시작 → 약 1초 뒤 rider_12가 제안을 수락 → 픽업·완료를 진행하세요.';
   Yogiyo.el('resetMockDemo').hidden = false;
+  hongdaeSoloPresetButton.disabled = true;
+  hongdaeSoloPresetButton.title = '홍대 SOLO 목업 주문은 시연 데이터 작업 후 사용할 수 있습니다.';
 }
 
 syncRiderOptions();
@@ -62,7 +68,17 @@ const setDemoPanel = (frameId, linkId, titleId, url, title) => {
   Yogiyo.el(titleId).textContent = title;
 };
 
+const syncPresetButton = () => {
+  hongdaeSoloPresetButton.setAttribute('aria-pressed', String(activePreset === hongdaeSoloPreset.id));
+};
+
+const demoOrderCandidate = orders => (orders || []).find(order => (
+  order.status === 'NEW' && !order.package_id
+)) || (orders || []).find(order => order.status !== 'CANCELLED');
+
 const applyDemoSelection = () => {
+  activePreset = undefined;
+  demoSelectionRequestId += 1;
   const storeId = demoStoreSelect.value;
   const riderId = demoRiderSelect.value;
   const storeName = demoStoreSelect.options[demoStoreSelect.selectedIndex].text;
@@ -77,13 +93,61 @@ const applyDemoSelection = () => {
 
   const nextQuery = new URLSearchParams({ storeId, riderId });
   history.replaceState(null, '', `${location.pathname}?${nextQuery.toString()}`);
+  syncPresetButton();
+};
+
+const applyHongdaeSoloPreset = async ({ useQueryOrder = false } = {}) => {
+  if (mockMode) return;
+  const requestId = ++demoSelectionRequestId;
+  activePreset = hongdaeSoloPreset.id;
+  demoStoreSelect.value = hongdaeSoloPreset.storeId;
+  syncRiderOptions();
+  demoRiderSelect.value = hongdaeSoloPreset.riderId;
+  syncPresetButton();
+
+  const storeName = demoStoreSelect.options[demoStoreSelect.selectedIndex].text;
+  setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${hongdaeSoloPreset.storeId}`,
+    `사장님 · ${storeName}`);
+  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${hongdaeSoloPreset.riderId}`,
+    `라이더 · ${hongdaeSoloPreset.riderId}`);
+  setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', `/customer?storeId=${hongdaeSoloPreset.storeId}`,
+    '고객 · 홍대 SOLO 시연 주문 확인 중');
+
+  try {
+    const queryOrderId = useQueryOrder ? demoQuery.get('orderId') : undefined;
+    const orderId = /^\d+$/.test(queryOrderId || '')
+      ? queryOrderId
+      : String(demoOrderCandidate((await Yogiyo.apiClient.merchants.get(hongdaeSoloPreset.storeId)).orders)?.order_id || '');
+    if (requestId !== demoSelectionRequestId) return;
+    if (!/^\d+$/.test(orderId)) throw new Error('홍대 884점에 시연할 주문이 없습니다. 백엔드 초기화 후 주문 데이터를 확인해 주세요.');
+
+    const customerUrl = `/customer?storeId=${hongdaeSoloPreset.storeId}&orderId=${encodeURIComponent(orderId)}`;
+    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
+      `고객 · 홍대 SOLO 주문 ${orderId}`);
+    const nextQuery = new URLSearchParams({
+      preset: hongdaeSoloPreset.id,
+      storeId: hongdaeSoloPreset.storeId,
+      riderId: hongdaeSoloPreset.riderId,
+      orderId,
+    });
+    history.replaceState(null, '', `${location.pathname}?${nextQuery.toString()}`);
+    Yogiyo.toast(`홍대 SOLO 시연 주문 ${orderId}을 고정했습니다.`);
+  } catch (error) {
+    if (requestId !== demoSelectionRequestId) return;
+    activePreset = undefined;
+    syncPresetButton();
+    Yogiyo.el('demoCustomerTitle').textContent = '고객 · 홍대 시연 주문 없음';
+    Yogiyo.toast(error.message);
+  }
 };
 
 Yogiyo.el('applyDemoSelection').addEventListener('click', applyDemoSelection);
 demoStoreSelect.addEventListener('change', syncRiderOptions);
+hongdaeSoloPresetButton.addEventListener('click', () => applyHongdaeSoloPreset());
 Yogiyo.el('resetMockDemo').addEventListener('click', () => {
   if (!mockMode) return;
   Yogiyo.resetMock();
   location.assign('/demo?storeId=894&riderId=rider_12');
 });
-applyDemoSelection();
+if (activePreset === hongdaeSoloPreset.id && !mockMode) applyHongdaeSoloPreset({ useQueryOrder: true });
+else applyDemoSelection();

@@ -55,12 +55,17 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
 
 test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공한다', () => {
   const source = read('../static/demo/app.js');
+  const template = read('../static/demo/index.html');
   assert.match(source, /riderIdsByRegion/);
   assert.match(source, /syncRiderOptions/);
   assert.match(source, /history\.replaceState/);
   assert.match(source, /resetMockDemo/);
   assert.match(source, /customer\?storeId=/);
   assert.doesNotMatch(source, /demoOrderId/);
+  assert.match(source, /hongdaeSoloPreset/);
+  assert.match(source, /apiClient\.merchants\.get\(hongdaeSoloPreset\.storeId\)/);
+  assert.match(source, /preset: hongdaeSoloPreset\.id/);
+  assert.match(template, /id="hongdaeSoloPresetButton"/);
 });
 
 test('패키지 상세 바텀시트는 포커스 복귀·포커스 가두기와 맥락 있는 버튼 레이블을 제공한다', () => {
