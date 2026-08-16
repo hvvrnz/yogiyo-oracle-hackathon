@@ -127,6 +127,11 @@
         };
       },
       profile: async riderId => normalizeRider(await request(endpoint('riderProfile', '/api/rider/:riderId/profile', { riderId }))),
+      offers: async riderId => {
+        const data = await request(endpoint('riderOffers', '/api/rider/:riderId/offers', { riderId }));
+        return { ...data, offers: asArray(data.offers).map(normalizePackage) };
+      },
+      accept: (riderId, packageId) => request(endpoint('riderAccept', '/api/rider/:riderId/package/:packageId/accept', { riderId, packageId }), { method: 'PUT' }),
       pickup: (riderId, packageId) => request(endpoint('riderPickup', '/api/rider/:riderId/package/:packageId/pickup', { riderId, packageId }), { method: 'PUT' }),
       complete: (riderId, packageId) => request(endpoint('riderComplete', '/api/rider/:riderId/package/:packageId/complete', { riderId, packageId }), { method: 'PUT' }),
     }),
