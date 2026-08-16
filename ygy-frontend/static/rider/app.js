@@ -1,5 +1,4 @@
-const initialRiderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
-let riderId = initialRiderId;
+const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let currentRider;
 let stopRiderViewPolling;
 let locationAddress;
@@ -367,30 +366,6 @@ async function updatePackage(action, packageId, button) {
   });
 }
 
-function bindRiderLookup() {
-  const input = Yogiyo.el('riderIdInput');
-  const button = Yogiyo.el('loadRiderButton');
-  input.value = riderId;
-  const reload = () => {
-    const nextRiderId = input.value.trim();
-    if (!nextRiderId) {
-      Yogiyo.toast('라이더 ID를 입력해 주세요.');
-      return;
-    }
-    riderId = nextRiderId;
-    currentRider = undefined;
-    locationAddress = undefined;
-    locationAddressKey = undefined;
-    locationAddressRequestId += 1;
-    loadRider();
-  };
-  button.addEventListener('click', reload);
-  input.addEventListener('keydown', event => {
-    if (event.key === 'Enter') reload();
-  });
-}
-
-bindRiderLookup();
 Yogiyo.el('offerSortSelect').addEventListener('change', event => {
   offerSort = event.currentTarget.value === 'revenue' ? 'revenue' : 'score';
   if (currentRider) renderRider(currentRider);

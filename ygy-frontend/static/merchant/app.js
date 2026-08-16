@@ -1,5 +1,4 @@
-const initialStoreId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
-let storeId = initialStoreId;
+const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 let storeDirectory;
 let currentMerchant;
 
@@ -178,28 +177,6 @@ async function startCooking(orderId, cookMin, button) {
   });
 }
 
-function bindStoreLookup() {
-  const storeInput = Yogiyo.el('storeIdInput');
-  const dispatchButton = Yogiyo.el('merchantDispatchButton');
-  storeInput.value = storeId;
-  const reload = () => {
-    const nextStoreId = storeInput.value.trim();
-    if (!/^\d+$/.test(nextStoreId)) {
-      Yogiyo.toast('숫자로 된 매장 ID를 입력해 주세요.');
-      return;
-    }
-    storeId = nextStoreId;
-    currentMerchant = undefined;
-    storeDirectory = undefined;
-    loadMerchant();
-  };
-  dispatchButton.addEventListener('click', reload);
-  storeInput.addEventListener('keydown', event => {
-    if (event.key === 'Enter') reload();
-  });
-}
-
-bindStoreLookup();
 Yogiyo.poll(() => Yogiyo.apiClient.merchants.get(storeId), async view => {
   renderMerchant(view, await getStore(storeId));
   setConnection(true);

@@ -209,7 +209,7 @@ function refreshCustomer(order) {
 }
 
 function noStoreOrderError() {
-  const error = new Error('선택한 매장에 조회할 수 있는 주문이 없습니다. 다른 매장 번호를 입력해 주세요.');
+  const error = new Error('선택한 매장에 조회할 수 있는 주문이 없습니다. 통합 시연 또는 URL의 매장 번호를 확인해 주세요.');
   error.status = 404;
   return error;
 }
@@ -251,27 +251,14 @@ async function cancelOrder() {
   }
 }
 
-function switchStore(nextStoreId) {
-  location.href = `/customer?storeId=${encodeURIComponent(nextStoreId)}`;
-}
-
-Yogiyo.el('storeIdInput').value = storeId;
 Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, cancelOrder));
-Yogiyo.el('loadStoreButton')?.addEventListener('click', () => {
-  const nextStoreId = Yogiyo.el('storeIdInput').value.trim();
-  if (!/^\d+$/.test(nextStoreId)) { Yogiyo.toast('숫자로 된 매장 번호를 입력해 주세요.'); return; }
-  switchStore(nextStoreId);
-});
-Yogiyo.el('storeIdInput')?.addEventListener('keydown', event => {
-  if (event.key === 'Enter') Yogiyo.el('loadStoreButton').click();
-});
 
 if (!/^\d+$/.test(orderId) && !/^\d+$/.test(storeId)) {
   setContentVisible(false);
   Yogiyo.renderLoadState('customerLoadState', {
     tone: 'empty',
-    title: '매장 번호를 입력해 주세요.',
-    description: '매장 주문 중 취소되지 않은 한 건을 임의로 골라 현재 주문 상태를 조회합니다.',
+    title: '조회 대상을 확인할 수 없습니다.',
+    description: '통합 시연에서 매장을 선택하거나 URL의 매장 번호를 확인해 주세요.',
   });
 } else {
   stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {

@@ -18,9 +18,17 @@ test('고객 화면은 매장 주문 중 취소되지 않은 한 건을 선택�
   assert.match(source, /apiClient\.merchants\.get\(storeId\)/);
   assert.match(source, /order\.status !== 'CANCELLED'/);
   assert.match(source, /Math\.random\(\) \* availableOrders\.length/);
-  assert.match(source, /\/customer\?storeId=/);
-  assert.match(template, /id="storeIdInput"/);
-  assert.doesNotMatch(template, /id="orderIdInput"/);
+  assert.match(source, /Yogiyo\.qs\('storeId', Yogiyo\.defaultIds\.merchant\)/);
+  assert.doesNotMatch(template, /storeIdInput|orderIdInput|loadStoreButton/);
+});
+
+test('역할 화면은 상단 대상 정보와 중복되는 조회 입력 영역을 두지 않는다', () => {
+  const customer = read('../static/customer/index.html');
+  const merchant = read('../static/merchant/index.html');
+  const rider = read('../static/rider/index.html');
+  assert.doesNotMatch(customer, /매장 번호 조회|loadStoreButton/);
+  assert.doesNotMatch(merchant, /매장 주문 조회|merchantDispatchButton|storeIdInput/);
+  assert.doesNotMatch(rider, /<h2>라이더 조회<\/h2>|loadRiderButton|riderIdInput/);
 });
 
 test('라이더 화면은 offers 수락 API와 404·409 경쟁 오류 안내를 유지한다', () => {
