@@ -25,7 +25,7 @@ const showCustomerFailure = (error, { action = false } = {}) => {
 
 const statusMeta = {
   NEW: { label: '신규 주문', progress: 0, message: '주문이 접수되었습니다. 매장에서 주문을 확인하고 있어요.' },
-  COOKING: { label: '조리 중', progress: 1, message: '음식을 조리하고 있어요. 배차를 준비하고 있습니다.' },
+  COOKING: { label: '조리 중', progress: 1, message: '음식을 조리하고 있어요. 배차 제안을 준비하고 있습니다.' },
   MATCHED: { label: '배차 완료', progress: 3, message: '배차가 완료되었습니다. 라이더가 픽업을 준비하고 있어요.' },
   PICKED_UP: { label: '픽업 완료', progress: 5, message: '라이더가 음식을 픽업해 배달 중이에요.' },
   DELIVERED: { label: '배달 완료', progress: 6, message: '배달이 완료되었습니다.' },
@@ -122,7 +122,7 @@ function renderCustomer(order) {
   const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
   const assignmentConfirmed = hasConfirmedAssignment(order);
   const etaLabel = !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
-    ? order.status === 'COOKING' ? '배차 준비 중' : 'ETA 계산 중'
+    ? order.status === 'COOKING' ? '배차 제안 대기 중' : 'ETA 계산 중'
     : order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
   const riderMap = currentRider
@@ -141,7 +141,7 @@ function renderCustomer(order) {
   Yogiyo.el('remainingMin').textContent = order.status === 'CANCELLED' ? '취소됨' : etaLabel;
   Yogiyo.el('packageId').textContent = assignmentConfirmed
     ? `배차 번호 ${order.package_id}`
-    : order.status === 'COOKING' ? '배차 준비 중'
+    : order.status === 'COOKING' ? '배차 제안 생성 대기 중'
       : order.status === 'CANCELLED' ? '배차 취소됨' : '배차 번호 배정 전';
   [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= meta.progress));
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
@@ -243,16 +243,25 @@ Yogiyo.el('orderIdInput')?.addEventListener('keydown', event => {
   if (event.key === 'Enter') Yogiyo.el('loadOrderButton').click();
 });
 
-stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), order => {
-  refreshCustomer(order);
-}, {
-  intervalMs: 5000,
-  onError: error => {
-    setConnection(false);
-    if (!currentOrder) showCustomerFailure(error);
-    console.warn('customer polling failed', error);
-  },
-});
+if (!/^\d+$/.test(orderId)) {
+  setContentVisible(false);
+  Yogiyo.renderLoadState('customerLoadState', {
+    tone: 'empty',
+    title: '주문 번호를 입력해 주세요.',
+    description: 'DB 초기화 후 전달받은 주문 번호를 입력하면 현재 주문 상태를 조회합니다.',
+  });
+} else {
+  stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), order => {
+    refreshCustomer(order);
+  }, {
+    intervalMs: 5000,
+    onError: error => {
+      setConnection(false);
+      if (!currentOrder) showCustomerFailure(error);
+      console.warn('customer polling failed', error);
+    },
+  });
+}
 window.addEventListener('beforeunload', () => {
   stopPolling?.();
   stopRiderPolling?.();

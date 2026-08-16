@@ -37,9 +37,10 @@ window.__YGY_CONFIG__ = Object.freeze({
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || '',
   useMock: String(import.meta.env.VITE_USE_MOCK ?? 'false').toLowerCase() === 'true',
-  defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '118',
-  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '781',
-  defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'rider_102',
+  // 주문 번호는 DB 초기화 때마다 달라진다. 고객 화면은 쿼리나 입력값으로 연다.
+  defaultOrderId: import.meta.env.VITE_DEFAULT_ORDER_ID || '',
+  defaultStoreId: import.meta.env.VITE_DEFAULT_STORE_ID || '889',
+  defaultRiderId: import.meta.env.VITE_DEFAULT_RIDER_ID || 'rider_12',
   kakaoMapJsKey: import.meta.env.VITE_KAKAO_MAP_JS_KEY || '',
   apiPaths: parseJson(import.meta.env.VITE_API_PATHS, {}),
 });

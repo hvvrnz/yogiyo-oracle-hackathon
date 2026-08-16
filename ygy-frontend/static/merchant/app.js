@@ -75,7 +75,7 @@ const cookTimeControls = order => {
     return `<button class="primary-button full" data-cook-start="${order.order_id}">조리 시작</button>`;
   }
   if (order.status === 'COOKING') {
-    return '<button class="ghost-button full" disabled>조리 중</button>';
+    return '<button class="ghost-button full" disabled>조리 중 · 배차 제안 생성 대기</button>';
   }
   if (order.status === 'CANCELLED') {
     return '<button class="ghost-button full" disabled>취소된 주문</button>';
@@ -143,7 +143,11 @@ function renderMerchant(view, store) {
   Yogiyo.el('packageStatus').textContent = packageId ? `패키지 ${packageId}` : '배차 전';
   Yogiyo.el('packageSize').textContent = packageId ? `${orders.filter(order => String(order.package_id) === String(packageId)).length}건` : '0건';
   Yogiyo.el('packageStrategy').textContent = routeSummary(route);
-  Yogiyo.el('packageReason').textContent = '주문 API가 제공하는 패키지·라이더·방문 순서 정보입니다.';
+  Yogiyo.el('packageReason').textContent = packageId
+    ? '주문 API가 제공하는 패키지·라이더·방문 순서 정보입니다.'
+    : counts.COOKING
+      ? '조리 중 주문을 30초 단위로 클러스터링해 라이더에게 배차 제안을 생성합니다.'
+      : '조리 시작 후 배차 제안이 생성되면 패키지와 라이더 정보가 표시됩니다.';
 }
 
 async function loadMerchant() {

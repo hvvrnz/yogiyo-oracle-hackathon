@@ -3,9 +3,9 @@
   const apiBaseUrl = String(config.apiBaseUrl || '').replace(/\/+$/, '');
   const apiPaths = config.apiPaths && typeof config.apiPaths === 'object' ? config.apiPaths : {};
   const defaultIds = Object.freeze({
-    customer: String(config.defaultOrderId || '118'),
-    merchant: String(config.defaultStoreId || '781'),
-    rider: String(config.defaultRiderId || 'rider_102'),
+    customer: String(config.defaultOrderId ?? ''),
+    merchant: String(config.defaultStoreId || '889'),
+    rider: String(config.defaultRiderId || 'rider_12'),
   });
 
   const endpoint = (name, fallback, params = {}) => {

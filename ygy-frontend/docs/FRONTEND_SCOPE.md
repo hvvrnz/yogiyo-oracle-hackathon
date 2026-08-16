@@ -18,12 +18,12 @@ React는 역할별 화면을 새로 구현하는 계층이 아니라 Vite 진입
 
 - 고객 주문 조회·취소, 고객 응답의 `rider_id` 기반 담당 라이더 위치 조회
 - 사장님 매장 주문 목록 조회·조리시간 수정, 라이더 이름·도착 ETA·`PICKED_UP`/`DELIVERED` 상태 표시
-- 라이더 프로필·배정 패키지·오늘 수익 조회, 패키지 상세 모달, 패키지 픽업/완료
+- 라이더 프로필·배정 패키지·오늘 수익·배차 제안 조회, 제안 수락, 패키지 상세 모달, 패키지 픽업/완료
 - 고객의 매장·배달지·담당 라이더, 라이더 본인 위치·패키지 경로를 사용하는 카카오맵과 SVG fallback 지도
 - 고객 담당 라이더와 라이더 본인 정보·패키지·오늘 수익 5초 폴링
 - 404, 빈 데이터, 서버 오류, 재시도 안내
 - 고객 1개·사장님 3개·라이더 3개 실제 데이터 통합 시연
-- `VITE_USE_MOCK`으로 분리된 개발용 mock 모드
+- `VITE_USE_MOCK`으로 분리된 개발용 mock 모드 (`NEW → COOKING → OFFERED → MATCHED → PICKED_UP → DELIVERED` 흐름 포함)
 
 ## 실제 API 모드와 mock 모드
 
@@ -32,20 +32,20 @@ React는 역할별 화면을 새로 구현하는 계층이 아니라 Vite 진입
 ```dotenv
 VITE_USE_MOCK=false
 VITE_BACKEND_PROXY_TARGET=http://127.0.0.1:8000
-VITE_DEFAULT_ORDER_ID=118
-VITE_DEFAULT_STORE_ID=781
-VITE_DEFAULT_RIDER_ID=rider_102
+VITE_DEFAULT_ORDER_ID=
+VITE_DEFAULT_STORE_ID=889
+VITE_DEFAULT_RIDER_ID=rider_12
 ```
 
 - 실제 API 모드: `static/backend-client.js`를 사용해 FastAPI를 호출한다. 상태 변경 요청은 실제 DB·Redis 상태에 영향을 준다.
-- mock 모드: `static/mock-client.js`를 사용한다. 상태는 브라우저 `localStorage`에만 저장된다.
+- mock 모드: `static/mock-client.js`를 사용한다. 상태는 브라우저 `localStorage`에만 저장된다. 매장 `894`의 주문 `8941`은 조리 시작 후 약 1초 뒤 제안이 생성되어 `rider_12` 등의 수락 흐름을 재현한다.
 - Vite 개발 서버는 `/api`, `/docs`, `/openapi.json` 요청을 `VITE_BACKEND_PROXY_TARGET`으로 프록시한다.
 
 ## 현재 제외하거나 미구현인 범위
 
 - 관제 화면을 추가할 경우의 전체 라이더 마커 클러스터링
-- 서버 측 LLM 설명 생성 API와 고객/라이더용 설명 표시 UI
-- 주문 생성, 배송 방식 선택, 배차 제안·수락·거절
+- 서버 측 LLM 설명 생성 API (고객·라이더 화면은 저장된 설명 조회·표시만 제공)
+- 주문 생성, 배송 방식 선택, 서버에 상태를 저장하는 배차 제안 거절·만료 (현재 거절은 라이더 화면에서만 숨김)
 - 주문별 픽업·배달 상태 변경
 - WebSocket 기반 상태 푸시
 - 날씨, 경로 전략, 자동 진행, 전체 초기화 시연 제어
