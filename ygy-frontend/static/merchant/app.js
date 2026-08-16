@@ -185,13 +185,35 @@ function renderMerchant(view, store) {
 
 async function loadMerchant() {
   try {
-    const [view, store] = await Promise.all([Yogiyo.apiClient.merchants.get(storeId), getStore(storeId)]);
+    const [view, store] = await Promise.all([loadMerchantView(), getStore(storeId)]);
     renderMerchant(view, store);
     setConnection(true);
   } catch (error) {
     showMerchantFailure(error);
     Yogiyo.toast(error.message);
   }
+}
+
+async function loadMerchantView() {
+  const [view, nextToCook] = await Promise.all([
+    Yogiyo.apiClient.merchants.get(storeId),
+    // next-to-cook API는 시연 매장 889의 조리 대기 주문을 반환한다.
+    String(storeId) === '889'
+      ? Yogiyo.apiClient.merchants.nextToCook().catch(error => {
+        if (error?.status === 404) return null;
+        throw error;
+      })
+      : Promise.resolve(null),
+  ]);
+
+  if (!nextToCook) return view;
+
+  const currentOrder = (view.orders || []).find(order => String(order.order_id) === String(nextToCook.order_id));
+  return {
+    ...view,
+    // 주문 목록 조회의 상한에 걸려도 조리 대기 주문은 항상 목록 첫 번째에 보이게 한다.
+    orders: [{ ...nextToCook, ...currentOrder }, ...(view.orders || []).filter(order => String(order.order_id) !== String(nextToCook.order_id))],
+  };
 }
 
 async function startCooking(orderId, cookMin, button) {
@@ -218,7 +240,7 @@ async function startCooking(orderId, cookMin, button) {
   });
 }
 
-Yogiyo.poll(() => Yogiyo.apiClient.merchants.get(storeId), async view => {
+Yogiyo.poll(() => loadMerchantView(), async view => {
   renderMerchant(view, await getStore(storeId));
   setConnection(true);
 }, { intervalMs: 5000, onError: error => {

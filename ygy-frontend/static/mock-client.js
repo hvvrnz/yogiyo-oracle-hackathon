@@ -131,6 +131,13 @@
           return { order_id: order.order_id, menu_items: order.menu_items, amount: order.amount, status: order.status, owner_cook_min: order.owner_cook_min ?? 15, predicted_cook_min: order.predicted_cook_min ?? 15, package_id: order.package_id, route_detail: pkg?.route_detail || [], rider_id: pkg?.rider_id ?? null, rider_name: rider?.name ?? null, eta_min: order.eta_min };
         }) });
       },
+      nextToCook: async () => {
+        const order = Object.values(state.orders)
+          .filter(item => String(item.store_id) === '889' && item.status === 'NEW')
+          .sort((left, right) => Number(left.order_id) - Number(right.order_id))[0];
+        if (!order) throw createError('조리 대기 중인 주문이 없습니다.', 404);
+        return clone(order);
+      },
       updateCookTime: async (orderId, ownerCookMin) => {
         const order = state.orders[String(orderId)];
         if (!order) throw createError('해당 주문을 찾을 수 없습니다.', 404);
