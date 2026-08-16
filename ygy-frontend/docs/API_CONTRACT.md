@@ -1,6 +1,6 @@
 # 실제 FastAPI API 계약
 
-이 문서는 `ygy-frontend`가 `ygy-backend`에 호출하는 **현재 구현 기준 계약**이다. 원본 mock 시나리오의 WebSocket, 주문 생성, 배차 제안 수락, 자동 시연 API는 실제 백엔드에 존재하지 않으며 이 문서의 범위가 아니다.
+이 문서는 `ygy-frontend`가 `ygy-backend`에 호출하는 **현재 구현 기준 계약**이다. 실제 백엔드는 WebSocket·주문 생성·자동 시연 API는 제공하지 않지만, 라이더 배차 제안 조회와 수락 API는 제공한다.
 
 최종 확인 기준은 실행 중인 서버의 `/openapi.json`과 `ygy-backend/api/routers/` 소스다.
 
@@ -41,7 +41,7 @@
 - `eta_min`은 `score_detail.timeline`에서 해당 주문의 `dropoff` 단계 `arrival_time_min`으로 계산된다. `route_detail`은 주문 ID와 방문 순서만 제공하므로 시간 정보에 사용하면 안 된다.
 - 주문이 없으면 `404`다.
 - 고객 화면은 응답의 `rider_id`를 직접 사용하고, 값이 있을 때만 `GET /api/rider/{rider_id}/profile`을 5초 간격으로 폴링한다.
-- 주문 상태는 배차 전후 `NEW`·`MATCHED`, 픽업 후 `PICKED_UP`, 배달 완료 후 `DELIVERED`다. 프론트는 기존 목업 호환을 위해 `COMPLETED`도 배달 완료로 처리한다.
+- 주문 상태는 `NEW → COOKING → MATCHED → PICKED_UP → DELIVERED`다. `COOKING`은 사장님의 조리 시작 이후이며, 30초 단위 클러스터링으로 라이더 제안이 생성된다. 프론트는 기존 목업 호환을 위해 `COMPLETED`도 배달 완료로 처리한다.
 
 ### `DELETE /api/customer/{order_id}`
 
@@ -69,16 +69,14 @@
     "predicted_cook_min": 18,
     "package_id": 740,
     "route_detail": [],
-    "rider_id": "rider_102",
-    "rider_name": "라이더명",
-    "eta_min": 12
+    "rider_id": "rider_102"
   }]
 }
 ```
 
 - 주문 내역이 없으면 `404`다.
 - `route_detail`에는 `pickup`·`dropoff` 단계의 방문 순서·좌표가 포함될 수 있다.
-- 각 주문의 `rider_name`, `eta_min`은 배정 라이더 이름과 도착 예상 시간이다. ETA가 없으면 프론트는 “도착 시간 정보 없음”으로 표시한다.
+- 현재 백엔드 구현은 `rider_id`와 `route_detail`을 반환한다. `rider_name`, `eta_min`은 제공되면 프론트가 표시하는 선택 필드이며, 없으면 각각 라이더 ID와 “도착 시간 정보 없음”으로 표시한다.
 - 주문 상태 `PICKED_UP`, `DELIVERED`는 각각 픽업 완료, 배달 완료로 표시한다.
 
 ### `PUT /api/merchant/orders/{order_id}/cook-time`
@@ -89,7 +87,7 @@
 {"owner_cook_min": 25}
 ```
 
-성공 응답은 `{"order_id":118,"updated_owner_cook_min":25}`다. 주문이 없으면 `404`다.
+성공 응답은 `{"order_id":118,"status":"COOKING","owner_cook_min":25}`다. 주문이 없으면 `404`다.
 
 - 프론트는 5분 단위 입력을 제공한다.
 - 현재 서버는 최소값·5분 단위 제약을 검증하지 않으므로 서버 측 보강이 권장된다.
@@ -167,6 +165,18 @@
 - `total_package_count`는 오늘 배정된 패키지 수, `completed_count`는 완료된 패키지 수, `total_revenue`는 백엔드가 집계한 오늘 누적 수익이다.
 - `packages`는 오늘 배정된 패키지 목록이며, 프론트는 이를 정규화해 수익 요약과 후속 상세 조회에 사용한다.
 
+### `GET /api/rider/{rider_id}/offers`
+
+해당 라이더가 수락할 수 있는 `OFFERED` 패키지 목록을 반환한다. 프론트는 5초마다 조회하고, 같은 주문 ID 조합으로 생성된 여러 경로안은 구분해 표시한다.
+
+### `PUT /api/rider/{rider_id}/package/{package_id}/accept`
+
+라이더가 제안을 수락하면 패키지는 `MATCHING`, 연결 주문은 `MATCHED`가 된다.
+
+- 동시 수락 경쟁에서 먼저 수락한 요청만 성공한다.
+- 나머지 요청은 `409`이며, 프론트는 “이미 다른 라이더가 가져간 배차”로 안내하고 목록을 다시 조회한다.
+- 존재하지 않거나 이미 제거된 패키지는 `404`이며, 프론트는 최신 목록을 다시 조회한다.
+
 ### `GET /api/package/{package_id}`
 
 특정 패키지의 상세 정보를 반환한다.
@@ -238,21 +248,15 @@ LLM 프롬프트용 패키지와 연결 주문 데이터를 반환한다.
 
 현재 API는 설명 **생성**을 수행하지 않는다. API 키를 브라우저에 노출하지 않도록 생성은 별도 서버 API로 구현해야 한다.
 
-## 기본 시연 데이터
+## 테스트 데이터
 
-| 역할 | 기본 ID | 관련 패키지 |
-| --- | ---: | ---: |
-| 고객 | 주문 `118` | `740` |
-| 사장님 | 매장 `781` | `740` |
-| 라이더 | `rider_102` | `740` |
-
-통합 시연은 고객 1개, 사장님 3개, 라이더 3개 패널을 사용한다. 전체 연결 데이터는 `docs/REAL_DEMO_DATA.md`와 현재 DB 상태를 함께 확인한다.
+주문과 패키지 ID는 DB 초기화 후 바뀐다. 시연 매장은 강남 `889`·`894`, 홍대 `884`이며, 라이더는 강남 `rider_12` 등과 홍대 `rider_2` 등을 사용한다.
 
 ## 제공하지 않는 기능
 
 다음은 기존 mock 전용 기능이며 실제 FastAPI로 대체되지 않는다.
 
 - 고객 신규 주문 생성과 배송 방식 선택
-- 배차 제안·수락·거절, 주문별 픽업·배달 처리
+- 배차 제안 거절·만료, 주문별 픽업·배달 처리
 - WebSocket, 날씨·경로 전략·자동 진행·초기화 API
 - 고객·사장님·라이더별 구조화된 LLM 추천 카드 생성
