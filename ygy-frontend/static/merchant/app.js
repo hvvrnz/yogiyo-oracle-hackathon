@@ -2,6 +2,7 @@ const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let storeDirectory;
 let currentMerchant;
+const locallyStartedOrderIds = new Set();
 
 const setContentVisible = visible => { Yogiyo.el('merchantContent').hidden = !visible; };
 const showMerchantFailure = (error, { action = false } = {}) => {
@@ -89,6 +90,9 @@ const renderMerchantFutureSlot = () => {
 };
 
 const cookTimeControls = order => {
+  if (locallyStartedOrderIds.has(String(order.order_id))) {
+    return '<button class="ghost-button full" disabled>조리 시작 요청 완료 · 상태 갱신 중</button>';
+  }
   if (order.status === 'NEW') {
     return `<button class="primary-button full" data-cook-start="${order.order_id}" aria-label="주문 ${order.order_id} 조리 시작 및 조리시간 입력">조리 시작 · 조리시간 입력</button>`;
   }
@@ -199,6 +203,7 @@ async function loadMerchant() {
 async function loadMerchantView() {
   try {
     const nextToCook = await Yogiyo.apiClient.merchants.nextToCook();
+    if (nextToCook.status !== 'NEW') locallyStartedOrderIds.delete(String(nextToCook.order_id));
     return {
       store_id: nextToCook.store_id ?? storeId,
       orders: [nextToCook],
@@ -221,6 +226,7 @@ async function startCooking(orderId, cookMin, button) {
         primaryOrderId: orderId,
         ownerCookMin: cookMin,
       });
+      locallyStartedOrderIds.add(String(orderId));
       const startedCount = Number(trigger?.started_order_count);
       Yogiyo.toast(Number.isFinite(startedCount)
         ? `주문 ${orderId}을 ${cookMin}분으로 조리 시작 · 시연 매장 ${startedCount}건을 자동 시작했습니다.`
