@@ -381,6 +381,15 @@ async function loadRider() {
   }
 }
 
+const notifyDemoPackageAccepted = response => {
+  if (window.parent === window) return;
+  window.parent.postMessage({
+    type: 'ygy:package-accepted',
+    packageId: response.package_id,
+    riderId,
+  }, window.location.origin);
+};
+
 async function acceptOffer(packageId, button) {
   await Yogiyo.withPending(button, async () => {
     try {
@@ -388,6 +397,7 @@ async function acceptOffer(packageId, button) {
       recentlyAcceptedPackageId = String(response.package_id);
       window.clearTimeout(recentlyAcceptedTimer);
       Yogiyo.toast(`패키지 ${response.package_id} 배차를 수락했습니다. OFFERED → MATCHING으로 전환됩니다.`);
+      notifyDemoPackageAccepted(response);
       await loadRider();
       recentlyAcceptedTimer = window.setTimeout(() => {
         recentlyAcceptedPackageId = undefined;

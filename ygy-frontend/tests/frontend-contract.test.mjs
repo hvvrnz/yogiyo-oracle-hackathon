@@ -113,6 +113,18 @@ test('Future Slot 시연은 세 역할 화면에 미래 시간 예약과 경로 
   assert.match(styles, /\.future-slot-card/);
 });
 
+test('통합 시연은 라이더 수락 이벤트를 받아 고객·사장님 프레임을 즉시 갱신한다', () => {
+  const demo = read('../static/demo/app.js');
+  const rider = read('../static/rider/app.js');
+  assert.match(rider, /notifyDemoPackageAccepted/);
+  assert.match(rider, /type: 'ygy:package-accepted'/);
+  assert.match(demo, /window\.addEventListener\('message'/);
+  assert.match(demo, /event\.origin !== window\.location\.origin/);
+  assert.match(demo, /refreshDemoFrame\('demoCustomerFrame'\)/);
+  assert.match(demo, /refreshDemoFrame\('demoMerchantFrame'\)/);
+  assert.match(demo, /PACKAGE_ACCEPTED/);
+});
+
 test('라이더 패키지 상세는 No-Harm 품질 보증 비교와 데이터 미제공 상태를 표시한다', () => {
   const screen = read('../static/rider/app.js');
   const styles = read('../static/common.css');

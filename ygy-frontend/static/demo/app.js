@@ -72,6 +72,32 @@ const setDemoPanel = (frameId, linkId, titleId, url, title) => {
   Yogiyo.el(titleId).textContent = title;
 };
 
+const refreshDemoFrame = frameId => {
+  const frame = Yogiyo.el(frameId);
+  try {
+    frame.contentWindow.location.reload();
+  } catch {
+    frame.src = frame.src;
+  }
+};
+
+const appendDemoEvent = (code, message) => {
+  const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  Yogiyo.el('eventList').insertAdjacentHTML('afterbegin', `<div class="event"><code>${Yogiyo.escape(code)}</code><span>${Yogiyo.escape(message)}</span><time>${Yogiyo.escape(time)}</time></div>`);
+};
+
+window.addEventListener('message', event => {
+  if (event.origin !== window.location.origin || event.source !== Yogiyo.el('demoRiderFrame').contentWindow) return;
+  const { type, packageId, riderId } = event.data || {};
+  if (type !== 'ygy:package-accepted') return;
+  refreshDemoFrame('demoCustomerFrame');
+  refreshDemoFrame('demoMerchantFrame');
+  const message = `패키지 ${packageId}를 ${riderId}가 수락했습니다. 고객·사장님 화면을 즉시 갱신했습니다.`;
+  appendDemoEvent('PACKAGE_ACCEPTED', message);
+  Yogiyo.el('simulationAnnouncement').textContent = message;
+  Yogiyo.toast('배차 수락 상태를 고객·사장님 화면에 즉시 반영했습니다.');
+});
+
 const syncPresetButton = () => {
   hongdaeSoloPresetButton.setAttribute('aria-pressed', String(activePreset === hongdaeSoloPreset.id));
   futureSlotPresetButton.setAttribute('aria-pressed', String(activePreset === futureSlotPreset.id));
