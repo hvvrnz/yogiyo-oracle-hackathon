@@ -110,6 +110,18 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(styles, /package-accepted-pulse/);
 });
 
+test('라이더는 묶음 패키지의 방문 단계를 순서대로 처리한다', () => {
+  const screen = read('../static/rider/app.js');
+  const styles = read('../static/common.css');
+  assert.match(screen, /routeActionControls/);
+  assert.match(screen, /data-route-step/);
+  assert.match(screen, /completeRouteStep/);
+  assert.match(screen, /pickupsComplete/);
+  assert.match(screen, /deliveriesComplete/);
+  assert.match(screen, /모든 픽업 완료 시에만 고객 주문을 픽업 완료로 전환합니다/);
+  assert.match(styles, /\.route-stop-list/);
+});
+
 test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공한다', () => {
   const source = read('../static/demo/app.js');
   const template = read('../static/demo/index.html');
