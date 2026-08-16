@@ -14,6 +14,7 @@ let customerExplanationRequestId = 0;
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED']);
 const assignmentConfirmedStatuses = new Set(['MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
 const hasConfirmedAssignment = order => assignmentConfirmedStatuses.has(order?.status) && order?.package_id != null && order?.package_id !== '';
+const hasOfferedPackage = order => order?.status === 'COOKING' && order?.package_id != null && order?.package_id !== '';
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
 const showCustomerFailure = (error, { action = false } = {}) => {
   setConnection(false);
@@ -79,7 +80,7 @@ function renderCustomerExplanation() {
   }
 
   const isMissing = state.status === 'missing';
-  content.innerHTML = `<div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? '배차 안내를 준비 중입니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '안내 문구가 생성되면 이곳에 표시됩니다.' : Yogiyo.escape(Yogiyo.errorMessage(state.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-customer-explanation-retry>다시 확인</button></div></div>`;
+  content.innerHTML = `<div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? 'LLM 배차 안내 생성 준비 중입니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '현재는 저장된 안내를 조회합니다. 생성된 문구가 준비되면 이곳에 표시됩니다.' : Yogiyo.escape(Yogiyo.errorMessage(state.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-customer-explanation-retry>다시 확인</button></div></div>`;
   content.querySelector('[data-customer-explanation-retry]').addEventListener('click', () => {
     loadCustomerExplanation(state.packageId, { force: true });
   });
@@ -119,12 +120,24 @@ function syncCustomerExplanation(order) {
   loadCustomerExplanation(packageId);
 }
 
+function customerStatusMeta(order) {
+  if (hasOfferedPackage(order)) {
+    return {
+      label: '배차 제안됨',
+      progress: 1,
+      message: '조리 중인 주문의 배차 제안이 생성되었습니다. 라이더의 수락을 기다리고 있어요.',
+    };
+  }
+  return statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
+}
+
 function renderCustomer(order) {
   currentOrder = order;
-  const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
+  const meta = customerStatusMeta(order);
   const assignmentConfirmed = hasConfirmedAssignment(order);
   const etaLabel = !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
-    ? order.status === 'COOKING' ? '배차 제안 대기 중' : 'ETA 계산 중'
+    ? order.status === 'NEW' ? '매장 확인 대기 중'
+      : hasOfferedPackage(order) ? '라이더 수락 대기 중' : '배차 제안 생성 대기 중'
     : order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
   const riderMap = currentRider
@@ -143,7 +156,8 @@ function renderCustomer(order) {
   Yogiyo.el('remainingMin').textContent = order.status === 'CANCELLED' ? '취소됨' : etaLabel;
   Yogiyo.el('packageId').textContent = assignmentConfirmed
     ? `배차 번호 ${order.package_id}`
-    : order.status === 'COOKING' ? '배차 제안 생성 대기 중'
+    : hasOfferedPackage(order) ? `배차 제안 ${order.package_id} · 라이더 수락 대기`
+      : order.status === 'COOKING' ? '배차 제안 생성 대기 중'
       : order.status === 'CANCELLED' ? '배차 취소됨' : '배차 번호 배정 전';
   [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= meta.progress));
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);

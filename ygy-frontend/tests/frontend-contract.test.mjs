@@ -4,12 +4,16 @@ import test from 'node:test';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('고객 화면은 전체 주문 상태와 배차 대기 안내를 유지한다', () => {
+test('고객 화면은 전체 주문 상태와 배차 단계 안내를 유지한다', () => {
   const source = read('../static/customer/app.js');
   for (const status of ['NEW', 'COOKING', 'MATCHED', 'PICKED_UP', 'DELIVERED']) {
     assert.match(source, new RegExp(`${status}:`));
   }
   assert.match(source, /배차 제안 생성 대기 중/);
+  assert.match(source, /배차 제안됨/);
+  assert.match(source, /라이더 수락 대기 중/);
+  assert.match(source, /hasOfferedPackage/);
+  assert.match(source, /LLM 배차 안내 생성 준비 중입니다/);
 });
 
 test('고객 화면은 매장 주문 중 취소되지 않은 한 건을 선택해 조회한다', () => {
@@ -19,6 +23,8 @@ test('고객 화면은 매장 주문 중 취소되지 않은 한 건을 선택�
   assert.match(source, /order\.status !== 'CANCELLED'/);
   assert.match(source, /Math\.random\(\) \* availableOrders\.length/);
   assert.match(source, /Yogiyo\.qs\('storeId', Yogiyo\.defaultIds\.merchant\)/);
+  assert.match(source, /Yogiyo\.qs\('orderId', Yogiyo\.defaultIds\.customer\)/);
+  assert.match(source, /if \(\/\^\\d\+\$\/\.test\(orderId\)\) return Yogiyo\.apiClient\.customers\.get\(orderId\)/);
   assert.doesNotMatch(template, /storeIdInput|orderIdInput|loadStoreButton/);
 });
 
