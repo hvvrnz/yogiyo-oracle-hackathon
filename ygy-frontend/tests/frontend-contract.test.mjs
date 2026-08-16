@@ -69,6 +69,10 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /function declineOffer/);
   assert.match(screen, /offerSortValue/);
   assert.match(screen, /sortedVisibleOffers/);
+  assert.match(screen, /uniqueOfferRepresentatives/);
+  assert.match(screen, /maxVisibleOffers = 20/);
+  assert.match(screen, /동일 주문 조합의 경로안/);
+  assert.match(screen, /동일 주문 조합 제안을 이 화면에서 숨겼습니다/);
   assert.match(screen, /예상 패키지 수익/);
   assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
   assert.match(screen, /서버에는 저장되지 않습니다/);
@@ -76,6 +80,7 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(template, /id="currentRun"/);
   assert.match(template, /id="nextRunReservation"/);
   assert.match(styles, /\.offer-list \{[^}]*max-height:340px/);
+  assert.match(styles, /\.offer-list-notice/);
   assert.match(styles, /package-accepted-pulse/);
 });
 
