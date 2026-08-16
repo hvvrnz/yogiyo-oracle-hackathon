@@ -143,8 +143,17 @@ const runStatusCard = (pkg, { reservation = false } = {}) => {
 const futureSlotDemoCard = () => '<div class="future-slot-card"><div class="future-slot-head"><strong>다음 운행 예약 제안</strong><span class="badge brand">Future Slot</span></div><div class="future-slot-grid"><span>현재 운행 종료 <b>18:23</b></span><span>매장 도착 예정 <b>18:27</b></span><span>음식 완료 예정 <b>18:27</b></span><span>예상 대기 <b>0분</b></span></div><div class="route-lock-badge">✓ 현재 운행 경로 변경 없음</div><p>현재 배송을 완료한 뒤 수행할 다음 운행만 미리 예약하는 시연용 제안입니다.</p></div>';
 
 const packageAction = pkg => {
-  if (pkg.status === 'MATCHING' || pkg.status === 'MATCHED') return `<button class="primary-button" data-package-action="pickup" data-package-id="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 픽업 완료">픽업</button>`;
-  if (pkg.status === 'PICKED_UP') return `<button class="primary-button" data-package-action="complete" data-package-id="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 배달 완료">완료</button>`;
+  const route = Array.isArray(pkg.route_detail) ? pkg.route_detail : [];
+  const pickupCount = route.filter(step => step.type === 'pickup').length;
+  const deliveryCount = route.filter(step => ['delivery', 'dropoff'].includes(step.type)).length;
+  const pickupLabel = pickupCount > 1 ? `${pickupCount}곳 픽업 완료` : '픽업 완료';
+  const completeLabel = deliveryCount > 1 ? `${deliveryCount}건 배달 완료` : '배달 완료';
+  if (pkg.status === 'MATCHING' || pkg.status === 'MATCHED') {
+    return `<button class="primary-button" data-package-action="pickup" data-package-id="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} ${pickupLabel}">${pickupLabel}</button><button class="ghost-button" disabled aria-label="패키지 ${pkg.package_id} 픽업 후 ${completeLabel}">픽업 후 ${completeLabel}</button>`;
+  }
+  if (pkg.status === 'PICKED_UP') {
+    return `<button class="ghost-button" disabled aria-label="패키지 ${pkg.package_id} ${pickupLabel}">${pickupLabel}</button><button class="primary-button" data-package-action="complete" data-package-id="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} ${completeLabel}">${completeLabel}</button>`;
+  }
   return `<button class="ghost-button" disabled>${Yogiyo.escape(packageStatus(pkg.status))}</button>`;
 };
 
@@ -423,23 +432,25 @@ async function loadRider() {
   }
 }
 
-const notifyDemoPackageAccepted = response => {
+const notifyDemoPackageAccepted = (response, orderIds) => {
   if (window.parent === window) return;
   window.parent.postMessage({
     type: 'ygy:package-accepted',
     packageId: response.package_id,
     riderId,
+    orderIds,
   }, window.location.origin);
 };
 
 async function acceptOffer(packageId, button) {
   await Yogiyo.withPending(button, async () => {
     try {
+      const offer = currentRider?.offers?.find(item => String(item.package_id) === String(packageId));
       const response = await Yogiyo.apiClient.riders.accept(riderId, packageId);
       recentlyAcceptedPackageId = String(response.package_id);
       window.clearTimeout(recentlyAcceptedTimer);
       Yogiyo.toast(`패키지 ${response.package_id} 배차를 수락했습니다. OFFERED → MATCHING으로 전환됩니다.`);
-      notifyDemoPackageAccepted(response);
+      notifyDemoPackageAccepted(response, Array.isArray(response.order_ids) ? response.order_ids : offer?.order_ids || []);
       await loadRider();
       recentlyAcceptedTimer = window.setTimeout(() => {
         recentlyAcceptedPackageId = undefined;

@@ -90,9 +90,14 @@ const appendDemoEvent = (code, message) => {
 
 window.addEventListener('message', event => {
   if (event.origin !== window.location.origin || event.source !== Yogiyo.el('demoRiderFrame').contentWindow) return;
-  const { type, packageId, riderId } = event.data || {};
+  const { type, packageId, riderId, orderIds } = event.data || {};
   if (type !== 'ygy:package-accepted') return;
-  refreshDemoFrame('demoCustomerFrame');
+  Yogiyo.el('demoCustomerFrame').contentWindow?.postMessage({
+    type: 'ygy:customer-package-accepted',
+    packageId,
+    riderId,
+    orderIds: Array.isArray(orderIds) ? orderIds : [],
+  }, window.location.origin);
   refreshDemoFrame('demoMerchantFrame');
   const message = `패키지 ${packageId}를 ${riderId}가 수락했습니다. 고객·사장님 화면을 즉시 갱신했습니다.`;
   appendDemoEvent('PACKAGE_ACCEPTED', message);

@@ -4,6 +4,7 @@ const isDirectOrderLookup = /^\d+$/.test(orderId);
 const useDemoActiveOrder = Yogiyo.qs('demoActive') === '1';
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let usingDemoActiveOrder = false;
+let demoAcceptedAssignment;
 let currentOrder;
 let stopPolling;
 let stopRiderPolling;
@@ -232,10 +233,26 @@ function syncAssignedRider(order) {
   startRiderPolling(riderId);
 }
 
+function mergeDemoAcceptedAssignment(order) {
+  const assignment = demoAcceptedAssignment;
+  if (!assignment || !order) return order;
+  const orderIds = assignment.orderIds || [];
+  const matchesPackage = String(order.package_id ?? '') === String(assignment.packageId);
+  const matchesOrder = orderIds.some(orderId => String(orderId) === String(order.order_id));
+  if (!matchesPackage && !matchesOrder) return order;
+  return {
+    ...order,
+    package_id: order.package_id ?? assignment.packageId,
+    rider_id: order.rider_id ?? assignment.riderId,
+    status: ['COOKING', 'MATCHING'].includes(order.status) ? 'MATCHED' : order.status,
+  };
+}
+
 function refreshCustomer(order) {
-  syncAssignedRider(order);
-  syncCustomerExplanation(order);
-  renderCustomer(order);
+  const resolvedOrder = mergeDemoAcceptedAssignment(order);
+  syncAssignedRider(resolvedOrder);
+  syncCustomerExplanation(resolvedOrder);
+  renderCustomer(resolvedOrder);
 }
 
 function noStoreOrderError() {
@@ -292,6 +309,18 @@ async function cancelOrder() {
 }
 
 Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, cancelOrder));
+
+window.addEventListener('message', event => {
+  if (event.origin !== window.location.origin || event.source !== window.parent) return;
+  const { type, packageId, riderId, orderIds } = event.data || {};
+  if (type !== 'ygy:customer-package-accepted' || packageId == null || !riderId) return;
+  demoAcceptedAssignment = {
+    packageId,
+    riderId,
+    orderIds: Array.isArray(orderIds) ? orderIds : [],
+  };
+  if (currentOrder) refreshCustomer(currentOrder);
+});
 
 stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {
   refreshCustomer(order);

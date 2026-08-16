@@ -14,6 +14,8 @@ test('고객 화면은 전체 주문 상태와 배차 단계 안내를 유지한
   assert.match(source, /라이더 수락 대기 중/);
   assert.match(source, /hasAssignedRider/);
   assert.match(source, /MATCHING/);
+  assert.match(source, /ygy:customer-package-accepted/);
+  assert.match(source, /mergeDemoAcceptedAssignment/);
   assert.match(source, /hasOfferedPackage/);
   assert.match(source, /LLM 배차 안내 생성 준비 중입니다/);
 });
@@ -91,6 +93,8 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /class="assigned-package-row/);
   assert.match(screen, /패키지 \$\{pkg\.package_id\} 상세 배차 정보 보기/);
   assert.match(screen, /예상 패키지 수익/);
+  assert.match(screen, /픽업 후 \$\{completeLabel\}/);
+  assert.match(screen, /\$\{pickupCount\}곳 픽업 완료/);
   assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
   assert.match(screen, /서버에는 저장되지 않습니다/);
   assert.match(screen, /isFutureReservation/);
@@ -150,9 +154,10 @@ test('통합 시연은 라이더 수락 이벤트를 받아 고객·사장님 �
   const rider = read('../static/rider/app.js');
   assert.match(rider, /notifyDemoPackageAccepted/);
   assert.match(rider, /type: 'ygy:package-accepted'/);
+  assert.match(rider, /orderIds/);
   assert.match(demo, /window\.addEventListener\('message'/);
   assert.match(demo, /event\.origin !== window\.location\.origin/);
-  assert.match(demo, /refreshDemoFrame\('demoCustomerFrame'\)/);
+  assert.match(demo, /ygy:customer-package-accepted/);
   assert.match(demo, /refreshDemoFrame\('demoMerchantFrame'\)/);
   assert.match(demo, /PACKAGE_ACCEPTED/);
 });
