@@ -253,6 +253,14 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .offer-main span { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .offer-actions { display:flex; flex:0 0 auto; gap:6px; }
 .offer-actions button { min-height:34px; padding:7px 10px; border-radius:10px; font-size:11px; }
+.run-status-card { display:grid; gap:7px; padding:14px; border:1px solid #dfe5ff; border-left:4px solid var(--brand); border-radius:14px; background:#f8f9ff; }
+.run-status-card > div { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.run-status-card strong { font-size:13px; }
+.run-status-card > span, .run-status-card small { color:var(--muted); font-size:11px; line-height:1.5; }
+.run-status-card.reservation { border-color:#e7e7ec; border-left-color:#8c8c98; background:#fafafd; }
+.run-status-card.empty { border-left-color:#b3b3bd; background:var(--surface); }
+.package-accepted { animation:package-accepted-pulse 1.8s ease-out; }
+@keyframes package-accepted-pulse { 0% { box-shadow:0 0 0 0 rgba(255,92,112,.35); } 45% { box-shadow:0 0 0 10px rgba(255,92,112,0); } 100% { box-shadow:0 6px 20px rgba(23,23,27,.045); } }
 .order-menu { font-size:15px; font-weight:800; margin:8px 0 3px; }
 .order-id { font-size:11px; color:var(--muted); }
 .action-dock { position:sticky; bottom:0; z-index:8; padding:12px 16px 14px; background:linear-gradient(transparent, rgba(245,245,248,.92) 24%, var(--canvas) 48%); }

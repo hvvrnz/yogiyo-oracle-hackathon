@@ -60,6 +60,7 @@ test('라이더 화면은 offers 수락 API와 404·409 경쟁 오류 안내를 
 
 test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절 동작으로 표시한다', () => {
   const screen = read('../static/rider/app.js');
+  const template = read('../static/rider/index.html');
   const styles = read('../static/common.css');
   assert.match(screen, /class="offer-list"/);
   assert.match(screen, /data-offer-accept/);
@@ -68,7 +69,14 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /function declineOffer/);
   assert.match(screen, /offerSortValue/);
   assert.match(screen, /sortedVisibleOffers/);
+  assert.match(screen, /예상 패키지 수익/);
+  assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
+  assert.match(screen, /서버에는 저장되지 않습니다/);
+  assert.match(screen, /isFutureReservation/);
+  assert.match(template, /id="currentRun"/);
+  assert.match(template, /id="nextRunReservation"/);
   assert.match(styles, /\.offer-list \{[^}]*max-height:340px/);
+  assert.match(styles, /package-accepted-pulse/);
 });
 
 test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공한다', () => {
