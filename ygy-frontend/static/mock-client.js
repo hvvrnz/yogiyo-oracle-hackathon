@@ -95,6 +95,15 @@
   };
   const client = Object.freeze({
     customers: Object.freeze({
+      getDemoActive: async () => {
+        const orders = Object.values(state.orders);
+        const order = orders.find(item => String(item.store_id) === '889' && item.status !== 'CANCELLED')
+          || orders.find(item => (
+            ['889', '894', '884'].includes(String(item.store_id)) && item.status !== 'CANCELLED'
+          )) || orders.find(item => item.status !== 'CANCELLED');
+        if (!order) throw createError('현재 시연할 주문이 없습니다.', 404);
+        return { order_id: order.order_id };
+      },
       get: async orderId => {
         const order = state.orders[String(orderId)];
         if (!order) throw createError('해당 주문을 찾을 수 없습니다.', 404);

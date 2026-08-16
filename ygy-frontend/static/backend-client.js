@@ -76,6 +76,7 @@
 
   const apiClient = Object.freeze({
     customers: Object.freeze({
+      getDemoActive: () => request(endpoint('customerDemoActive', '/api/customer/demo/active')),
       get: async orderId => {
         const data = await request(endpoint('customer', '/api/customer/:orderId', { orderId }));
         return { ...data, menu_items: normalizeMenuItems(data.menu_items), eta_min: toNumber(data.eta_min) };

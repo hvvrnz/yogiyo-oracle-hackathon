@@ -18,13 +18,17 @@ test('고객 화면은 전체 주문 상태와 배차 단계 안내를 유지한
 
 test('고객 화면은 매장 주문 중 취소되지 않은 한 건을 선택해 조회한다', () => {
   const source = read('../static/customer/app.js');
+  const client = read('../static/backend-client.js');
   const template = read('../static/customer/index.html');
   assert.match(source, /apiClient\.merchants\.get\(storeId\)/);
   assert.match(source, /order\.status !== 'CANCELLED'/);
   assert.match(source, /Math\.random\(\) \* availableOrders\.length/);
   assert.match(source, /Yogiyo\.qs\('storeId', Yogiyo\.defaultIds\.merchant\)/);
   assert.match(source, /Yogiyo\.qs\('orderId', Yogiyo\.defaultIds\.customer\)/);
-  assert.match(source, /if \(\/\^\\d\+\$\/\.test\(orderId\)\) return Yogiyo\.apiClient\.customers\.get\(orderId\)/);
+  assert.match(source, /if \(isDirectOrderLookup && !useDemoActiveOrder\) return Yogiyo\.apiClient\.customers\.get\(orderId\)/);
+  assert.match(source, /apiClient\.customers\.getDemoActive\(\)/);
+  assert.match(source, /현재 시연 주문 자동 조회/);
+  assert.match(client, /\/api\/customer\/demo\/active/);
   assert.doesNotMatch(template, /storeIdInput|orderIdInput|loadStoreButton/);
 });
 
@@ -46,6 +50,7 @@ test('사장님 화면은 배차 제안·수락 단계를 구분하고 조리 �
   assert.match(screen, /라이더 수락 완료 · 배차 완료/);
   assert.match(client, /\/api\/merchant\/demo-trigger/);
   assert.match(screen, /apiClient\.merchants\.demoTrigger\(\)/);
+  assert.doesNotMatch(screen, /apiClient\.merchants\.updateCookTime\(orderId/);
   assert.doesNotMatch(template, /demoBulkCookStartButton/);
   assert.match(template, /id="offeredCount"/);
 });
@@ -108,6 +113,8 @@ test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공
   assert.match(source, /futureSlot=demo/);
   assert.match(source, /목업 Future Slot 시연을 적용했습니다/);
   assert.match(source, /apiClient\.merchants\.get\(preset\.storeId\)/);
+  assert.match(source, /apiClient\.customers\.getDemoActive\(\)/);
+  assert.match(source, /demoActive=1/);
   assert.match(source, /&orderId=\$\{encodeURIComponent\(orderId\)\}/);
   assert.match(source, /주문 \$\{orderId\}/);
   assert.match(source, /order\.status === 'NEW' && !order\.package_id/);

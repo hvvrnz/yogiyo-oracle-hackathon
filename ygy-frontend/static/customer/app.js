@@ -1,7 +1,9 @@
 let orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 const isDirectOrderLookup = /^\d+$/.test(orderId);
+const useDemoActiveOrder = Yogiyo.qs('demoActive') === '1';
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
+let usingDemoActiveOrder = false;
 let currentOrder;
 let stopPolling;
 let stopRiderPolling;
@@ -157,7 +159,7 @@ function renderCustomer(order) {
   Yogiyo.el('etaWindow').textContent = etaLabel;
   Yogiyo.el('currentMessage').textContent = meta.message;
   Yogiyo.el('deliveryOrder').textContent = meta.label;
-  Yogiyo.el('etaUpdated').textContent = isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
+  Yogiyo.el('etaUpdated').textContent = usingDemoActiveOrder ? '현재 시연 주문 자동 조회' : isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
   Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(meta.label)}`;
   Yogiyo.el('storeName').textContent = order.store_name;
   Yogiyo.el('menuSummary').textContent = menuSummary(items);
@@ -238,7 +240,17 @@ function noStoreOrderError() {
 }
 
 async function loadSelectedCustomerOrder() {
-  if (/^\d+$/.test(orderId)) return Yogiyo.apiClient.customers.get(orderId);
+  if (isDirectOrderLookup && !useDemoActiveOrder) return Yogiyo.apiClient.customers.get(orderId);
+  try {
+    const active = await Yogiyo.apiClient.customers.getDemoActive();
+    const activeOrderId = String(active?.order_id || '');
+    if (!/^\d+$/.test(activeOrderId)) throw noStoreOrderError();
+    usingDemoActiveOrder = true;
+    return Yogiyo.apiClient.customers.get(activeOrderId);
+  } catch (error) {
+    if (error?.status !== 404) throw error;
+    usingDemoActiveOrder = false;
+  }
   if (!/^\d+$/.test(storeId)) throw noStoreOrderError();
 
   const merchant = await Yogiyo.apiClient.merchants.get(storeId);
@@ -276,25 +288,16 @@ async function cancelOrder() {
 
 Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, cancelOrder));
 
-if (!/^\d+$/.test(orderId) && !/^\d+$/.test(storeId)) {
-  setContentVisible(false);
-  Yogiyo.renderLoadState('customerLoadState', {
-    tone: 'empty',
-    title: '조회 대상을 확인할 수 없습니다.',
-    description: '통합 시연에서 매장을 선택하거나 URL의 매장 번호를 확인해 주세요.',
-  });
-} else {
-  stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {
-    refreshCustomer(order);
-  }, {
-    intervalMs: 5000,
-    onError: error => {
-      setConnection(false);
-      if (!currentOrder) showCustomerFailure(error);
-      console.warn('customer polling failed', error);
-    },
-  });
-}
+stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {
+  refreshCustomer(order);
+}, {
+  intervalMs: 5000,
+  onError: error => {
+    setConnection(false);
+    if (!currentOrder) showCustomerFailure(error);
+    console.warn('customer polling failed', error);
+  },
+});
 window.addEventListener('beforeunload', () => {
   stopPolling?.();
   stopRiderPolling?.();

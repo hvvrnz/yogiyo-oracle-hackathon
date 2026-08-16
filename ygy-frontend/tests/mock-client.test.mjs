@@ -22,6 +22,7 @@ test('목업 초기 상태에서는 라이더에게 배차 제안이 없다', as
   const client = createMockClient();
   const { offers } = await client.riders.offers('rider_12');
   assert.equal(offers.length, 0);
+  assert.equal((await client.customers.getDemoActive()).order_id, 8891);
 });
 
 test('목업 시연 트리거는 다른 시연 매장의 신규 주문만 조리 시작한다', async () => {
