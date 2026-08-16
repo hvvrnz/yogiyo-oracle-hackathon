@@ -107,27 +107,44 @@ const demoOrderCandidate = orders => (orders || []).find(order => (
   order.status === 'NEW' && !order.package_id
 )) || (orders || []).find(order => order.status !== 'CANCELLED');
 
-const applyDemoSelection = ({ futureSlot = false } = {}) => {
+const applyDemoSelection = async ({ futureSlot = false } = {}) => {
   activePreset = futureSlot ? futureSlotPreset.id : undefined;
-  demoSelectionRequestId += 1;
+  const requestId = ++demoSelectionRequestId;
   const storeId = demoStoreSelect.value;
   const riderId = demoRiderSelect.value;
   const storeName = demoStoreSelect.options[demoStoreSelect.selectedIndex].text;
 
   const futureSlotQuery = futureSlot ? '&futureSlot=demo' : '';
-  const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}${futureSlotQuery}`;
-  setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
-    futureSlot ? `고객 · Future Slot · ${storeName} 주문 1건` : `고객 · ${storeName} 주문 1건`);
+  setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', `/customer?storeId=${encodeURIComponent(storeId)}${futureSlotQuery}`,
+    futureSlot ? `고객 · Future Slot · ${storeName} 주문 확인 중` : `고객 · ${storeName} 주문 확인 중`);
   setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${encodeURIComponent(storeId)}${futureSlotQuery}`,
     `사장님 · ${storeName}`);
-  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}${futureSlotQuery}`,
-    `라이더 · ${riderId}`);
+  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}${futureSlotQuery}`,
+    `라이더 · ${riderId} · 주문 연결 중`);
 
-  const nextQuery = new URLSearchParams({ storeId, riderId });
-  if (futureSlot) nextQuery.set('preset', futureSlotPreset.id);
-  if (futureSlot) nextQuery.set('futureSlot', 'demo');
-  history.replaceState(null, '', `${location.pathname}?${nextQuery.toString()}`);
-  syncPresetButton();
+  try {
+    const orderId = String(demoOrderCandidate((await Yogiyo.apiClient.merchants.get(storeId)).orders)?.order_id || '');
+    if (requestId !== demoSelectionRequestId) return;
+    if (!/^\d+$/.test(orderId)) throw new Error('선택한 매장에 시연할 주문이 없습니다. 주문 데이터를 확인해 주세요.');
+    const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
+    const riderUrl = `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
+    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
+      futureSlot ? `고객 · Future Slot · 주문 ${orderId}` : `고객 · 주문 ${orderId}`);
+    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', riderUrl,
+      `라이더 · ${riderId} · 주문 ${orderId}`);
+    const nextQuery = new URLSearchParams({ storeId, riderId, orderId });
+    if (futureSlot) nextQuery.set('preset', futureSlotPreset.id);
+    if (futureSlot) nextQuery.set('futureSlot', 'demo');
+    history.replaceState(null, '', `${location.pathname}?${nextQuery.toString()}`);
+    syncPresetButton();
+  } catch (error) {
+    if (requestId !== demoSelectionRequestId) return;
+    activePreset = undefined;
+    syncPresetButton();
+    Yogiyo.el('demoCustomerTitle').textContent = '고객 · 시연 주문 없음';
+    Yogiyo.el('demoRiderTitle').textContent = `라이더 · ${riderId} · 주문 연결 실패`;
+    Yogiyo.toast(error.message);
+  }
 };
 
 const applyHongdaeSoloPreset = async ({ useQueryOrder = false, futureSlot = false } = {}) => {
@@ -144,8 +161,8 @@ const applyHongdaeSoloPreset = async ({ useQueryOrder = false, futureSlot = fals
   const futureSlotQuery = futureSlot ? '&futureSlot=demo' : '';
   setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${preset.storeId}${futureSlotQuery}`,
     `사장님 · ${storeName}`);
-  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${preset.riderId}${futureSlotQuery}`,
-    `라이더 · ${preset.riderId}`);
+  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${preset.riderId}&storeId=${preset.storeId}${futureSlotQuery}`,
+    `라이더 · ${preset.riderId} · 주문 연결 중`);
   setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', `/customer?storeId=${preset.storeId}${futureSlotQuery}`,
     futureSlot ? '고객 · Future Slot 시연 주문 확인 중' : '고객 · 홍대 SOLO 시연 주문 확인 중');
 
@@ -158,8 +175,11 @@ const applyHongdaeSoloPreset = async ({ useQueryOrder = false, futureSlot = fals
     if (!/^\d+$/.test(orderId)) throw new Error('홍대 884점에 시연할 주문이 없습니다. 백엔드 초기화 후 주문 데이터를 확인해 주세요.');
 
     const customerUrl = `/customer?storeId=${preset.storeId}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
+    const riderUrl = `/rider?riderId=${preset.riderId}&storeId=${preset.storeId}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
     setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
       futureSlot ? `고객 · Future Slot 주문 ${orderId}` : `고객 · 홍대 SOLO 주문 ${orderId}`);
+    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', riderUrl,
+      `라이더 · ${preset.riderId} · 주문 ${orderId}`);
     const nextQuery = new URLSearchParams({
       preset: preset.id,
       storeId: preset.storeId,

@@ -73,6 +73,8 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /maxVisibleOffers = 20/);
   assert.match(screen, /동일 주문 조합의 경로안/);
   assert.match(screen, /동일 주문 조합 제안을 이 화면에서 숨겼습니다/);
+  assert.match(screen, /includesSelectedOrder/);
+  assert.match(screen, /주문 \$\{selectedOrderId\} 제안만 표시/);
   assert.match(screen, /예상 패키지 수익/);
   assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
   assert.match(screen, /서버에는 저장되지 않습니다/);
@@ -98,6 +100,8 @@ test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공
   assert.match(source, /futureSlot=demo/);
   assert.match(source, /목업 Future Slot 시연을 적용했습니다/);
   assert.match(source, /apiClient\.merchants\.get\(preset\.storeId\)/);
+  assert.match(source, /&orderId=\$\{encodeURIComponent\(orderId\)\}/);
+  assert.match(source, /주문 \$\{orderId\}/);
   assert.match(template, /id="hongdaeSoloPresetButton"/);
   assert.match(template, /id="futureSlotPresetButton"/);
 });
