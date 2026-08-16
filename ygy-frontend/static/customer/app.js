@@ -1,6 +1,7 @@
 let orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 const isDirectOrderLookup = /^\d+$/.test(orderId);
+const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let currentOrder;
 let stopPolling;
 let stopRiderPolling;
@@ -131,6 +132,13 @@ function customerStatusMeta(order) {
   return statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
 }
 
+function renderCustomerFutureSlot() {
+  const section = Yogiyo.el('customerFutureSlotSection');
+  section.hidden = !futureSlotDemo;
+  if (!futureSlotDemo) return;
+  Yogiyo.el('customerFutureSlotContent').innerHTML = '<div class="future-slot-card"><div class="future-slot-head"><strong>음식 완성 시점에 맞춘 라이더 방문 예약</strong><span class="badge good">예상 대기 0분</span></div><div class="future-slot-grid"><span>음식 완료 예정 <b>18:27</b></span><span>라이더 도착 예정 <b>18:27</b></span></div><p>현재 운행 경로는 변경하지 않고, 다음 운행만 미리 예약한 시연용 상태입니다.</p></div>';
+}
+
 function renderCustomer(order) {
   currentOrder = order;
   const meta = customerStatusMeta(order);
@@ -164,6 +172,7 @@ function renderCustomer(order) {
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
   Yogiyo.renderMap('customerMap', map);
   Yogiyo.el('riderStep').textContent = riderLocationLabel();
+  renderCustomerFutureSlot();
   renderCustomerExplanation();
 
   const cancelButton = Yogiyo.el('createOrderButton');

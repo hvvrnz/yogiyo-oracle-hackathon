@@ -24,6 +24,7 @@ Yogiyo.el('eventList').innerHTML = mockMode
 const demoStoreSelect = Yogiyo.el('demoStoreId');
 const demoRiderSelect = Yogiyo.el('demoRiderId');
 const hongdaeSoloPresetButton = Yogiyo.el('hongdaeSoloPresetButton');
+const futureSlotPresetButton = Yogiyo.el('futureSlotPresetButton');
 const regionByStoreId = Object.freeze({
   889: 'gangnam',
   894: 'gangnam',
@@ -35,7 +36,9 @@ const riderIdsByRegion = Object.freeze({
 });
 const demoQuery = new URLSearchParams(location.search);
 const hongdaeSoloPreset = Object.freeze({ id: 'hongdae-solo', storeId: '884', riderId: 'rider_2' });
-let activePreset = demoQuery.get('preset') === hongdaeSoloPreset.id ? hongdaeSoloPreset.id : undefined;
+const futureSlotPreset = Object.freeze({ id: 'future-slot', storeId: '884', riderId: 'rider_2' });
+const knownPresetIds = new Set([hongdaeSoloPreset.id, futureSlotPreset.id]);
+let activePreset = knownPresetIds.has(demoQuery.get('preset')) ? demoQuery.get('preset') : undefined;
 let demoSelectionRequestId = 0;
 
 if (regionByStoreId[demoQuery.get('storeId')]) demoStoreSelect.value = demoQuery.get('storeId');
@@ -58,6 +61,7 @@ if (mockMode) {
   Yogiyo.el('resetMockDemo').hidden = false;
   hongdaeSoloPresetButton.disabled = true;
   hongdaeSoloPresetButton.title = '홍대 SOLO 목업 주문은 시연 데이터 작업 후 사용할 수 있습니다.';
+  futureSlotPresetButton.title = '목업 강남894점·rider_12 기준으로 Future Slot UI를 표시합니다.';
 }
 
 syncRiderOptions();
@@ -70,68 +74,75 @@ const setDemoPanel = (frameId, linkId, titleId, url, title) => {
 
 const syncPresetButton = () => {
   hongdaeSoloPresetButton.setAttribute('aria-pressed', String(activePreset === hongdaeSoloPreset.id));
+  futureSlotPresetButton.setAttribute('aria-pressed', String(activePreset === futureSlotPreset.id));
 };
 
 const demoOrderCandidate = orders => (orders || []).find(order => (
   order.status === 'NEW' && !order.package_id
 )) || (orders || []).find(order => order.status !== 'CANCELLED');
 
-const applyDemoSelection = () => {
-  activePreset = undefined;
+const applyDemoSelection = ({ futureSlot = false } = {}) => {
+  activePreset = futureSlot ? futureSlotPreset.id : undefined;
   demoSelectionRequestId += 1;
   const storeId = demoStoreSelect.value;
   const riderId = demoRiderSelect.value;
   const storeName = demoStoreSelect.options[demoStoreSelect.selectedIndex].text;
 
-  const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}`;
+  const futureSlotQuery = futureSlot ? '&futureSlot=demo' : '';
+  const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}${futureSlotQuery}`;
   setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
-    `고객 · ${storeName} 주문 1건`);
-  setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${encodeURIComponent(storeId)}`,
+    futureSlot ? `고객 · Future Slot · ${storeName} 주문 1건` : `고객 · ${storeName} 주문 1건`);
+  setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${encodeURIComponent(storeId)}${futureSlotQuery}`,
     `사장님 · ${storeName}`);
-  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}`,
+  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}${futureSlotQuery}`,
     `라이더 · ${riderId}`);
 
   const nextQuery = new URLSearchParams({ storeId, riderId });
+  if (futureSlot) nextQuery.set('preset', futureSlotPreset.id);
+  if (futureSlot) nextQuery.set('futureSlot', 'demo');
   history.replaceState(null, '', `${location.pathname}?${nextQuery.toString()}`);
   syncPresetButton();
 };
 
-const applyHongdaeSoloPreset = async ({ useQueryOrder = false } = {}) => {
+const applyHongdaeSoloPreset = async ({ useQueryOrder = false, futureSlot = false } = {}) => {
   if (mockMode) return;
   const requestId = ++demoSelectionRequestId;
-  activePreset = hongdaeSoloPreset.id;
-  demoStoreSelect.value = hongdaeSoloPreset.storeId;
+  const preset = futureSlot ? futureSlotPreset : hongdaeSoloPreset;
+  activePreset = preset.id;
+  demoStoreSelect.value = preset.storeId;
   syncRiderOptions();
-  demoRiderSelect.value = hongdaeSoloPreset.riderId;
+  demoRiderSelect.value = preset.riderId;
   syncPresetButton();
 
   const storeName = demoStoreSelect.options[demoStoreSelect.selectedIndex].text;
-  setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${hongdaeSoloPreset.storeId}`,
+  const futureSlotQuery = futureSlot ? '&futureSlot=demo' : '';
+  setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${preset.storeId}${futureSlotQuery}`,
     `사장님 · ${storeName}`);
-  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${hongdaeSoloPreset.riderId}`,
-    `라이더 · ${hongdaeSoloPreset.riderId}`);
-  setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', `/customer?storeId=${hongdaeSoloPreset.storeId}`,
-    '고객 · 홍대 SOLO 시연 주문 확인 중');
+  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${preset.riderId}${futureSlotQuery}`,
+    `라이더 · ${preset.riderId}`);
+  setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', `/customer?storeId=${preset.storeId}${futureSlotQuery}`,
+    futureSlot ? '고객 · Future Slot 시연 주문 확인 중' : '고객 · 홍대 SOLO 시연 주문 확인 중');
 
   try {
     const queryOrderId = useQueryOrder ? demoQuery.get('orderId') : undefined;
     const orderId = /^\d+$/.test(queryOrderId || '')
       ? queryOrderId
-      : String(demoOrderCandidate((await Yogiyo.apiClient.merchants.get(hongdaeSoloPreset.storeId)).orders)?.order_id || '');
+      : String(demoOrderCandidate((await Yogiyo.apiClient.merchants.get(preset.storeId)).orders)?.order_id || '');
     if (requestId !== demoSelectionRequestId) return;
     if (!/^\d+$/.test(orderId)) throw new Error('홍대 884점에 시연할 주문이 없습니다. 백엔드 초기화 후 주문 데이터를 확인해 주세요.');
 
-    const customerUrl = `/customer?storeId=${hongdaeSoloPreset.storeId}&orderId=${encodeURIComponent(orderId)}`;
+    const customerUrl = `/customer?storeId=${preset.storeId}&orderId=${encodeURIComponent(orderId)}${futureSlotQuery}`;
     setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
-      `고객 · 홍대 SOLO 주문 ${orderId}`);
+      futureSlot ? `고객 · Future Slot 주문 ${orderId}` : `고객 · 홍대 SOLO 주문 ${orderId}`);
     const nextQuery = new URLSearchParams({
-      preset: hongdaeSoloPreset.id,
-      storeId: hongdaeSoloPreset.storeId,
-      riderId: hongdaeSoloPreset.riderId,
+      preset: preset.id,
+      storeId: preset.storeId,
+      riderId: preset.riderId,
       orderId,
     });
+    if (futureSlot) nextQuery.set('futureSlot', 'demo');
     history.replaceState(null, '', `${location.pathname}?${nextQuery.toString()}`);
-    Yogiyo.toast(`홍대 SOLO 시연 주문 ${orderId}을 고정했습니다.`);
+    Yogiyo.toast(futureSlot ? `Future Slot 시연 주문 ${orderId}을 고정했습니다.` : `홍대 SOLO 시연 주문 ${orderId}을 고정했습니다.`);
   } catch (error) {
     if (requestId !== demoSelectionRequestId) return;
     activePreset = undefined;
@@ -144,10 +155,21 @@ const applyHongdaeSoloPreset = async ({ useQueryOrder = false } = {}) => {
 Yogiyo.el('applyDemoSelection').addEventListener('click', applyDemoSelection);
 demoStoreSelect.addEventListener('change', syncRiderOptions);
 hongdaeSoloPresetButton.addEventListener('click', () => applyHongdaeSoloPreset());
+futureSlotPresetButton.addEventListener('click', () => {
+  if (mockMode) {
+    demoStoreSelect.value = '894';
+    syncRiderOptions();
+    demoRiderSelect.value = 'rider_12';
+    applyDemoSelection({ futureSlot: true });
+    Yogiyo.toast('목업 Future Slot 시연을 적용했습니다. 예약 상태는 화면 전용입니다.');
+    return;
+  }
+  applyHongdaeSoloPreset({ futureSlot: true });
+});
 Yogiyo.el('resetMockDemo').addEventListener('click', () => {
   if (!mockMode) return;
   Yogiyo.resetMock();
   location.assign('/demo?storeId=894&riderId=rider_12');
 });
-if (activePreset === hongdaeSoloPreset.id && !mockMode) applyHongdaeSoloPreset({ useQueryOrder: true });
-else applyDemoSelection();
+if (activePreset && !mockMode) applyHongdaeSoloPreset({ useQueryOrder: true, futureSlot: activePreset === futureSlotPreset.id });
+else applyDemoSelection({ futureSlot: activePreset === futureSlotPreset.id });

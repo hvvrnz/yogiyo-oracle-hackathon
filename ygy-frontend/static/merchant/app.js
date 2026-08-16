@@ -1,6 +1,7 @@
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 const demoStoreIds = Object.freeze(['889', '894', '884']);
 const demoCookTime = 20;
+const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let storeDirectory;
 let currentMerchant;
 
@@ -76,6 +77,13 @@ const routeSummary = route => {
     .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0))
     .map(step => `주문 ${step.order_id ?? '-'} ${step.type === 'pickup' ? '픽업' : ['delivery', 'dropoff'].includes(step.type) ? '배달' : '경유'}`)
     .join(' → ');
+};
+
+const renderMerchantFutureSlot = () => {
+  const section = Yogiyo.el('merchantFutureSlotSection');
+  section.hidden = !futureSlotDemo;
+  if (!futureSlotDemo) return;
+  Yogiyo.el('merchantFutureSlotContent').innerHTML = '<div class="future-slot-card"><div class="future-slot-head"><strong>주방·라이더 미래 시간 예약</strong><span class="badge good">예상 대기 0분</span></div><div class="future-slot-grid"><span>조리 완료 예정 <b>18:27</b></span><span>라이더 도착 예정 <b>18:27</b></span><span>현재 운행 종료 <b>18:23</b></span><span>매장 이동 <b>4분</b></span></div><p>라이더의 현재 경로는 바꾸지 않고, 다음 패키지만 예약하는 시연용 상태입니다.</p></div>';
 };
 
 const cookTimeControls = order => {
@@ -163,9 +171,10 @@ function renderMerchant(view, store) {
     ? '라이더가 제안을 수락했습니다. 주문 API가 제공하는 패키지·라이더·방문 순서 정보입니다.'
     : offeredPackage
       ? '클러스터링이 패키지를 생성했습니다. 라이더 수락 뒤 배차 완료로 전환됩니다.'
-    : counts.COOKING
+      : counts.COOKING
       ? '조리 중 주문을 30초 단위로 클러스터링해 라이더에게 배차 제안을 생성합니다.'
       : '조리 시작 후 배차 제안이 생성되면 패키지와 라이더 정보가 표시됩니다.';
+  renderMerchantFutureSlot();
 }
 
 async function loadMerchant() {

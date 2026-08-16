@@ -1,4 +1,5 @@
 const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
+const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let currentRider;
 let stopRiderViewPolling;
 let locationAddress;
@@ -106,6 +107,8 @@ const runStatusCard = (pkg, { reservation = false } = {}) => {
   const revenue = Number.isFinite(Number(pkg.package_revenue)) ? Yogiyo.money(pkg.package_revenue) : '수익 정보 없음';
   return `<div class="run-status-card${reservation ? ' reservation' : ''}"><div><strong>패키지 ${Yogiyo.escape(pkg.package_id)}</strong><span class="badge ${reservation ? 'neutral' : 'brand'}">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><span>${Yogiyo.escape(routeSummary(pkg.route_detail))}</span><small>예상 수익 ${Yogiyo.escape(revenue)}</small></div>`;
 };
+
+const futureSlotDemoCard = () => '<div class="future-slot-card"><div class="future-slot-head"><strong>다음 운행 예약 제안</strong><span class="badge brand">Future Slot</span></div><div class="future-slot-grid"><span>현재 운행 종료 <b>18:23</b></span><span>매장 도착 예정 <b>18:27</b></span><span>음식 완료 예정 <b>18:27</b></span><span>예상 대기 <b>0분</b></span></div><div class="route-lock-badge">✓ 현재 운행 경로 변경 없음</div><p>현재 배송을 완료한 뒤 수행할 다음 운행만 미리 예약하는 시연용 제안입니다.</p></div>';
 
 const packageAction = pkg => {
   if (pkg.status === 'MATCHING' || pkg.status === 'MATCHED') return `<button class="primary-button full" data-package-action="pickup" data-package-id="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 픽업 완료">패키지 픽업 완료</button>`;
@@ -260,7 +263,10 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
     ? `패키지 ${currentPackage.package_id} · ${packageStatus(currentPackage.status)}`
     : visibleOffers.length ? `${visibleOffers.length}개의 배차 제안을 확인해 주세요.` : '현재 패키지 정보가 없습니다.';
   Yogiyo.el('currentRun').innerHTML = runStatusCard(currentPackage);
-  Yogiyo.el('nextRunReservation').innerHTML = runStatusCard(nextReservation, { reservation: true });
+  Yogiyo.el('nextRunReservation').innerHTML = nextReservation
+    ? runStatusCard(nextReservation, { reservation: true })
+    : futureSlotDemo ? futureSlotDemoCard()
+      : runStatusCard(undefined, { reservation: true });
 
   if (offersError) {
     Yogiyo.el('riderOffers').innerHTML = `<div class="state-card error"><div class="state-icon" aria-hidden="true">!</div><div><strong>배차 제안을 불러오지 못했습니다.</strong><p>${Yogiyo.escape(Yogiyo.errorMessage(offersError, '배차 제안'))}</p><button type="button" class="ghost-button" data-offer-retry>다시 확인</button></div></div>`;

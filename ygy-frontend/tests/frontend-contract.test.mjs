@@ -89,9 +89,28 @@ test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공
   assert.match(source, /customer\?storeId=/);
   assert.doesNotMatch(source, /demoOrderId/);
   assert.match(source, /hongdaeSoloPreset/);
-  assert.match(source, /apiClient\.merchants\.get\(hongdaeSoloPreset\.storeId\)/);
-  assert.match(source, /preset: hongdaeSoloPreset\.id/);
+  assert.match(source, /futureSlotPreset/);
+  assert.match(source, /futureSlot=demo/);
+  assert.match(source, /목업 Future Slot 시연을 적용했습니다/);
+  assert.match(source, /apiClient\.merchants\.get\(preset\.storeId\)/);
   assert.match(template, /id="hongdaeSoloPresetButton"/);
+  assert.match(template, /id="futureSlotPresetButton"/);
+});
+
+test('Future Slot 시연은 세 역할 화면에 미래 시간 예약과 경로 불변 안내를 표시한다', () => {
+  const customer = read('../static/customer/app.js');
+  const customerTemplate = read('../static/customer/index.html');
+  const merchant = read('../static/merchant/app.js');
+  const merchantTemplate = read('../static/merchant/index.html');
+  const rider = read('../static/rider/app.js');
+  const styles = read('../static/common.css');
+  assert.match(customer, /futureSlotDemo/);
+  assert.match(customerTemplate, /id="customerFutureSlotSection"/);
+  assert.match(merchant, /renderMerchantFutureSlot/);
+  assert.match(merchantTemplate, /id="merchantFutureSlotSection"/);
+  assert.match(rider, /futureSlotDemoCard/);
+  assert.match(rider, /현재 운행 경로 변경 없음/);
+  assert.match(styles, /\.future-slot-card/);
 });
 
 test('패키지 상세 바텀시트는 포커스 복귀·포커스 가두기와 맥락 있는 버튼 레이블을 제공한다', () => {
