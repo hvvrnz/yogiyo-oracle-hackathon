@@ -8,10 +8,10 @@
 
 | 화면 | 주소 | 실제 API 기능 |
 |---|---|---|
-| 고객 | `/customer?orderId={초기화 후 주문 번호}` | 주문 조회, 상태·ETA·메뉴·금액 확인, 취소 |
+| 고객 | `/customer?storeId=889` | 매장 주문 중 임의 1건 조회, 상태·ETA·메뉴·금액 확인, 취소 |
 | 사장님 | `/merchant?storeId=889` | 매장 주문 조회, 조리시간 입력·조리 시작, 배차 상태 확인 |
 | 라이더 | `/rider?riderId=rider_12` | 배차 제안 조회·수락, 프로필·패키지·수익 조회, 픽업/완료 |
-| 통합 시연 | `/demo` | 고객 주문 번호 입력 안내와 강남 889·rider_12 조회 패널 |
+| 통합 시연 | `/demo` | 선택 매장 주문 1건과 해당 권역 라이더 조회 패널 |
 
 지도는 `VITE_KAKAO_MAP_JS_KEY`가 설정되고 SDK 로드에 성공하면 카카오맵으로 표시합니다. 고객 지도는 매장·배달지·담당 라이더를, 라이더 지도는 본인 위치와 배정 패키지 경로를 표시합니다. 키가 없거나 SDK 로드에 실패하면 SVG fallback을 유지합니다.
 
@@ -56,7 +56,7 @@ VITE_KAKAO_MAP_JS_KEY=카카오맵_JavaScript_키
 | `VITE_USE_MOCK` | `false`: 실제 FastAPI, `true`: 브라우저 개발용 목업 |
 | `VITE_BACKEND_PROXY_TARGET` | 개발 서버가 `/api`를 전달할 FastAPI Origin |
 | `VITE_API_BASE_URL` | 프론트와 API가 다른 Origin으로 배포될 때의 API Origin. `/api`는 제외 |
-| `VITE_DEFAULT_ORDER_ID` | 선택값. 주문 ID는 DB 초기화 후 전달받은 값을 URL 또는 입력창에 사용 |
+| `VITE_DEFAULT_ORDER_ID` | 선택값. 기존 `?orderId=` 직접 조회 링크를 위한 기본 주문 ID |
 | `VITE_DEFAULT_STORE_ID` | 사장님 화면 기본 매장 ID |
 | `VITE_DEFAULT_RIDER_ID` | 라이더 화면 기본 라이더 ID |
 | `VITE_KAKAO_MAP_JS_KEY` | 카카오맵 Web(JavaScript) SDK 키. JavaScript SDK 허용 도메인 등록 필요 |
@@ -65,7 +65,7 @@ VITE_KAKAO_MAP_JS_KEY=카카오맵_JavaScript_키
 
 ## 실제 테스트 환경
 
-DB 초기화 때마다 주문·패키지 ID가 바뀝니다. 백엔드 초기화 완료 후 전달받은 주문 번호를 고객 화면에 입력하세요.
+DB 초기화 때마다 주문·패키지 ID가 바뀌어도 고객 화면에는 매장 번호만 입력하면 됩니다. 화면이 해당 매장에 있는 취소되지 않은 주문 한 건을 임의로 선택합니다.
 
 - 시연 매장: 강남 `889`, `894`, 홍대 `884`
 - 강남 라이더: `rider_12`, `rider_13`, `rider_19`, `rider_23`, `rider_31`
@@ -78,7 +78,7 @@ DB 초기화 때마다 주문·패키지 ID가 바뀝니다. 백엔드 초기화
 
 실제 DB를 변경하지 않는 안전한 시연 순서입니다.
 
-1. 초기화 완료 안내와 새 주문 번호를 받습니다.
+1. `/customer?storeId=889` 또는 `894`·`884`에서 매장 주문 한 건이 표시되는지 확인합니다.
 2. `/merchant?storeId=889` 또는 `894`·`884`에서 `NEW` 주문의 조리를 시작합니다.
 3. `COOKING` 상태를 확인하고, 30초 클러스터링 주기 후 라이더 offers를 조회합니다.
 4. `/rider?riderId=rider_12` 또는 해당 권역 라이더에서 제안을 수락합니다. 동시 수락으로 인한 `409`는 정상입니다.
@@ -98,7 +98,7 @@ DB 초기화 때마다 주문·패키지 ID가 바뀝니다. 백엔드 초기화
 VITE_USE_MOCK=true npm run dev -- --host 0.0.0.0
 ```
 
-목업 모드의 상태 변경은 브라우저 `localStorage`에만 저장됩니다. 목업 전체 흐름은 주문 `8941`을 고객으로 조회하고, 매장 `894`에서 조리를 시작한 뒤 약 1초 후 `rider_12`가 제안을 수락하는 순서로 확인할 수 있습니다.
+목업 모드의 상태 변경은 브라우저 `localStorage`에만 저장됩니다. 목업 전체 흐름은 매장 `894` 주문 중 한 건을 고객으로 표시하고, 매장 `894`에서 조리를 시작한 뒤 약 1초 후 `rider_12`가 제안을 수락하는 순서로 확인할 수 있습니다.
 
 ## API 연결 구조
 

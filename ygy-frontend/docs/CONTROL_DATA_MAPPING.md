@@ -5,22 +5,23 @@
 ## 공통 데이터 처리
 
 - 구현 위치: `static/backend-client.js`
-- 고객 주문 ID는 초기화 후 전달받아 입력하며, 기본 매장·라이더는 `889`, `rider_12`다.
+- 고객 화면은 매장 ID로 주문 한 건을 선택하며, 기본 매장·라이더는 `889`, `rider_12`다. 기존 `?orderId=` 직접 조회 링크도 호환용으로 지원한다.
 - `menu_items`, `order_ids`, `route_detail`, `score_detail`은 문자열 JSON 또는 객체 모두를 정규화한다.
 - API 오류의 `detail`을 오류 카드·토스트로 표시하며, 조회 실패 화면에는 재시도 동작이 있다.
 - 고객 화면은 담당 라이더 프로필만, 라이더 화면은 본인 프로필·패키지·오늘 수익만 5초 폴링한다. 역할별 화면은 전체 라이더 목록을 호출하지 않는다.
 
-## 고객 화면 (`/customer?orderId={order_id}`)
+## 고객 화면 (`/customer?storeId={store_id}`)
 
 | 제어 또는 표시 | API | 응답 데이터 | 동작 |
 | --- | --- | --- | --- |
+| 매장 주문 선택 | `GET /api/merchant/{store_id}` | `orders[]`의 주문 ID·상태 | 취소되지 않은 주문 중 한 건을 임의로 선택한 뒤, 페이지를 유지하는 동안 같은 주문을 표시 |
 | 주문 조회 | `GET /api/customer/{order_id}` | 매장명·좌표, 배달 좌표, 메뉴, 금액, 상태, ETA, `package_id`, `rider_id` | 주문 카드·배차 번호와 픽업지·배달지 카카오맵 마커 렌더링(키 미설정 시 SVG fallback) |
 | 담당 라이더 식별 | `GET /api/customer/{order_id}` | 현재 주문의 `rider_id` | 고객 주문 응답을 단일 진실 원천으로 사용. 라이더가 없으면 주문 지도만 표시 |
 | 담당 라이더 위치 | `GET /api/rider/{rider_id}/profile` | 이름, `lat`, `lng` | 담당 라이더 1명만 5초 폴링해 카카오맵 마커 갱신(키 미설정 시 SVG fallback) |
 | 주문 취소 | `DELETE /api/customer/{order_id}` | `order_id`, `status` | 성공 후 주문 정보를 재조회 |
 | 취소 불가 안내 | `DELETE`의 `400` | `detail` | 고객센터 안내 오류 표시 |
 
-고객 API의 `package_id`, `rider_id`를 직접 사용한다. `DELIVERED`와 기존 목업 호환용 `COMPLETED`는 모두 배달 완료로 표시하고 취소를 막는다. ETA의 상세 시간 근거가 필요하면 좌표·시간이 없는 `route_detail`이 아니라 `score_detail.timeline`에서 해당 주문의 `dropoff.arrival_time_min`을 확인한다.
+고객 API의 `package_id`, `rider_id`를 직접 사용한다. `DELIVERED`와 기존 목업 호환용 `COMPLETED`는 모두 배달 완료로 표시하고 취소를 막는다. ETA의 상세 시간 근거가 필요하면 좌표·시간이 없는 `route_detail`이 아니라 `score_detail.timeline`에서 해당 주문의 `dropoff.arrival_time_min`을 확인한다. `?orderId={order_id}`는 기존 링크 호환용 직접 조회 방식이다.
 
 ## 사장님 화면 (`/merchant?storeId={store_id}`)
 
@@ -56,7 +57,7 @@ API 상태 변경은 패키지 단위다. 실제 모드에서는 배차 제안 �
 
 | 패널 | 기본 연결 |
 | --- | --- |
-| 고객 | 초기화 후 전달받은 주문 번호 |
+| 고객 | 선택 매장 주문 중 임의 1건 |
 | 사장님 | 매장 `889`, `894`, `884` |
 | 라이더 | 강남 `rider_12` 등, 홍대 `rider_2` 등 |
 

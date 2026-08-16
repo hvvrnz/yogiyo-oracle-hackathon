@@ -15,9 +15,9 @@
       </header>
       <div class="mobile-scroll" id="scrollRoot">
         <section class="section">
-          <div class="section-title-row"><h2>주문 번호 조회</h2><span>숫자 ID</span></div>
-          <div class="button-row"><input id="orderIdInput" class="text-input" inputmode="numeric" aria-label="주문 번호" placeholder="초기화 뒤 전달받은 주문 번호" /><button id="loadOrderButton" class="primary-button">주문 조회</button></div>
-          <p class="subtext" style="margin:9px 2px 0">주문 번호는 DB 초기화 때마다 바뀝니다. 백엔드 담당자에게 새 번호를 확인해 주세요.</p>
+          <div class="section-title-row"><h2>매장 번호 조회</h2><span>숫자 ID</span></div>
+          <div class="button-row"><input id="storeIdInput" class="text-input" inputmode="numeric" aria-label="매장 번호" placeholder="예: 889, 894, 884" /><button id="loadStoreButton" class="primary-button">주문 조회</button></div>
+          <p class="subtext" style="margin:9px 2px 0">선택한 매장에 접수된 주문 중 취소되지 않은 한 건을 임의로 표시합니다. 주문 번호는 입력할 필요가 없습니다.</p>
         </section>
         <section id="customerLoadState" class="section" aria-live="polite" hidden></section>
         <div id="customerContent">

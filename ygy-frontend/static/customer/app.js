@@ -1,4 +1,6 @@
-const orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
+let orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
+const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
+const isDirectOrderLookup = /^\d+$/.test(orderId);
 let currentOrder;
 let stopPolling;
 let stopRiderPolling;
@@ -17,8 +19,8 @@ const showCustomerFailure = (error, { action = false } = {}) => {
   setConnection(false);
   if (!currentOrder) setContentVisible(false);
   Yogiyo.renderLoadState('customerLoadState', {
-    title: action ? '주문을 취소하지 못했습니다.' : error?.status === 404 ? '주문을 찾을 수 없습니다.' : '주문 정보를 불러오지 못했습니다.',
-    description: action ? Yogiyo.errorMessage(error, '주문 취소') : Yogiyo.errorMessage(error, '주문'),
+    title: action ? '주문을 취소하지 못했습니다.' : error?.status === 404 ? '매장 주문을 찾을 수 없습니다.' : '주문 정보를 불러오지 못했습니다.',
+    description: action ? Yogiyo.errorMessage(error, '주문 취소') : Yogiyo.errorMessage(error, isDirectOrderLookup ? '주문' : '매장 주문'),
     onRetry: () => loadCustomer(),
   });
 };
@@ -134,7 +136,7 @@ function renderCustomer(order) {
   Yogiyo.el('etaWindow').textContent = etaLabel;
   Yogiyo.el('currentMessage').textContent = meta.message;
   Yogiyo.el('deliveryOrder').textContent = meta.label;
-  Yogiyo.el('etaUpdated').textContent = '주문 API 기준';
+  Yogiyo.el('etaUpdated').textContent = isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
   Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(meta.label)}`;
   Yogiyo.el('storeName').textContent = order.store_name;
   Yogiyo.el('menuSummary').textContent = menuSummary(items);
@@ -206,9 +208,30 @@ function refreshCustomer(order) {
   renderCustomer(order);
 }
 
+function noStoreOrderError() {
+  const error = new Error('선택한 매장에 조회할 수 있는 주문이 없습니다. 다른 매장 번호를 입력해 주세요.');
+  error.status = 404;
+  return error;
+}
+
+async function loadSelectedCustomerOrder() {
+  if (/^\d+$/.test(orderId)) return Yogiyo.apiClient.customers.get(orderId);
+  if (!/^\d+$/.test(storeId)) throw noStoreOrderError();
+
+  const merchant = await Yogiyo.apiClient.merchants.get(storeId);
+  const availableOrders = (merchant.orders || []).filter(order => (
+    /^\d+$/.test(String(order.order_id ?? '')) && order.status !== 'CANCELLED'
+  ));
+  if (!availableOrders.length) throw noStoreOrderError();
+
+  const selectedOrder = availableOrders[Math.floor(Math.random() * availableOrders.length)];
+  orderId = String(selectedOrder.order_id);
+  return Yogiyo.apiClient.customers.get(orderId);
+}
+
 async function loadCustomer({ silent = false } = {}) {
   try {
-    refreshCustomer(await Yogiyo.apiClient.customers.get(orderId));
+    refreshCustomer(await loadSelectedCustomerOrder());
   } catch (error) {
     showCustomerFailure(error);
     if (!silent) Yogiyo.toast(error.message);
@@ -228,30 +251,30 @@ async function cancelOrder() {
   }
 }
 
-function switchOrder(nextOrderId) {
-  location.href = `/customer?orderId=${encodeURIComponent(nextOrderId)}`;
+function switchStore(nextStoreId) {
+  location.href = `/customer?storeId=${encodeURIComponent(nextStoreId)}`;
 }
 
-Yogiyo.el('orderIdInput').value = orderId;
+Yogiyo.el('storeIdInput').value = storeId;
 Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, cancelOrder));
-Yogiyo.el('loadOrderButton')?.addEventListener('click', () => {
-  const nextOrderId = Yogiyo.el('orderIdInput').value.trim();
-  if (!/^\d+$/.test(nextOrderId)) { Yogiyo.toast('숫자로 된 주문 번호를 입력해 주세요.'); return; }
-  switchOrder(nextOrderId);
+Yogiyo.el('loadStoreButton')?.addEventListener('click', () => {
+  const nextStoreId = Yogiyo.el('storeIdInput').value.trim();
+  if (!/^\d+$/.test(nextStoreId)) { Yogiyo.toast('숫자로 된 매장 번호를 입력해 주세요.'); return; }
+  switchStore(nextStoreId);
 });
-Yogiyo.el('orderIdInput')?.addEventListener('keydown', event => {
-  if (event.key === 'Enter') Yogiyo.el('loadOrderButton').click();
+Yogiyo.el('storeIdInput')?.addEventListener('keydown', event => {
+  if (event.key === 'Enter') Yogiyo.el('loadStoreButton').click();
 });
 
-if (!/^\d+$/.test(orderId)) {
+if (!/^\d+$/.test(orderId) && !/^\d+$/.test(storeId)) {
   setContentVisible(false);
   Yogiyo.renderLoadState('customerLoadState', {
     tone: 'empty',
-    title: '주문 번호를 입력해 주세요.',
-    description: 'DB 초기화 후 전달받은 주문 번호를 입력하면 현재 주문 상태를 조회합니다.',
+    title: '매장 번호를 입력해 주세요.',
+    description: '매장 주문 중 취소되지 않은 한 건을 임의로 골라 현재 주문 상태를 조회합니다.',
   });
 } else {
-  stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), order => {
+  stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {
     refreshCustomer(order);
   }, {
     intervalMs: 5000,

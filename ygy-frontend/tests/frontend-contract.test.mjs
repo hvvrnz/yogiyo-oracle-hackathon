@@ -12,6 +12,17 @@ test('고객 화면은 전체 주문 상태와 배차 대기 안내를 유지한
   assert.match(source, /배차 제안 생성 대기 중/);
 });
 
+test('고객 화면은 매장 주문 중 취소되지 않은 한 건을 선택해 조회한다', () => {
+  const source = read('../static/customer/app.js');
+  const template = read('../static/customer/index.html');
+  assert.match(source, /apiClient\.merchants\.get\(storeId\)/);
+  assert.match(source, /order\.status !== 'CANCELLED'/);
+  assert.match(source, /Math\.random\(\) \* availableOrders\.length/);
+  assert.match(source, /\/customer\?storeId=/);
+  assert.match(template, /id="storeIdInput"/);
+  assert.doesNotMatch(template, /id="orderIdInput"/);
+});
+
 test('라이더 화면은 offers 수락 API와 404·409 경쟁 오류 안내를 유지한다', () => {
   const client = read('../static/backend-client.js');
   const screen = read('../static/rider/app.js');
@@ -40,6 +51,8 @@ test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공
   assert.match(source, /syncRiderOptions/);
   assert.match(source, /history\.replaceState/);
   assert.match(source, /resetMockDemo/);
+  assert.match(source, /customer\?storeId=/);
+  assert.doesNotMatch(source, /demoOrderId/);
 });
 
 test('패키지 상세 바텀시트는 포커스 복귀·포커스 가두기와 맥락 있는 버튼 레이블을 제공한다', () => {
