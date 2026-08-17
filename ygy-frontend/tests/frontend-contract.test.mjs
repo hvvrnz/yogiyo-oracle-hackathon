@@ -69,6 +69,8 @@ test('사장님 화면은 배차 제안·수락 단계를 구분하고 조리 �
   assert.match(client, /primary_order_id/);
   assert.doesNotMatch(template, /demoBulkCookStartButton/);
   assert.match(template, /id="offeredCount"/);
+  assert.match(template, /id="merchantExplanationContent"/);
+  assert.match(screen, /AI 조리·포장 안내/);
 });
 
 test('라이더 화면은 offers 수락 API와 404·409 경쟁 오류 안내를 유지한다', () => {
@@ -86,6 +88,9 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   const styles = read('../static/common.css');
   assert.match(screen, /class="offer-list"/);
   assert.match(screen, /data-offer-accept/);
+  assert.match(screen, /AI 수락 판단/);
+  assert.match(screen, /loadOfferExplanation/);
+  assert.match(screen, /explanations\.get\(packageId\)/);
   assert.match(screen, /data-offer-decline/);
   assert.match(screen, /data-offer-detail/);
   assert.match(screen, /function declineOffer/);

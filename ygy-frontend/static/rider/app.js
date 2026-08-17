@@ -13,6 +13,8 @@ let packageDetailTrigger;
 let offerSort = 'score';
 let recentlyAcceptedPackageId;
 let recentlyAcceptedTimer;
+const offerExplanationByPackageId = new Map();
+const offerExplanationRequestIds = new Map();
 const declinedOfferKeysByRider = new Map();
 const completedRouteStepsByPackage = new Map();
 // A package acceptance must immediately hide competing offers containing the
@@ -163,6 +165,37 @@ const explanationText = value => {
   const text = String(value || '').trim();
   return text || null;
 };
+
+const offerExplanationCard = pkg => {
+  const state = offerExplanationByPackageId.get(String(pkg.package_id));
+  if (state?.status === 'ready') {
+    return `<div class="offer-ai-guidance"><strong>AI 수락 판단</strong><span>${Yogiyo.escape(state.text)}</span></div>`;
+  }
+  if (state?.status === 'error') {
+    return `<div class="offer-ai-guidance unavailable"><strong>AI 수락 판단</strong><span>안내를 불러오지 못했습니다. 상세 정보에서 배차 조건을 확인해 주세요.</span></div>`;
+  }
+  return `<div class="offer-ai-guidance ${state?.status === 'missing' ? 'unavailable' : ''}"><strong>AI 수락 판단</strong><span>${state?.status === 'missing' ? 'AI 안내가 생성되면 이곳에서 수락 전 운행 요약을 확인할 수 있습니다.' : '수락 전 운행 리스크와 방문 순서를 확인하는 AI 안내를 불러오는 중입니다.'}</span></div>`;
+};
+
+function loadOfferExplanation(packageId) {
+  const key = String(packageId);
+  if (offerExplanationByPackageId.has(key)) return;
+  const requestId = (offerExplanationRequestIds.get(key) || 0) + 1;
+  offerExplanationRequestIds.set(key, requestId);
+  offerExplanationByPackageId.set(key, { status: 'loading' });
+  Yogiyo.apiClient.explanations.get(packageId)
+    .then(explanation => {
+      if (offerExplanationRequestIds.get(key) !== requestId) return;
+      const text = explanationText(explanation?.rider_text);
+      offerExplanationByPackageId.set(key, text ? { status: 'ready', text } : { status: 'missing' });
+      if (currentRider) renderRider(currentRider);
+    })
+    .catch(error => {
+      if (offerExplanationRequestIds.get(key) !== requestId) return;
+      offerExplanationByPackageId.set(key, error?.status === 404 ? { status: 'missing' } : { status: 'error', error });
+      if (currentRider) renderRider(currentRider);
+    });
+}
 
 const packageExplanationCard = state => {
   if (state?.status === 'ready') {
@@ -354,7 +387,7 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
     Yogiyo.el('riderOffers').innerHTML = `<div class="offer-list">${displayedOffers.map(pkg => {
       const score = Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '-';
       const revenue = Number.isFinite(Number(pkg.package_revenue)) ? Yogiyo.money(pkg.package_revenue) : '정보 없음';
-      return `<article class="offer-row"><div class="offer-main"><strong>패키지 ${Yogiyo.escape(pkg.package_id)}</strong><span>매칭 ${Yogiyo.escape(score)} · 예상 수익 ${Yogiyo.escape(revenue)}</span></div><div class="offer-actions"><button class="ghost-button" type="button" data-offer-detail="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 상세 조회">상세</button><button class="ghost-button" type="button" data-offer-decline="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 제안 거절">거절</button><button class="primary-button" type="button" data-offer-accept="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 제안 수락">수락</button></div></article>`;
+      return `<article class="offer-row"><div class="offer-main"><strong>패키지 ${Yogiyo.escape(pkg.package_id)}</strong><span>매칭 ${Yogiyo.escape(score)} · 예상 수익 ${Yogiyo.escape(revenue)}</span></div>${offerExplanationCard(pkg)}<div class="offer-actions"><button class="ghost-button" type="button" data-offer-detail="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 상세 조회">상세</button><button class="ghost-button" type="button" data-offer-decline="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 제안 거절">거절</button><button class="primary-button" type="button" data-offer-accept="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 제안 수락">수락</button></div></article>`;
     }).join('')}</div>`;
   }
 
@@ -368,6 +401,7 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
   Yogiyo.el('riderOffers').querySelectorAll('[data-offer-detail]').forEach(button => {
     button.addEventListener('click', event => openPackageDetail(Number(event.currentTarget.dataset.offerDetail), event.currentTarget));
   });
+  displayedOffers.forEach(pkg => loadOfferExplanation(pkg.package_id));
 
   Yogiyo.el('riderPackages').innerHTML = packages.length ? `<div class="assigned-package-list">${packages.map(pkg => {
     const score = Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '-';
