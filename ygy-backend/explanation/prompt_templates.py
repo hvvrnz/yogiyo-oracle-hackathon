@@ -130,6 +130,37 @@ def normalize_explanation_context(context):
     }
 
 
+def _role_scoped_context(normalized):
+    """Keep each role's prompt input limited to its decision-relevant facts."""
+    package = normalized["package"]
+    score_detail = package["score_detail"]
+    merchant = normalized["merchant_order"]
+    customer = normalized["customer_order"]
+    return {
+        "consumer_context": {
+            "delivery_status": customer.get("status"),
+            "package_type": package.get("package_type"),
+            "bundle_size": package.get("bundle_size"),
+            "total_time_min": score_detail.get("total_time"),
+            "food_sitting_time_min": score_detail.get("food_sitting_time"),
+        },
+        "merchant_context": {
+            "order_status": merchant.get("status"),
+            "owner_cook_min": merchant.get("owner_cook_min"),
+            "predicted_cook_min": merchant.get("predicted_cook_min"),
+        },
+        "rider_context": {
+            "package_type": package.get("package_type"),
+            "bundle_size": package.get("bundle_size"),
+            "package_revenue": package.get("package_revenue"),
+            "hourly_revenue": package.get("hourly_revenue"),
+            "total_time_min": score_detail.get("total_time"),
+            "courier_wait_time_min": score_detail.get("courier_wait_time"),
+            "food_sitting_time_min": score_detail.get("food_sitting_time"),
+        },
+    }
+
+
 def build_messages(context):
     """Build strict JSON messages for an OpenAI-compatible chat completion API."""
     context = context if isinstance(context, dict) else {}
@@ -142,7 +173,7 @@ def build_messages(context):
         "rider_profile": context.get("rider_profile"),
         "next_stop": context.get("next_stop"),
     })
-    data = json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
+    data = json.dumps(_role_scoped_context(normalized), ensure_ascii=False, separators=(",", ":"))
     user_prompt = """
 아래는 이미 확정된 배차 결과 데이터입니다.
 
@@ -151,9 +182,9 @@ def build_messages(context):
 작성 규칙:
 1. 세 text 값은 모두 1~3개의 개조식 줄로만 작성하세요. 각 줄은 반드시 "• "로 시작하고 줄바꿈(\n)으로 구분하세요.
 2. 제목, 인사, 도입 문장, 문단형 서술, "합니다/하세요" 같은 문장형 종결어미를 쓰지 마세요. "• 조리 기준: 20분"처럼 항목명과 값·판단 근거만 간결하게 쓰세요.
-3. consumer_text는 220자 이하의 고객 안내입니다. 다른 주문, 다른 고객, 주문 번호, 라이더 ID, 매장명, 묶음 상세, 라이더 수익을 언급하지 마세요.
-4. merchant_text는 300자 이하의 조리·포장 안내입니다. merchant_order의 조리시간과 상태, 제공된 경로 정보만 근거로 쓰세요. 제공되지 않은 포장 완료 시각이나 우선순위를 만들지 마세요.
-5. rider_text는 500자 이하의 수락 판단·운행 안내입니다. package의 수익·경로·시간 분석만 근거로 쓰세요. next_stop의 label/type은 화면 템플릿용이므로 문구에 반복하지 마세요.
+3. consumer_text는 220자 이하의 고객 안내입니다. BUNDLE이면 묶음 배차의 합리적 근거를 bundle_size, total_time_min, food_sitting_time_min 범위에서 설명하세요. 고객의 배달지, 다른 주문·고객, 주문 번호, 라이더 ID, 매장명, 라이더 수익은 언급하지 마세요.
+4. merchant_text는 300자 이하의 조리·포장 안내입니다. merchant_context의 본인 주문 조리시간과 상태만 근거로 쓰세요. 다른 매장, 다른 주문, 픽업 장소, 배달 경로, 픽업·배달 순서, 라이더 정보는 언급하지 마세요.
+5. rider_text는 500자 이하의 수락 판단 안내입니다. rider_context의 수익·총 소요시간·대기시간만 근거로 쓰세요. 경로, 픽업 장소, 배달지, 픽업·배달 순서, next_stop 정보는 언급하지 마세요. 이 정보는 화면의 별도 운행 영역에서 제공합니다.
 6. 점수는 결과값일 뿐 후보 간 우위를 증명하지 않습니다. 다른 후보보다 좋았다는 표현을 쓰지 마세요.
 7. 설명이 가능한 근거가 부족하면 그 사실을 짧고 정직한 개조식으로 안내하세요.
 """.strip().format(data=data)

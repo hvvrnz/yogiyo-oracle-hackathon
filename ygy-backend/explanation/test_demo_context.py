@@ -37,8 +37,11 @@ class DemoExplanationContextTest(unittest.TestCase):
     def test_prompt_requires_three_role_outputs(self):
         messages = build_messages(self.context)
         self.assertIn("merchant_text", messages[0]["content"])
-        self.assertIn("next_stop", messages[1]["content"])
         self.assertIn('각 줄은 반드시 "• "로 시작', messages[1]["content"])
+        self.assertIn("consumer_context", messages[1]["content"])
+        self.assertIn("rider_context", messages[1]["content"])
+        self.assertNotIn("delivery_address", messages[1]["content"])
+        self.assertNotIn("route_detail", messages[1]["content"])
 
     def test_validates_merchant_text_and_has_fallback(self):
         self.assertEqual(
@@ -49,6 +52,8 @@ class DemoExplanationContextTest(unittest.TestCase):
         self.assertIn("merchant_text", fallback)
         self.assertIn("20분", fallback["merchant_text"])
         self.assertTrue(all(line.startswith("• ") for line in fallback["rider_text"].splitlines()))
+        self.assertNotIn("방문 순서", fallback["rider_text"])
+        self.assertIn("묶음 배차", fallback["consumer_text"])
 
 
 if __name__ == "__main__":

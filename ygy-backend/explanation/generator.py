@@ -137,18 +137,39 @@ def demo_explanation_fallback(context):
     normalized = build_demo_explanation_context(context)
     merchant = normalized["merchant_order"]
     package = normalized["package"]
+    score_detail = package.get("score_detail") or {}
     owner_cook_min = merchant.get("owner_cook_min")
     package_ready = package.get("package_id") is not None
     merchant_text = "• 조리·포장 안내: 준비 중"
     if owner_cook_min is not None:
         merchant_text = "• 조리 기준: %s분\n• 조리·포장: 준비" % owner_cook_min
+    bundle_size = package.get("bundle_size")
+    total_time = score_detail.get("total_time")
+    food_sitting_time = score_detail.get("food_sitting_time")
+    consumer_lines = ["• 배송 상태: 배차 확정 대기"]
+    if package_ready:
+        consumer_lines = ["• 배송 상태: 배차 확정"]
+        if bundle_size:
+            consumer_lines.append("• 묶음 배차: %s건 동시 배송" % bundle_size)
+        if total_time is not None or food_sitting_time is not None:
+            metrics = []
+            if total_time is not None:
+                metrics.append("총 소요 %s분" % total_time)
+            if food_sitting_time is not None:
+                metrics.append("음식 대기 %s분" % food_sitting_time)
+            consumer_lines.append("• 배차 근거: %s 기준" % ", ".join(metrics))
+
     revenue = package.get("package_revenue")
     rider_lines = []
     if revenue is not None:
         rider_lines.append("• 예상 패키지 수익: %s원" % revenue)
-    rider_lines.append("• 방문 순서: 경로 정보 확인")
+    if total_time is not None:
+        rider_lines.append("• 예상 총 소요: %s분" % total_time)
+    courier_wait_time = score_detail.get("courier_wait_time")
+    if courier_wait_time is not None:
+        rider_lines.append("• 예상 대기: %s분" % courier_wait_time)
     return {
-        "consumer_text": "• 배송 상태: 배차 확정 대기" if not package_ready else "• 배송 상태: 배차 확정\n• 배송 진행: 준비 중",
+        "consumer_text": "\n".join(consumer_lines),
         "merchant_text": merchant_text,
-        "rider_text": "\n".join(rider_lines) if package_ready else "• 배차 제안: 준비 중",
+        "rider_text": "\n".join(rider_lines[:3]) if package_ready else "• 배차 제안: 준비 중",
     }
