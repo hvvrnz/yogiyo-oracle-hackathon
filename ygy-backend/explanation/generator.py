@@ -88,8 +88,14 @@ def _validated_text(result, field, maximum_length):
     value = result.get(field) if isinstance(result, dict) else None
     if not isinstance(value, str):
         raise LLMGenerationError("배차 설명 생성 결과에 필요한 문구가 없습니다.")
-    text = value.strip()
-    if not text or len(text) > maximum_length or "\x00" in text:
+    lines = [line.strip() for line in value.splitlines() if line.strip()]
+    if not lines:
+        raise LLMGenerationError("배차 설명 문구가 허용 형식을 벗어났습니다.")
+    text = "\n".join(
+        "• " + line.lstrip("•-* ").strip()
+        for line in lines
+    )
+    if len(lines) > 3 or len(text) > maximum_length or "\x00" in text:
         raise LLMGenerationError("배차 설명 문구가 허용 형식을 벗어났습니다.")
     return text
 
@@ -133,11 +139,16 @@ def demo_explanation_fallback(context):
     package = normalized["package"]
     owner_cook_min = merchant.get("owner_cook_min")
     package_ready = package.get("package_id") is not None
-    merchant_text = "조리·포장 안내를 준비 중입니다."
+    merchant_text = "• 조리·포장 안내: 준비 중"
     if owner_cook_min is not None:
-        merchant_text = "설정한 조리시간 %s분을 기준으로 조리·포장을 준비해 주세요." % owner_cook_min
+        merchant_text = "• 조리 기준: %s분\n• 조리·포장: 준비" % owner_cook_min
+    revenue = package.get("package_revenue")
+    rider_lines = []
+    if revenue is not None:
+        rider_lines.append("• 예상 패키지 수익: %s원" % revenue)
+    rider_lines.append("• 방문 순서: 경로 정보 확인")
     return {
-        "consumer_text": "배차가 확정되면 배송 진행 상황을 안내해 드립니다." if not package_ready else "배차가 확정되어 배송을 준비하고 있습니다.",
+        "consumer_text": "• 배송 상태: 배차 확정 대기" if not package_ready else "• 배송 상태: 배차 확정\n• 배송 진행: 준비 중",
         "merchant_text": merchant_text,
-        "rider_text": "패키지의 수익과 방문 순서를 확인한 뒤 수락해 주세요." if package_ready else "배차 제안 정보를 준비 중입니다.",
+        "rider_text": "\n".join(rider_lines) if package_ready else "• 배차 제안: 준비 중",
     }

@@ -38,12 +38,17 @@ class DemoExplanationContextTest(unittest.TestCase):
         messages = build_messages(self.context)
         self.assertIn("merchant_text", messages[0]["content"])
         self.assertIn("next_stop", messages[1]["content"])
+        self.assertIn('각 줄은 반드시 "• "로 시작', messages[1]["content"])
 
     def test_validates_merchant_text_and_has_fallback(self):
-        self.assertEqual(_validated_text({"merchant_text": "포장을 준비해 주세요."}, "merchant_text", 300), "포장을 준비해 주세요.")
+        self.assertEqual(
+            _validated_text({"merchant_text": "- 조리 기준: 20분\n포장 상태: 준비"}, "merchant_text", 300),
+            "• 조리 기준: 20분\n• 포장 상태: 준비",
+        )
         fallback = demo_explanation_fallback(self.context)
         self.assertIn("merchant_text", fallback)
         self.assertIn("20분", fallback["merchant_text"])
+        self.assertTrue(all(line.startswith("• ") for line in fallback["rider_text"].splitlines()))
 
 
 if __name__ == "__main__":

@@ -41,6 +41,7 @@ test('사장님 화면은 조리 시작 응답의 동시 시작 매장을 안내
   assert.match(source, /매장 조리 시작됨/);
   assert.match(source, /apiClient\.demo\.stores\(\)/);
   assert.match(source, /merchant_text/);
+  assert.match(source, /explanation-copy/);
   assert.doesNotMatch(source, /demoTrigger|updateCookTime|apiClient\.merchants/);
 });
 

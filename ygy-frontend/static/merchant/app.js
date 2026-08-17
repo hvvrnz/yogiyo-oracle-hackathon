@@ -193,7 +193,7 @@ function renderMerchant(view, store) {
       : counts.COOKING
       ? '조리 중 주문을 30초 단위로 클러스터링해 라이더에게 배차 제안을 생성합니다.'
       : '조리 시작 후 배차 제안이 생성되면 패키지와 라이더 정보가 표시됩니다.';
-  Yogiyo.el('merchantExplanationContent').innerHTML = `<span>✦</span><div><strong>AI 조리·포장 안내</strong><span>${Yogiyo.escape(merchantExplanationPlaceholder(activeOrder))}</span></div>`;
+  Yogiyo.el('merchantExplanationContent').innerHTML = `<span>✦</span><div><strong>AI 조리·포장 안내</strong><span class="explanation-copy">${Yogiyo.escape(merchantExplanationPlaceholder(activeOrder))}</span></div>`;
   renderMerchantFutureSlot();
 }
 
