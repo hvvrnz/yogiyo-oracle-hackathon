@@ -127,30 +127,26 @@ test('라이더는 묶음 패키지의 방문 단계를 순서대로 처리한�
   assert.match(styles, /\.route-stop-list/);
 });
 
-test('통합 시연은 권역별 라이더 필터와 URL 선택 상태를 제공한다', () => {
+test('통합 시연은 선택 패널 없이 기본 시연 화면을 로드한다', () => {
   const source = read('../static/demo/app.js');
   const template = read('../static/demo/index.html');
-  assert.match(source, /riderIdsByRegion/);
-  assert.match(source, /syncRiderOptions/);
+  assert.match(source, /const demoStoreId/);
+  assert.match(source, /const demoRiderId/);
+  assert.match(source, /loadDemoPanels\(\)/);
   assert.match(source, /history\.replaceState/);
-  assert.match(source, /resetMockDemo/);
   assert.match(source, /mockMode && !demoStartupQuery\.has\('keepMock'\)/);
   assert.match(source, /Yogiyo\.resetMock\(\)/);
   assert.match(source, /customer\?storeId=/);
   assert.doesNotMatch(source, /demoOrderId/);
-  assert.match(source, /hongdaeSoloPreset/);
-  assert.match(source, /futureSlotPreset/);
-  assert.match(source, /futureSlot=demo/);
-  assert.match(source, /목업 Future Slot 시연을 적용했습니다/);
-  assert.match(source, /apiClient\.merchants\.get\(preset\.storeId\)/);
+  assert.match(source, /apiClient\.merchants\.get\(storeId\)/);
   assert.match(source, /apiClient\.customers\.getDemoActive\(\)/);
   assert.match(source, /demoActive=1/);
   assert.match(source, /&orderId=\$\{encodeURIComponent\(orderId\)\}/);
   assert.match(source, /주문 \$\{orderId\}/);
   assert.match(source, /order\.status === 'NEW' && !order\.package_id/);
   assert.doesNotMatch(source, /order\.status !== 'CANCELLED'/);
-  assert.match(template, /id="hongdaeSoloPresetButton"/);
-  assert.match(template, /id="futureSlotPresetButton"/);
+  assert.doesNotMatch(template, /테스트 화면 선택/);
+  assert.doesNotMatch(template, /demoStoreId|demoRiderId|applyDemoSelection/);
 });
 
 test('Future Slot 시연은 세 역할 화면에 미래 시간 예약과 경로 불변 안내를 표시한다', () => {
