@@ -39,19 +39,19 @@
         const data = await request('/api/demo/merchant/next-to-cook');
         return data?.order_id == null ? data : normalizeOrder(data);
       },
-      merchantCookStart: () => request('/api/demo/merchant/cook-start', { method: 'POST' }),
+      merchantCookStart: ownerCookMin => request('/api/demo/merchant/cook-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }),
+      }),
       riderOffers: async () => {
         const data = await request('/api/demo/rider/offers');
         return { ...data, offers: asArray(data.offers).map(normalizePackage) };
       },
       riderProfile: async () => normalizeRider(await request('/api/demo/rider/profile')),
-      riderPackages: async () => {
-        const data = await request('/api/demo/rider/packages');
-        return { ...data, current_lat: toNumber(data.current_lat), current_lng: toNumber(data.current_lng), packages: asArray(data.packages).map(normalizePackage) };
-      },
       acceptPackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/accept`, { method: 'PUT' }),
-      pickupPackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/pickup`, { method: 'PUT' }),
-      completePackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/complete`, { method: 'PUT' }),
+      riderNextStop: () => request('/api/demo/rider/next-stop'),
+      riderArrive: () => request('/api/demo/rider/arrive', { method: 'POST' }),
       stores: async () => {
         const data = await request('/api/demo/stores');
         return { ...data, stores: asArray(data.stores).map(store => ({ ...store, lat: toNumber(store.lat), lng: toNumber(store.lng) })) };
