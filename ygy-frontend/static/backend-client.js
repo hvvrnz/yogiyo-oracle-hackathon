@@ -1,20 +1,8 @@
 (() => {
   const config = window.__YGY_CONFIG__ || {};
   const apiBaseUrl = String(config.apiBaseUrl || '').replace(/\/+$/, '');
-  const apiPaths = config.apiPaths && typeof config.apiPaths === 'object' ? config.apiPaths : {};
-  const defaultIds = Object.freeze({
-    customer: String(config.defaultOrderId ?? ''),
-    merchant: String(config.defaultStoreId || '889'),
-    rider: String(config.defaultRiderId || 'rider_12'),
-  });
+  const defaultIds = Object.freeze({ customer: '90001', merchant: '889', rider: 'rider_12' });
 
-  const endpoint = (name, fallback, params = {}) => {
-    const template = String(apiPaths[name] || fallback);
-    return template.replace(/:([A-Za-z][A-Za-z0-9_]*)/g, (_, key) => {
-      if (!(key in params)) throw new Error(`VITE_API_PATHS.${name}에 필요한 :${key} 값이 없습니다.`);
-      return encodeURIComponent(params[key]);
-    });
-  };
   const parseJson = (value, fallback) => {
     if (value == null || value === '') return fallback;
     if (typeof value !== 'string') return value;
@@ -22,56 +10,17 @@
   };
   const asArray = value => Array.isArray(value) ? value : [];
   const toNumber = value => value == null || value === '' ? null : Number(value);
-  const normalizeMenuItems = value => asArray(parseJson(value, [])).map(item => ({
-    ...item,
-    menu: item.menu ?? item.name ?? '메뉴',
-    qty: Number(item.qty ?? item.quantity ?? 0),
-    price: Number(item.price ?? 0),
-  }));
-  const normalizeRoute = value => asArray(parseJson(value, [])).map((step, index) => ({
-    ...step,
-    type: String(step.type || '').toLowerCase(),
-    sequence: Number(step.sequence ?? index + 1),
-  }));
-  const normalizeScoreDetail = value => {
-    const detail = parseJson(value, {});
-    return detail && typeof detail === 'object' && !Array.isArray(detail) ? detail : {};
-  };
-  const normalizePackage = pkg => ({
-    ...pkg,
-    package_id: Number(pkg.package_id),
-    bundle_size: Number(pkg.bundle_size ?? 0),
-    score: toNumber(pkg.score),
-    package_revenue: Number(pkg.package_revenue ?? 0),
-    hourly_revenue: Number(pkg.hourly_revenue ?? 0),
-    order_ids: asArray(parseJson(pkg.order_ids, [])),
-    route_detail: normalizeRoute(pkg.route_detail),
-    score_detail: normalizeScoreDetail(pkg.score_detail),
-  });
-  const normalizeRider = rider => ({
-    ...rider,
-    lat: toNumber(rider.lat ?? rider.current_lat),
-    lng: toNumber(rider.lng ?? rider.current_lng),
-    completed_order_count: Number(rider.completed_order_count ?? 0),
-  });
-  const normalizeMerchantOrder = order => ({
-    ...order,
-    menu_items: normalizeMenuItems(order.menu_items),
-    route_detail: normalizeRoute(order.route_detail),
-    owner_cook_min: toNumber(order.owner_cook_min),
-    predicted_cook_min: toNumber(order.predicted_cook_min),
-    eta_min: toNumber(order.eta_min),
-  });
+  const normalizeMenuItems = value => asArray(parseJson(value, [])).map(item => ({ ...item, menu: item.menu ?? item.name ?? '메뉴', qty: Number(item.qty ?? item.quantity ?? 0), price: Number(item.price ?? 0) }));
+  const normalizeRoute = value => asArray(parseJson(value, [])).map((step, index) => ({ ...step, type: String(step.type || '').toLowerCase(), sequence: Number(step.sequence ?? index + 1) }));
+  const normalizePackage = pkg => ({ ...pkg, package_id: Number(pkg.package_id), bundle_size: Number(pkg.bundle_size ?? 0), score: toNumber(pkg.score), package_revenue: Number(pkg.package_revenue ?? 0), hourly_revenue: Number(pkg.hourly_revenue ?? 0), order_ids: asArray(parseJson(pkg.order_ids, [])), route_detail: normalizeRoute(pkg.route_detail), score_detail: parseJson(pkg.score_detail, {}) || {} });
+  const normalizeOrder = order => ({ ...order, menu_items: normalizeMenuItems(order.menu_items), route_detail: normalizeRoute(order.route_detail), eta_min: toNumber(order.eta_min) });
+  const normalizeRider = rider => ({ ...rider, lat: toNumber(rider.lat ?? rider.current_lat), lng: toNumber(rider.lng ?? rider.current_lng), completed_order_count: Number(rider.completed_order_count ?? 0) });
 
   const request = async (path, options = {}) => {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
-    if (options.body != null && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
     let response;
-    try {
-      response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
-    } catch {
-      throw new Error('백엔드 서버에 연결할 수 없습니다. http://localhost:8000 실행 상태를 확인해 주세요.');
-    }
+    try { response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers }); }
+    catch { throw new Error('백엔드 서버에 연결할 수 없습니다. http://localhost:8000 실행 상태를 확인해 주세요.'); }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(data.detail || data.message || `요청에 실패했습니다. (${response.status})`);
@@ -83,92 +32,30 @@
   };
 
   const apiClient = Object.freeze({
-    customers: Object.freeze({
-      getDemoActive: () => request(endpoint('customerDemoActive', '/api/customer/demo/active')),
-      get: async orderId => {
-        const data = await request(endpoint('customer', '/api/customer/:orderId', { orderId }));
-        return { ...data, menu_items: normalizeMenuItems(data.menu_items), eta_min: toNumber(data.eta_min) };
+    demo: Object.freeze({
+      reset: () => request('/api/demo/reset', { method: 'POST' }),
+      customerOrder: async () => normalizeOrder(await request('/api/demo/customer/order')),
+      merchantNextToCook: async () => {
+        const data = await request('/api/demo/merchant/next-to-cook');
+        return data?.order_id == null ? data : normalizeOrder(data);
       },
-      cancel: orderId => request(endpoint('customerCancel', '/api/customer/:orderId', { orderId }), { method: 'DELETE' }),
-    }),
-    merchants: Object.freeze({
-      get: async storeId => {
-        const data = await request(endpoint('merchant', '/api/merchant/:storeId', { storeId }));
-        return {
-          ...data,
-          orders: asArray(data.orders).map(normalizeMerchantOrder),
-        };
-      },
-      nextToCook: async () => normalizeMerchantOrder(await request(endpoint('merchantNextToCook', '/api/merchant/next-to-cook'))),
-      updateCookTime: (orderId, ownerCookMin) => request(
-        endpoint('merchantCookTime', '/api/merchant/orders/:orderId/cook-time', { orderId }),
-        { method: 'PUT', body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }) },
-      ),
-      demoTrigger: ({ primaryStoreId, primaryOrderId, ownerCookMin }) => request(
-        endpoint('merchantDemoTrigger', '/api/merchant/demo-trigger'),
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            primary_store_id: Number(primaryStoreId),
-            primary_order_id: Number(primaryOrderId),
-            owner_cook_min: Number(ownerCookMin),
-          }),
-        },
-      ),
-    }),
-    riders: Object.freeze({
-      list: async () => {
-        const data = await request(endpoint('riders', '/api/rider'));
-        return { ...data, riders: asArray(data.riders).map(normalizeRider) };
-      },
-      get: async riderId => {
-        const data = await request(endpoint('rider', '/api/rider/:riderId', { riderId }));
-        return {
-          ...data,
-          current_lat: toNumber(data.current_lat),
-          current_lng: toNumber(data.current_lng),
-          packages: asArray(data.packages).map(normalizePackage),
-        };
-      },
-      getEarnings: async riderId => {
-        const data = await request(endpoint('riderEarnings', '/api/rider/:riderId/earnings', { riderId }));
-        return {
-          ...data,
-          total_package_count: Number(data.total_package_count ?? 0),
-          completed_count: Number(data.completed_count ?? 0),
-          total_revenue: Number(data.total_revenue ?? 0),
-          packages: asArray(data.packages).map(normalizePackage),
-        };
-      },
-      profile: async riderId => normalizeRider(await request(endpoint('riderProfile', '/api/rider/:riderId/profile', { riderId }))),
-      offers: async riderId => {
-        const data = await request(endpoint('riderOffers', '/api/rider/:riderId/offers', { riderId }));
+      merchantCookStart: () => request('/api/demo/merchant/cook-start', { method: 'POST' }),
+      riderOffers: async () => {
+        const data = await request('/api/demo/rider/offers');
         return { ...data, offers: asArray(data.offers).map(normalizePackage) };
       },
-      accept: (riderId, packageId) => request(endpoint('riderAccept', '/api/rider/:riderId/package/:packageId/accept', { riderId, packageId }), { method: 'PUT' }),
-      pickup: (riderId, packageId) => request(endpoint('riderPickup', '/api/rider/:riderId/package/:packageId/pickup', { riderId, packageId }), { method: 'PUT' }),
-      complete: (riderId, packageId) => request(endpoint('riderComplete', '/api/rider/:riderId/package/:packageId/complete', { riderId, packageId }), { method: 'PUT' }),
-    }),
-    packages: Object.freeze({
-      get: async packageId => normalizePackage(await request(endpoint('package', '/api/package/:packageId', { packageId }))),
-    }),
-    stores: Object.freeze({
-      list: async () => {
-        const data = await request(endpoint('stores', '/api/stores'));
+      riderProfile: async () => normalizeRider(await request('/api/demo/rider/profile')),
+      riderPackages: async () => {
+        const data = await request('/api/demo/rider/packages');
+        return { ...data, current_lat: toNumber(data.current_lat), current_lng: toNumber(data.current_lng), packages: asArray(data.packages).map(normalizePackage) };
+      },
+      acceptPackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/accept`, { method: 'PUT' }),
+      pickupPackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/pickup`, { method: 'PUT' }),
+      completePackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/complete`, { method: 'PUT' }),
+      stores: async () => {
+        const data = await request('/api/demo/stores');
         return { ...data, stores: asArray(data.stores).map(store => ({ ...store, lat: toNumber(store.lat), lng: toNumber(store.lng) })) };
       },
-    }),
-    explanations: Object.freeze({
-      context: async packageId => {
-        const data = await request(endpoint('explanationContext', '/api/explanation/context/:packageId', { packageId }));
-        return {
-          ...data,
-          package: normalizePackage(data.package || {}),
-          orders: asArray(data.orders).map(order => ({ ...order, menu_items: normalizeMenuItems(order.menu_items) })),
-        };
-      },
-      save: body => request(endpoint('explanation', '/api/explanation'), { method: 'POST', body: JSON.stringify(body) }),
-      get: packageId => request(endpoint('explanationByPackage', '/api/explanation/:packageId', { packageId })),
     }),
   });
 
@@ -187,13 +74,5 @@
     return () => { stopped = true; window.clearInterval(timer); };
   };
 
-  Object.assign(window.Yogiyo, {
-    api: request,
-    apiClient,
-    apiUrl: path => `${apiBaseUrl}${path}`,
-    defaultIds,
-    poll,
-    pollRiders: (onData, options) => poll(() => apiClient.riders.list(), onData, options),
-    useMock: false,
-  });
+  Object.assign(window.Yogiyo, { api: request, apiClient, apiUrl: path => `${apiBaseUrl}${path}`, defaultIds, poll, useMock: false });
 })();
