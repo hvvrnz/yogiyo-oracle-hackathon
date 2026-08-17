@@ -60,6 +60,8 @@ test('사장님 화면은 배차 제안·수락 단계를 구분하고 조리 �
   assert.match(screen, /apiClient\.merchants\.nextToCook\(\)/);
   assert.doesNotMatch(screen, /apiClient\.merchants\.get\(storeId\)/);
   assert.match(client, /\/api\/merchant\/next-to-cook/);
+  assert.match(screen, /locallyStartedOrderIds/);
+  assert.match(screen, /조리 시작 요청 완료 · 상태 갱신 중/);
   assert.match(client, /primary_store_id/);
   assert.match(client, /primary_order_id/);
   assert.doesNotMatch(template, /demoBulkCookStartButton/);
@@ -96,8 +98,10 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /class="assigned-package-row/);
   assert.match(screen, /패키지 \$\{pkg\.package_id\} 상세 배차 정보 보기/);
   assert.match(screen, /예상 패키지 수익/);
-  assert.match(screen, /픽업 후 \$\{completeLabel\}/);
-  assert.match(screen, /\$\{pickupCount\}곳 픽업 완료/);
+  assert.match(screen, /routeActionControls/);
+  assert.match(screen, /data-route-step/);
+  assert.match(screen, /assigned-route-panel/);
+  assert.match(screen, /모든 픽업 완료 시에만 고객 주문을 픽업 완료로 전환합니다/);
   assert.match(screen, /OFFERED → MATCHING으로 전환됩니다/);
   assert.match(screen, /서버에는 저장되지 않습니다/);
   assert.match(screen, /isFutureReservation/);
@@ -107,6 +111,7 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(styles, /\.offer-list-notice/);
   assert.match(styles, /\.assigned-package-list/);
   assert.match(styles, /\.assigned-package-row/);
+  assert.match(styles, /\.assigned-route-panel/);
   assert.match(styles, /package-accepted-pulse/);
 });
 
