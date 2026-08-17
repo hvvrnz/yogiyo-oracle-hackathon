@@ -7,9 +7,9 @@ window.Yogiyo = (() => {
   const useMock = String(config.useMock ?? 'false').toLowerCase() === 'true';
   const apiBaseUrl = String(config.apiBaseUrl || '').replace(/\/+$/, '');
   const defaultIds = Object.freeze({
-    customer: String(config.defaultOrderId || '118'),
-    merchant: String(config.defaultStoreId || '781'),
-    rider: String(config.defaultRiderId || 'rider_102'),
+    customer: String(config.defaultOrderId ?? ''),
+    merchant: String(config.defaultStoreId || '889'),
+    rider: String(config.defaultRiderId || 'rider_12'),
   });
   const cleanups = [];
 

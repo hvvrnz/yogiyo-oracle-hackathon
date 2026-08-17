@@ -1,4 +1,10 @@
-const orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
+let orderId = Yogiyo.qs('orderId', Yogiyo.defaultIds.customer);
+const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
+const isDirectOrderLookup = /^\d+$/.test(orderId);
+const useDemoActiveOrder = Yogiyo.qs('demoActive') === '1';
+const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
+let usingDemoActiveOrder = false;
+let demoAcceptedAssignment;
 let currentOrder;
 let stopPolling;
 let stopRiderPolling;
@@ -10,19 +16,25 @@ let customerExplanationPackageId;
 let customerExplanationRequestId = 0;
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED']);
+const assignmentConfirmedStatuses = new Set(['MATCHING', 'MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
+const hasPackage = order => order?.package_id != null && order?.package_id !== '';
+const hasAssignedRider = order => order?.rider_id != null && order?.rider_id !== '';
+const hasConfirmedAssignment = order => hasPackage(order) && (assignmentConfirmedStatuses.has(order?.status) || hasAssignedRider(order));
+const hasOfferedPackage = order => order?.status === 'COOKING' && hasPackage(order) && !hasAssignedRider(order);
 const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
 const showCustomerFailure = (error, { action = false } = {}) => {
   setConnection(false);
   if (!currentOrder) setContentVisible(false);
   Yogiyo.renderLoadState('customerLoadState', {
-    title: action ? '주문을 취소하지 못했습니다.' : error?.status === 404 ? '주문을 찾을 수 없습니다.' : '주문 정보를 불러오지 못했습니다.',
-    description: action ? Yogiyo.errorMessage(error, '주문 취소') : Yogiyo.errorMessage(error, '주문'),
+    title: action ? '주문을 취소하지 못했습니다.' : error?.status === 404 ? '매장 주문을 찾을 수 없습니다.' : '주문 정보를 불러오지 못했습니다.',
+    description: action ? Yogiyo.errorMessage(error, '주문 취소') : Yogiyo.errorMessage(error, isDirectOrderLookup ? '주문' : '매장 주문'),
     onRetry: () => loadCustomer(),
   });
 };
 
 const statusMeta = {
-  NEW: { label: '신규 주문', progress: 0, message: '주문이 접수되어 배차를 기다리고 있어요.' },
+  NEW: { label: '신규 주문', progress: 0, message: '주문이 접수되었습니다. 매장에서 주문을 확인하고 있어요.' },
+  COOKING: { label: '조리 중', progress: 1, message: '음식을 조리하고 있어요. 배차 제안을 준비하고 있습니다.' },
   MATCHED: { label: '배차 완료', progress: 3, message: '배차가 완료되었습니다. 라이더가 픽업을 준비하고 있어요.' },
   PICKED_UP: { label: '픽업 완료', progress: 5, message: '라이더가 음식을 픽업해 배달 중이에요.' },
   DELIVERED: { label: '배달 완료', progress: 6, message: '배달이 완료되었습니다.' },
@@ -74,7 +86,7 @@ function renderCustomerExplanation() {
   }
 
   const isMissing = state.status === 'missing';
-  content.innerHTML = `<div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? '배차 안내를 준비 중입니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '안내 문구가 생성되면 이곳에 표시됩니다.' : Yogiyo.escape(Yogiyo.errorMessage(state.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-customer-explanation-retry>다시 확인</button></div></div>`;
+  content.innerHTML = `<div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? 'LLM 배차 안내 생성 준비 중입니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '현재는 저장된 안내를 조회합니다. 생성된 문구가 준비되면 이곳에 표시됩니다.' : Yogiyo.escape(Yogiyo.errorMessage(state.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-customer-explanation-retry>다시 확인</button></div></div>`;
   content.querySelector('[data-customer-explanation-retry]').addEventListener('click', () => {
     loadCustomerExplanation(state.packageId, { force: true });
   });
@@ -105,7 +117,7 @@ async function loadCustomerExplanation(packageId, { force = false } = {}) {
 
 function syncCustomerExplanation(order) {
   const packageId = order.package_id;
-  if (packageId == null || packageId === '') {
+  if (!hasConfirmedAssignment(order)) {
     customerExplanationRequestId += 1;
     customerExplanationPackageId = undefined;
     customerExplanation = undefined;
@@ -114,10 +126,35 @@ function syncCustomerExplanation(order) {
   loadCustomerExplanation(packageId);
 }
 
+function customerStatusMeta(order) {
+  if (hasConfirmedAssignment(order) && !['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED'].includes(order?.status)) {
+    return statusMeta.MATCHED;
+  }
+  if (hasOfferedPackage(order)) {
+    return {
+      label: '배차 제안됨',
+      progress: 1,
+      message: '조리 중인 주문의 배차 제안이 생성되었습니다. 라이더의 수락을 기다리고 있어요.',
+    };
+  }
+  return statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
+}
+
+function renderCustomerFutureSlot() {
+  const section = Yogiyo.el('customerFutureSlotSection');
+  section.hidden = !futureSlotDemo;
+  if (!futureSlotDemo) return;
+  Yogiyo.el('customerFutureSlotContent').innerHTML = '<div class="future-slot-card"><div class="future-slot-head"><strong>음식 완성 시점에 맞춘 라이더 방문 예약</strong><span class="badge good">예상 대기 0분</span></div><div class="future-slot-grid"><span>음식 완료 예정 <b>18:27</b></span><span>라이더 도착 예정 <b>18:27</b></span></div><p>현재 운행 경로는 변경하지 않고, 다음 운행만 미리 예약한 시연용 상태입니다.</p></div>';
+}
+
 function renderCustomer(order) {
   currentOrder = order;
-  const meta = statusMeta[order.status] || { label: order.status || '상태 확인 중', progress: 0, message: '주문 상태를 확인하고 있어요.' };
-  const etaLabel = order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
+  const meta = customerStatusMeta(order);
+  const assignmentConfirmed = hasConfirmedAssignment(order);
+  const etaLabel = !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
+    ? order.status === 'NEW' ? '매장 확인 대기 중'
+      : hasOfferedPackage(order) ? '라이더 수락 대기 중' : '배차 제안 생성 대기 중'
+    : order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
   const riderMap = currentRider
     ? Yogiyo.mapData.fromRiderProfile({ ...currentRider, rider_id: currentRiderId, meta: { selected: true } })
@@ -128,17 +165,22 @@ function renderCustomer(order) {
   Yogiyo.el('etaWindow').textContent = etaLabel;
   Yogiyo.el('currentMessage').textContent = meta.message;
   Yogiyo.el('deliveryOrder').textContent = meta.label;
-  Yogiyo.el('etaUpdated').textContent = '주문 API 기준';
+  Yogiyo.el('etaUpdated').textContent = usingDemoActiveOrder ? '현재 시연 주문 자동 조회' : isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
   Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(meta.label)}`;
   Yogiyo.el('storeName').textContent = order.store_name;
   Yogiyo.el('menuSummary').textContent = menuSummary(items);
   Yogiyo.el('remainingMin').textContent = order.status === 'CANCELLED' ? '취소됨' : etaLabel;
-  Yogiyo.el('packageId').textContent = order.package_id == null ? '배차 번호 배정 전' : `배차 번호 ${order.package_id}`;
+  Yogiyo.el('packageId').textContent = assignmentConfirmed
+    ? `배차 번호 ${order.package_id}`
+    : hasOfferedPackage(order) ? `배차 제안 ${order.package_id} · 라이더 수락 대기`
+      : order.status === 'COOKING' ? '배차 제안 생성 대기 중'
+      : order.status === 'CANCELLED' ? '배차 취소됨' : '배차 번호 배정 전';
   [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= meta.progress));
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
   Yogiyo.renderMap('customerMap', map);
   Yogiyo.el('riderStep').textContent = riderLocationLabel();
+  renderCustomerFutureSlot();
   renderCustomerExplanation();
 
   const cancelButton = Yogiyo.el('createOrderButton');
@@ -191,15 +233,62 @@ function syncAssignedRider(order) {
   startRiderPolling(riderId);
 }
 
+function mergeDemoAcceptedAssignment(order) {
+  const assignment = demoAcceptedAssignment;
+  if (!assignment || !order) return order;
+  const orderIds = assignment.orderIds || [];
+  const matchesPackage = String(order.package_id ?? '') === String(assignment.packageId);
+  const matchesOrder = orderIds.some(orderId => String(orderId) === String(order.order_id));
+  if (!matchesPackage && !matchesOrder) return order;
+  return {
+    ...order,
+    package_id: order.package_id ?? assignment.packageId,
+    rider_id: order.rider_id ?? assignment.riderId,
+    status: ['COOKING', 'MATCHING'].includes(order.status) ? 'MATCHED' : order.status,
+  };
+}
+
 function refreshCustomer(order) {
-  syncAssignedRider(order);
-  syncCustomerExplanation(order);
-  renderCustomer(order);
+  const resolvedOrder = mergeDemoAcceptedAssignment(order);
+  syncAssignedRider(resolvedOrder);
+  syncCustomerExplanation(resolvedOrder);
+  renderCustomer(resolvedOrder);
+}
+
+function noStoreOrderError() {
+  const error = new Error('선택한 매장에 조회할 수 있는 주문이 없습니다. 통합 시연 또는 URL의 매장 번호를 확인해 주세요.');
+  error.status = 404;
+  return error;
+}
+
+async function loadSelectedCustomerOrder() {
+  if (isDirectOrderLookup && !useDemoActiveOrder) return Yogiyo.apiClient.customers.get(orderId);
+  try {
+    const active = await Yogiyo.apiClient.customers.getDemoActive();
+    const activeOrderId = String(active?.order_id || '');
+    if (!/^\d+$/.test(activeOrderId)) throw noStoreOrderError();
+    usingDemoActiveOrder = true;
+    return Yogiyo.apiClient.customers.get(activeOrderId);
+  } catch (error) {
+    if (error?.status !== 404) throw error;
+    usingDemoActiveOrder = false;
+  }
+  if (!/^\d+$/.test(storeId)) throw noStoreOrderError();
+
+  const merchant = await Yogiyo.apiClient.merchants.get(storeId);
+  const availableOrders = (merchant.orders || []).filter(order => (
+    /^\d+$/.test(String(order.order_id ?? '')) && order.status !== 'CANCELLED'
+  ));
+  if (!availableOrders.length) throw noStoreOrderError();
+
+  const selectedOrder = availableOrders[Math.floor(Math.random() * availableOrders.length)];
+  orderId = String(selectedOrder.order_id);
+  return Yogiyo.apiClient.customers.get(orderId);
 }
 
 async function loadCustomer({ silent = false } = {}) {
   try {
-    refreshCustomer(await Yogiyo.apiClient.customers.get(orderId));
+    refreshCustomer(await loadSelectedCustomerOrder());
   } catch (error) {
     showCustomerFailure(error);
     if (!silent) Yogiyo.toast(error.message);
@@ -219,22 +308,21 @@ async function cancelOrder() {
   }
 }
 
-function switchOrder(nextOrderId) {
-  location.href = `/customer?orderId=${encodeURIComponent(nextOrderId)}`;
-}
-
-Yogiyo.el('orderIdInput').value = orderId;
 Yogiyo.el('createOrderButton').addEventListener('click', event => Yogiyo.withPending(event.currentTarget, cancelOrder));
-Yogiyo.el('loadOrderButton')?.addEventListener('click', () => {
-  const nextOrderId = Yogiyo.el('orderIdInput').value.trim();
-  if (!/^\d+$/.test(nextOrderId)) { Yogiyo.toast('숫자로 된 주문 번호를 입력해 주세요.'); return; }
-  switchOrder(nextOrderId);
-});
-Yogiyo.el('orderIdInput')?.addEventListener('keydown', event => {
-  if (event.key === 'Enter') Yogiyo.el('loadOrderButton').click();
+
+window.addEventListener('message', event => {
+  if (event.origin !== window.location.origin || event.source !== window.parent) return;
+  const { type, packageId, riderId, orderIds } = event.data || {};
+  if (type !== 'ygy:customer-package-accepted' || packageId == null || !riderId) return;
+  demoAcceptedAssignment = {
+    packageId,
+    riderId,
+    orderIds: Array.isArray(orderIds) ? orderIds : [],
+  };
+  if (currentOrder) refreshCustomer(currentOrder);
 });
 
-stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.customers.get(orderId), order => {
+stopPolling = Yogiyo.poll(() => loadSelectedCustomerOrder(), order => {
   refreshCustomer(order);
 }, {
   intervalMs: 5000,

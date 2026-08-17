@@ -1,15 +1,22 @@
 (() => {
-  const storageKey = 'ygy-frontend-api-compatible-mock-v3';
+  const storageKey = 'ygy-frontend-api-compatible-mock-v7';
   const clone = value => JSON.parse(JSON.stringify(value));
   const createError = (message, status = 400) => Object.assign(new Error(message), { status });
   const initialState = () => ({
     stores: [
+      { store_id: 889, name: '목업 강남889점', category: '한식', region: '강남', lat: 37.4982, lng: 127.0276 },
+      { store_id: 894, name: '목업 강남894점', category: '치킨', region: '강남', lat: 37.5014, lng: 127.0310 },
+      { store_id: 884, name: '목업 홍대884점', category: '분식', region: '홍대', lat: 37.5568, lng: 126.9239 },
       { store_id: 892, name: '목업 즉석국세트 성수점', category: '한식', region: '성수', lat: 37.5443, lng: 127.0557 },
       { store_id: 781, name: '목업 까르보나라 성수781점', category: '면류', region: '성수', lat: 37.5412, lng: 127.0559 },
       { store_id: 467, name: '목업 치킨샐러드 홍대467점', category: '샐러드', region: '홍대', lat: 37.5564, lng: 126.9237 },
       { store_id: 273, name: '목업 참치샌드위치 노원273점', category: '샌드위치', region: '노원', lat: 37.6542, lng: 127.0612 },
     ],
     orders: {
+      8941: { order_id: 8941, store_id: 894, store_name: '목업 강남894점', store_lat: 37.5014, store_lng: 127.0310, delivery_lat: 37.5056, delivery_lng: 127.0361, menu_items: [{ menu: '후라이드치킨', qty: 1, price: 19000 }], amount: 19000, delivery_fee: 3500, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
+      8891: { order_id: 8891, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.4938, delivery_lng: 127.0334, menu_items: [{ menu: '제육덮밥', qty: 1, price: 12000 }], amount: 12000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
+      8892: { order_id: 8892, store_id: 889, store_name: '목업 강남889점', store_lat: 37.4982, store_lng: 127.0276, delivery_lat: 37.5015, delivery_lng: 127.0387, menu_items: [{ menu: '비빔밥', qty: 1, price: 11000 }], amount: 11000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
+      8841: { order_id: 8841, store_id: 884, store_name: '목업 홍대884점', store_lat: 37.5568, store_lng: 126.9239, delivery_lat: 37.5528, delivery_lng: 126.9274, menu_items: [{ menu: '떡볶이 세트', qty: 1, price: 13000 }], amount: 13000, delivery_fee: 3000, status: 'NEW', owner_cook_min: null, eta_min: null, package_id: null, rider_id: null },
       1: { order_id: 1, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5398, delivery_lng: 127.0611, menu_items: [{ menu: '즉석국세트', qty: 1, price: 12000 }], amount: 12000, delivery_fee: 3000, status: 'NEW', eta_min: null, package_id: null, rider_id: null },
       2: { order_id: 2, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5482, delivery_lng: 127.0468, menu_items: [{ menu: '곰탕', qty: 1, price: 9500 }], amount: 9500, delivery_fee: 3000, status: 'MATCHED', eta_min: 22, package_id: null, rider_id: null },
       3: { order_id: 3, store_id: 892, store_name: '목업 즉석국세트 성수점', store_lat: 37.5443, store_lng: 127.0557, delivery_lat: 37.5351, delivery_lng: 127.0583, menu_items: [{ menu: '제육덮밥', qty: 1, price: 10500 }], amount: 10500, delivery_fee: 3000, status: 'MATCHED', eta_min: 20, package_id: null, rider_id: null },
@@ -18,6 +25,14 @@
       226: { order_id: 226, store_id: 273, store_name: '목업 참치샌드위치 노원273점', store_lat: 37.6542, store_lng: 127.0612, delivery_lat: 37.6507, delivery_lng: 127.0564, menu_items: [{ menu: '참치샌드위치', qty: 1, price: 9800 }], amount: 9800, delivery_fee: 3000, status: 'MATCHED', eta_min: 21, package_id: 635, rider_id: 'rider_105' },
     },
     riders: {
+      rider_12: { rider_id: 'rider_12', name: '목업 강남 라이더', region: '강남', status: 'AVAILABLE', completed_order_count: 3, lat: 37.4997, lng: 127.0292 },
+      rider_13: { rider_id: 'rider_13', name: '목업 강남 라이더 13', region: '강남', status: 'AVAILABLE', completed_order_count: 1, lat: 37.5008, lng: 127.0304 },
+      rider_19: { rider_id: 'rider_19', name: '목업 강남 라이더 19', region: '강남', status: 'AVAILABLE', completed_order_count: 2, lat: 37.4973, lng: 127.0264 },
+      rider_23: { rider_id: 'rider_23', name: '목업 강남 라이더 23', region: '강남', status: 'AVAILABLE', completed_order_count: 4, lat: 37.5021, lng: 127.0330 },
+      rider_31: { rider_id: 'rider_31', name: '목업 강남 라이더 31', region: '강남', status: 'AVAILABLE', completed_order_count: 0, lat: 37.4959, lng: 127.0281 },
+      rider_2: { rider_id: 'rider_2', name: '목업 홍대 라이더', region: '홍대', status: 'AVAILABLE', completed_order_count: 5, lat: 37.5552, lng: 126.9261 },
+      rider_5: { rider_id: 'rider_5', name: '목업 홍대 라이더 5', region: '홍대', status: 'AVAILABLE', completed_order_count: 2, lat: 37.5575, lng: 126.9223 },
+      rider_6: { rider_id: 'rider_6', name: '목업 홍대 라이더 6', region: '홍대', status: 'AVAILABLE', completed_order_count: 6, lat: 37.5540, lng: 126.9280 },
       rider_102: { rider_id: 'rider_102', name: '목업 속도광부장', region: '성수', status: 'ASSIGNED', completed_order_count: 4, lat: 37.5417, lng: 127.0522 },
       rider_103: { rider_id: 'rider_103', name: '목업 민첩라이더', region: '홍대', status: 'ASSIGNED', completed_order_count: 2, lat: 37.5537, lng: 126.9261 },
       rider_105: { rider_id: 'rider_105', name: '목업 안전라이더', region: '노원', status: 'ASSIGNED', completed_order_count: 7, lat: 37.6521, lng: 127.0594 },
@@ -46,8 +61,51 @@
     return clone(rider);
   };
   const packageForRider = riderId => Object.values(state.packages).filter(pkg => pkg.rider_id === riderId).map(clone);
+  const nextPackageId = () => Math.max(0, ...Object.keys(state.packages).map(Number)) + 1;
+  const newestOrder = orders => orders.slice().sort((left, right) => Number(right.order_id) - Number(left.order_id))[0];
+  const noHarmComparison = () => ({
+    passed: true,
+    single_eta_min: 34,
+    bundle_eta_min: 36,
+    single_food_sitting_min: 8,
+    bundle_food_sitting_min: 3,
+    single_hourly_revenue: 16800,
+    bundle_hourly_revenue: 20400,
+    reason: '고객 도착시간은 허용 범위 안이며, 음식 방치시간과 라이더 수익이 모두 개선되었습니다.',
+  });
+  const createOfferForOrder = order => {
+    if (order.package_id) return;
+    const packageId = nextPackageId();
+    state.packages[packageId] = {
+      package_id: packageId,
+      rider_id: null,
+      package_type: 'SOLO',
+      status: 'OFFERED',
+      bundle_size: 1,
+      score: 64.8,
+      package_revenue: Number(order.delivery_fee || 3000),
+      hourly_revenue: 18000,
+      order_ids: [order.order_id],
+      route_detail: [
+        { order_id: order.order_id, type: 'pickup', sequence: 1 },
+        { order_id: order.order_id, type: 'dropoff', sequence: 2 },
+      ],
+      score_detail: { timeline: [], no_harm: noHarmComparison() },
+      created_at: new Date().toISOString(),
+    };
+    order.package_id = packageId;
+  };
   const client = Object.freeze({
     customers: Object.freeze({
+      getDemoActive: async () => {
+        const orders = Object.values(state.orders);
+        const order = newestOrder(orders.filter(item => String(item.store_id) === '889' && item.status !== 'CANCELLED'))
+          || newestOrder(orders.filter(item => (
+            ['889', '894', '884'].includes(String(item.store_id)) && item.status !== 'CANCELLED'
+          ))) || newestOrder(orders.filter(item => item.status !== 'CANCELLED'));
+        if (!order) throw createError('현재 시연할 주문이 없습니다.', 404);
+        return { order_id: order.order_id };
+      },
       get: async orderId => {
         const order = state.orders[String(orderId)];
         if (!order) throw createError('해당 주문을 찾을 수 없습니다.', 404);
@@ -63,6 +121,13 @@
       },
     }),
     merchants: Object.freeze({
+      nextToCook: async () => {
+        const order = newestOrder(Object.values(state.orders).filter(item => (
+          String(item.store_id) === '889' && item.status === 'NEW'
+        )));
+        if (!order) throw createError('다음 조리 시작 주문이 없습니다.', 404);
+        return clone(order);
+      },
       get: async storeId => {
         const store = state.stores.find(item => String(item.store_id) === String(storeId));
         const orders = Object.values(state.orders).filter(order => String(order.store_id) === String(storeId));
@@ -73,12 +138,53 @@
           return { order_id: order.order_id, menu_items: order.menu_items, amount: order.amount, status: order.status, owner_cook_min: order.owner_cook_min ?? 15, predicted_cook_min: order.predicted_cook_min ?? 15, package_id: order.package_id, route_detail: pkg?.route_detail || [], rider_id: pkg?.rider_id ?? null, rider_name: rider?.name ?? null, eta_min: order.eta_min };
         }) });
       },
+      nextToCook: async () => {
+        const order = Object.values(state.orders)
+          .filter(item => String(item.store_id) === '889' && item.status === 'NEW')
+          .sort((left, right) => Number(left.order_id) - Number(right.order_id))[0];
+        if (!order) throw createError('조리 대기 중인 주문이 없습니다.', 404);
+        return clone(order);
+      },
       updateCookTime: async (orderId, ownerCookMin) => {
         const order = state.orders[String(orderId)];
         if (!order) throw createError('해당 주문을 찾을 수 없습니다.', 404);
         order.owner_cook_min = Number(ownerCookMin);
+        order.status = 'COOKING';
         save();
-        return { order_id: order.order_id, owner_cook_min: order.owner_cook_min };
+        // 실제 30초 클러스터링을 기다리는 대신, 목업에서는 짧은 지연 뒤 제안을 만든다.
+        window.setTimeout(() => {
+          if (order.status === 'COOKING' && !order.package_id) {
+            createOfferForOrder(order);
+            save();
+          }
+        }, 1000);
+        return { order_id: order.order_id, status: order.status, owner_cook_min: order.owner_cook_min };
+      },
+      demoTrigger: async ({ primary_store_id: primaryStoreId, primary_order_id: primaryOrderId, owner_cook_min: ownerCookMin } = {}) => {
+        const primaryOrder = state.orders[String(primaryOrderId)];
+        const primaryCookMin = Number(ownerCookMin);
+        if (!primaryOrder || String(primaryOrder.store_id) !== String(primaryStoreId)) throw createError('선택한 매장의 주문을 찾을 수 없습니다.', 404);
+        if (primaryOrder.status !== 'NEW') throw createError('신규 주문만 조리를 시작할 수 있습니다.', 409);
+        if (!Number.isInteger(primaryCookMin) || primaryCookMin < 5 || primaryCookMin > 100 || primaryCookMin % 5 !== 0) {
+          throw createError('조리시간은 5~100분 사이의 5분 단위여야 합니다.');
+        }
+        const secondaryOrders = ['889', '894', '884']
+          .filter(id => id !== String(primaryStoreId))
+          .map(id => newestOrder(Object.values(state.orders).filter(order => order.status === 'NEW' && String(order.store_id) === id)))
+          .filter(Boolean);
+        const orders = [primaryOrder, ...secondaryOrders];
+        orders.forEach((order, index) => {
+          order.owner_cook_min = index === 0 ? primaryCookMin : 5 + Math.floor(Math.random() * 4) * 5;
+          order.status = 'COOKING';
+          window.setTimeout(() => {
+            if (order.status === 'COOKING' && !order.package_id) {
+              createOfferForOrder(order);
+              save();
+            }
+          }, 1000);
+        });
+        save();
+        return { started_order_count: orders.length, primary_order_id: primaryOrder.order_id, status: 'TRIGGERED' };
       },
     }),
     riders: Object.freeze({
@@ -101,6 +207,28 @@
           total_revenue: completedPackages.reduce((total, pkg) => total + Number(pkg.package_revenue || 0), 0),
           packages,
         };
+      },
+      offers: async riderId => {
+        profile(riderId);
+        return { rider_id: riderId, offers: Object.values(state.packages).filter(pkg => pkg.status === 'OFFERED').map(clone) };
+      },
+      accept: async (riderId, packageId) => {
+        const rider = profile(riderId);
+        const pkg = findPackage(packageId);
+        if (!pkg) throw createError('해당 패키지를 찾을 수 없습니다.', 404);
+        if (pkg.status !== 'OFFERED') throw createError('이미 다른 라이더가 수락한 배차입니다.', 409);
+        pkg.rider_id = riderId;
+        pkg.status = 'MATCHING';
+        pkg.order_ids.forEach(orderId => {
+          const order = state.orders[String(orderId)];
+          if (order) {
+            order.status = 'MATCHED';
+            order.rider_id = riderId;
+          }
+        });
+        rider.status = 'BUSY';
+        save();
+        return { package_id: pkg.package_id, rider_id: riderId, status: pkg.status };
       },
       pickup: async (riderId, packageId) => {
         profile(riderId);

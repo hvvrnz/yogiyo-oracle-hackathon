@@ -7,6 +7,7 @@ router = APIRouter(prefix="/api/merchant", tags=["merchant"])
 
 DEMO_STORE_IDS = [889, 894, 884]
 
+
 @router.get("/next-to-cook")
 def get_next_order_to_cook():
     """
@@ -37,7 +38,6 @@ def get_pending_orders_list():
         ORDER BY order_id ASC
     """)
     return {"count": len(orders), "orders": orders}
-
 
 
 @router.get("/{store_id}")
@@ -122,6 +122,7 @@ def demo_trigger(body: DemoTriggerRequest):
                              "owner_cook_min": cook_min, "triggered_by": "auto"})
 
     return {"triggered": results}
+
 
 @router.post("/demo-reset")
 def demo_reset():
