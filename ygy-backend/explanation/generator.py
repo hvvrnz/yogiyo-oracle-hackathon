@@ -91,7 +91,7 @@ def _validated_text(result, field, maximum_length):
     lines = [line.strip() for line in value.splitlines() if line.strip()]
     if not lines:
         raise LLMGenerationError("배차 설명 문구가 허용 형식을 벗어났습니다.")
-    text = " ".join(line.lstrip("•-* ").strip() for line in lines)
+    text = "\n".join(line.lstrip("•-* ").strip() for line in lines)
     if len(lines) > 3 or len(text) > maximum_length or "\x00" in text:
         raise LLMGenerationError("배차 설명 문구가 허용 형식을 벗어났습니다.")
     return text
@@ -173,7 +173,7 @@ def demo_explanation_fallback(context):
     if courier_wait_time is not None:
         rider_lines.append("예상 라이더 대기시간은 %s분이에요." % courier_wait_time)
     if stage == "COOKING":
-        merchant_text += " 라이더 수락 전이라 포장 완료 시점은 아직 정해지지 않았어요."
+        merchant_text += "\n라이더 수락 전이라 포장 완료 시점은 아직 정해지지 않았어요."
     elif stage == "MATCHED":
         rider_arrival = None
         merchant_order_id = merchant.get("order_id")
@@ -186,10 +186,10 @@ def demo_explanation_fallback(context):
             merchant_lines.append("라이더가 약 %s분 뒤 도착할 예정이에요." % rider_arrival)
         if owner_cook_min is not None:
             merchant_lines.append("설정한 %s분 조리시간을 기준으로 포장을 준비해 주세요." % owner_cook_min)
-        merchant_text = " ".join(merchant_lines) or merchant_text
+        merchant_text = "\n".join(merchant_lines) or merchant_text
 
     return {
-        "consumer_text": " ".join(consumer_lines),
+        "consumer_text": "\n".join(consumer_lines),
         "merchant_text": merchant_text,
-        "rider_text": " ".join(rider_lines[:3]) if package_ready else "배차 제안을 준비하고 있어요.",
+        "rider_text": "\n".join(rider_lines[:3]) if package_ready else "배차 제안을 준비하고 있어요.",
     }
