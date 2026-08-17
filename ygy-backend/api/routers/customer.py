@@ -132,15 +132,19 @@ def _reassign_as_solo(order_id):
 @router.get("/demo/active")
 def get_active_demo_order():
     """
-    시연용: 889 매장의 가장 최근 주문 하나를 상태와 무관하게 반환.
-    NEW -> COOKING -> MATCHED로 상태가 바뀌는 걸 그대로 보여주기 위함.
+    시연용: 889 매장에서 가장 먼저 접수된 주문 하나를 고정으로 반환.
+    이 주문의 status가 NEW -> COOKING -> MATCHED로 바뀌는 과정을
+    소비자 화면이 그대로 따라갈 수 있도록, 항상 같은(가장 오래된) 
+    주문을 가리킴. 배차 전에도 화면이 비어있지 않고 NEW 상태로 보임.
     """
     order = fetch_one("""
         SELECT order_id, status FROM orders
         WHERE store_id = 889
-        ORDER BY order_id DESC
+        ORDER BY order_id ASC
         FETCH FIRST 1 ROW ONLY
     """)
+
     if not order:
         raise HTTPException(status_code=404, detail="889 매장 주문이 없습니다.")
+
     return {"order_id": order["order_id"], "status": order["status"]}
