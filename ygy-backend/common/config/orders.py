@@ -41,14 +41,13 @@ FOOD_CATEGORY_URGENCY = {
 STORE_MENU_COUNT_RANGE = (3, 6) 
 
 URGENCY_MISMATCH_PENALTY_KM = 1.0  # ⚠️ 임의값, 추후 튜닝 필요
-DEMO_STORE_IDS = [889, 894, 884]
 
 # ========== 클러스터링 ==========
 
 MAX_CLUSTER_SIZE = 3
 # 클러스터링(1단계) 확정 기준 단위: km (거리+시간환산 합산)
 MAX_ACCEPTABLE_SCORE = 15  # ⚠️ 임의값, 추후 튜닝 필요
-ORDER_WAIT_BUFFER_MINUTES = 10  # ⚠️ 임의값, 추후 튜닝 필요  5분에서 10분으로 조정 (배차 확정에 필요한 시간 고려)
+ORDER_WAIT_BUFFER_MINUTES = 1 # ⚠️ 임의값, 추후 튜닝 필요  5분에서 10분으로 조정 (배차 확정에 필요한 시간 고려) (시연용 : 1분)
 
 # ========== 매장 더미 생성 ==========
 
@@ -62,8 +61,12 @@ STORE_NAME_PREFIXES = [
 
 DELIVERY_FEE_BASE = 3000  # 소비자가 내는 배달비 기본값, ⚠️ 임의값
 
-DEMO_STORE_IDS = [889, 894, 884]  # 강남889, 강남894, 홍대884
-DEMO_STORE_PROBABILITY = 0.08  # 이 확률로 시연용 매장 중 하나가 뽑힘
+DEMO_PRIMARY_STORE = 889  # 사장님 화면에 고정으로 보여줄 매장
+DEMO_GANGNAM_POOL = [889, 894, 809, 815, 839, 844, 845, 854, 856, 862]  # 강남 매장 풀 (889가 묶일 후보들)
+DEMO_HONGDAE_STORE = 884  # 한집배달 대조군용, SOLO 시연할 때만 사용
+DEMO_STORE_IDS = DEMO_GANGNAM_POOL + [DEMO_HONGDAE_STORE]  # Producer 확률 대상 전체
+DEMO_STORE_PROBABILITY = 0.15  # 매장 풀이 커졌으니 확률도 살짝 조정
+
 
 CATEGORY_COOK_TIME_RANGE = {
     "튀김류": (15, 30), "찜류": (40, 70), "국물류": (15, 25), "초밥_회류": (5, 15),

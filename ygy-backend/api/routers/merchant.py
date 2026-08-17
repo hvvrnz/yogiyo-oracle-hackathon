@@ -2,10 +2,9 @@ import random
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from db.connection import execute_and_commit, fetch_all, fetch_one
+from common.config import DEMO_GANGNAM_POOL
 
 router = APIRouter(prefix="/api/merchant", tags=["merchant"])
-
-DEMO_STORE_IDS = [889, 894, 884]
 
 
 @router.get("/next-to-cook")
@@ -38,6 +37,48 @@ def get_pending_orders_list():
         ORDER BY order_id ASC
     """)
     return {"count": len(orders), "orders": orders}
+
+@router.get("/current-order")
+def get_current_order():
+    """
+    시연용 889 매장의 현재 진행 중인 주문.
+    COOKING 상태부터 라이더 배차 완료(MATCHED)까지 계속 조회.
+    """
+
+    order = fetch_one("""
+        SELECT
+            o.order_id,
+            o.menu_items,
+            o.amount,
+            o.status,
+            o.owner_cook_min,
+            o.predicted_cook_min,
+            o.package_id,
+
+            p.status AS package_status,
+            p.rider_id,
+            p.route_detail,
+            p.package_revenue,
+            p.hourly_revenue
+
+        FROM orders o
+        LEFT JOIN packages p
+            ON o.package_id = p.package_id
+
+        WHERE o.store_id = 889
+          AND o.status IN ('COOKING', 'MATCHED')
+
+        ORDER BY o.order_id DESC
+        FETCH FIRST 1 ROW ONLY
+    """)
+
+    if not order:
+        raise HTTPException(
+            status_code=404,
+            detail="현재 진행 중인 주문이 없습니다."
+        )
+
+    return order
 
 
 @router.get("/{store_id}")
@@ -88,38 +129,44 @@ class DemoTriggerRequest(BaseModel):
 
 @router.post("/demo-trigger")
 def demo_trigger(body: DemoTriggerRequest):
-    """
-    889의 주문 하나(primary_order_id)에 조리시간을 입력할 때마다,
-    나머지 시연용 매장(894, 884)도 백그라운드에서 자동으로
-    조리시작되도록 함.
-    """
+    from db.connection import get_connection
+
+    conn = get_connection()
+    cursor = conn.cursor()
     results = []
 
-    execute_and_commit(
+    cursor.execute(
         "UPDATE orders SET owner_cook_min = :cook_min, status = 'COOKING' WHERE order_id = :order_id",
         {"cook_min": body.owner_cook_min, "order_id": body.primary_order_id}
     )
     results.append({"order_id": body.primary_order_id, "store_id": body.primary_store_id,
                      "owner_cook_min": body.owner_cook_min, "triggered_by": "user"})
 
-    other_store_ids = [sid for sid in DEMO_STORE_IDS if sid != body.primary_store_id]
+    # 강남 풀 전체(889 제외)에서 각 매장당 최대 2건씩 자동 트리거
+    other_store_ids = [sid for sid in DEMO_GANGNAM_POOL if sid != body.primary_store_id]
 
     for store_id in other_store_ids:
-        order = fetch_one("""
+        cursor.execute("""
             SELECT order_id FROM orders
             WHERE store_id = :store_id AND status = 'NEW'
             ORDER BY order_id DESC
-            FETCH FIRST 1 ROW ONLY
+            FETCH FIRST 2 ROWS ONLY
         """, {"store_id": store_id})
+        rows = cursor.fetchall()
 
-        if order:
-            cook_min = random.choice([15, 20, 30, 35, 40])
-            execute_and_commit(
+        for row in rows:
+            order_id = row[0]
+            cook_min = max(5, body.owner_cook_min + random.choice([-5, 0, 5]))
+            cursor.execute(
                 "UPDATE orders SET owner_cook_min = :cook_min, status = 'COOKING' WHERE order_id = :order_id",
-                {"cook_min": cook_min, "order_id": order["order_id"]}
+                {"cook_min": cook_min, "order_id": order_id}
             )
-            results.append({"order_id": order["order_id"], "store_id": store_id,
+            results.append({"order_id": order_id, "store_id": store_id,
                              "owner_cook_min": cook_min, "triggered_by": "auto"})
+
+    conn.commit()
+    cursor.close()
+    conn.close()
 
     return {"triggered": results}
 

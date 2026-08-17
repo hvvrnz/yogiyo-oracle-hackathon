@@ -88,7 +88,7 @@ def assign_bundle(cluster, assigned_rider_ids):
         hourly_revenue=hourly_revenue,
         status="OFFERED",
     )
-    insert_orders(cluster, package_id=package_id)
+    insert_orders(cluster, package_id=package_id, status="OFFERED")
     print(f"   📢 제안됨 (수락 대기 중): package_id={package_id}")
     return True
 
@@ -119,7 +119,7 @@ def assign_solo(order, assigned_rider_ids):
         hourly_revenue=hourly,
         status="OFFERED",
     )
-    insert_orders([order], package_id=package_id)
+    insert_orders([order], package_id=package_id, status="OFFERED")
 
     print(f"   📢 한집배달 제안됨 (수락 대기 중): package_id={package_id}")
     return True

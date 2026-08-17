@@ -10,7 +10,7 @@ from stream_processor.riders.location_simulator import simulate_rider_movement #
 from sequencing_engine.repository.order_repo import insert_pending_order
 from db.connection import fetch_all
 
-WINDOW_SECONDS = 5
+WINDOW_SECONDS = 15
 
 consumer = KafkaConsumer(
     'order-events',
