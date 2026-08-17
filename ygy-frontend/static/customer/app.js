@@ -21,7 +21,7 @@ const showCustomerFailure = (error, { action = false } = {}) => {
 
 const statusMeta = {
   NEW: { label: '신규 주문', progress: 0, message: '주문이 접수되었습니다. 매장에서 주문을 확인하고 있어요.' },
-  COOKING: { label: '조리 중', progress: 1, message: '음식을 조리하고 있어요. 배차 제안을 준비하고 있습니다.' },
+  COOKING: { label: '조리 중 · 배차 수락 대기', progress: 1, message: '음식을 조리하고 있어요. 라이더의 배차 수락을 기다리고 있습니다.' },
   MATCHED: { label: '배차 완료', progress: 3, message: '배차가 완료되었습니다. 라이더가 픽업을 준비하고 있어요.' },
   PICKED_UP: { label: '픽업 완료', progress: 5, message: '라이더가 음식을 픽업해 배달 중이에요.' },
   DELIVERED: { label: '배달 완료', progress: 6, message: '배달이 완료되었습니다.' },
@@ -81,7 +81,7 @@ function renderCustomer(order) {
   const assignmentConfirmed = hasConfirmedAssignment(order);
   const etaLabel = !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
     ? order.status === 'NEW' ? '매장 확인 대기 중'
-      : hasOfferedPackage(order) ? '라이더 수락 대기 중' : '배차 제안 생성 대기 중'
+      : '라이더 수락 대기 중'
     : order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
   const map = Yogiyo.mapData.fromCustomerOrder(order);
@@ -99,10 +99,11 @@ function renderCustomer(order) {
   Yogiyo.el('packageId').textContent = assignmentConfirmed
     ? `배차 번호 ${order.package_id}`
     : hasOfferedPackage(order) ? `배차 제안 ${order.package_id} · 라이더 수락 대기`
-      : order.status === 'COOKING' ? '배차 제안 생성 대기 중'
+      : order.status === 'COOKING' ? '배차 수락 대기 중'
       : order.status === 'CANCELLED' ? '배차 취소됨' : '배차 번호 배정 전';
   [...Yogiyo.el('progressTrack').children].forEach((node, index) => node.classList.toggle('active', index <= meta.progress));
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
+  Yogiyo.el('deliveryAddress').textContent = order.delivery_address || '배달지 주소 정보 없음';
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
   Yogiyo.renderMap('customerMap', map);
   Yogiyo.el('riderStep').textContent = order.rider_id ? `담당 라이더 ${order.rider_id}` : '담당 라이더 배정 전';

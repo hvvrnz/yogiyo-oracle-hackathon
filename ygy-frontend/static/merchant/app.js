@@ -110,7 +110,7 @@ const cookTimeControls = order => {
     return '<button class="ghost-button full" disabled>라이더 수락 완료 · 배차 완료</button>';
   }
   if (order.status === 'COOKING') {
-    return '<button class="ghost-button full" disabled>조리 중 · 배차 제안 생성 대기</button>';
+    return '<button class="ghost-button full" disabled>조리 중 · 배차 수락 대기</button>';
   }
   if (order.status === 'MATCHED') {
     return '<button class="ghost-button full" disabled>라이더 수락 완료 · 배차 완료</button>';
@@ -174,7 +174,8 @@ function renderMerchant(view, store) {
 
   Yogiyo.el('merchantOrders').querySelectorAll('[data-cook-start]').forEach(button => {
     button.addEventListener('click', event => {
-      startCooking(event.currentTarget);
+      const value = window.prompt('예상 조리시간을 5분 단위로 입력해 주세요. (5~100분)', '20');
+      if (value !== null) startCooking(Number(value), event.currentTarget);
     });
   });
 
@@ -221,10 +222,14 @@ async function loadMerchantView() {
   }
 }
 
-async function startCooking(button) {
+async function startCooking(ownerCookMin, button) {
+  if (!Number.isInteger(ownerCookMin) || ownerCookMin < 5 || ownerCookMin > 100 || ownerCookMin % 5 !== 0) {
+    Yogiyo.toast('조리시간은 5~100분 사이의 5분 단위로 입력해 주세요.');
+    return;
+  }
   await Yogiyo.withPending(button, async () => {
     try {
-      const trigger = await Yogiyo.apiClient.demo.merchantCookStart();
+      const trigger = await Yogiyo.apiClient.demo.merchantCookStart(ownerCookMin);
       const started = Array.isArray(trigger?.triggered) ? trigger.triggered : [];
       started.forEach(item => locallyStartedOrderIds.add(String(item.order_id)));
       const storeIds = [...new Set(started.map(item => item.store_id).filter(Boolean))];
