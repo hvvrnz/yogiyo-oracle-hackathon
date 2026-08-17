@@ -88,12 +88,12 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   assert.match(screen, /function declineOffer/);
   assert.match(screen, /offerSortValue/);
   assert.match(screen, /sortedVisibleOffers/);
-  assert.match(screen, /uniqueOfferRepresentatives/);
-  assert.match(screen, /maxVisibleOffers = 20/);
-  assert.match(screen, /동일 주문 조합의 경로안/);
+  assert.doesNotMatch(screen, /uniqueOfferRepresentatives/);
+  assert.doesNotMatch(screen, /maxVisibleOffers/);
+  assert.match(screen, /모든 OFFERED 패키지를 누적해서 보여 준다/);
   assert.match(screen, /동일 주문 조합 제안을 이 화면에서 숨겼습니다/);
-  assert.match(screen, /includesSelectedOrder/);
-  assert.match(screen, /주문 \$\{selectedOrderId\} 제안만 표시/);
+  assert.doesNotMatch(screen, /includesSelectedOrder/);
+  assert.match(screen, /acceptedOfferOrderIds/);
   assert.match(screen, /class="assigned-package-list"/);
   assert.match(screen, /class="assigned-package-row/);
   assert.match(screen, /패키지 \$\{pkg\.package_id\} 상세 배차 정보 보기/);

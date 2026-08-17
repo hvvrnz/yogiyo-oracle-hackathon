@@ -13,9 +13,11 @@ let packageDetailTrigger;
 let offerSort = 'score';
 let recentlyAcceptedPackageId;
 let recentlyAcceptedTimer;
-const maxVisibleOffers = 20;
 const declinedOfferKeysByRider = new Map();
 const completedRouteStepsByPackage = new Map();
+// A package acceptance must immediately hide competing offers containing the
+// same orders, even before the next server poll reflects the state change.
+const acceptedOfferOrderIds = new Set();
 
 const setContentVisible = visible => { Yogiyo.el('riderContent').hidden = !visible; };
 const showRiderFailure = (error, { action = false } = {}) => {
@@ -53,10 +55,6 @@ const offerKey = pkg => {
   return orderIds.length ? orderIds.join(',') : `package:${pkg?.package_id}`;
 };
 
-const includesSelectedOrder = pkg => !hasSelectedOrder() || (
-  Array.isArray(pkg?.order_ids) && pkg.order_ids.some(orderId => String(orderId) === String(selectedOrderId))
-);
-
 const declinedOfferKeys = () => {
   if (!declinedOfferKeysByRider.has(riderId)) declinedOfferKeysByRider.set(riderId, new Set());
   return declinedOfferKeysByRider.get(riderId);
@@ -66,26 +64,6 @@ const offerSortValue = pkg => {
   const value = offerSort === 'revenue' ? Number(pkg.package_revenue) : Number(pkg.score);
   return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY;
 };
-
-const offerMetric = value => Number.isFinite(Number(value)) ? Number(value) : Number.NEGATIVE_INFINITY;
-
-const preferredOffer = (left, right) => {
-  const scoreDifference = offerMetric(right.score) - offerMetric(left.score);
-  if (scoreDifference) return scoreDifference > 0 ? right : left;
-  const revenueDifference = offerMetric(right.package_revenue) - offerMetric(left.package_revenue);
-  if (revenueDifference) return revenueDifference > 0 ? right : left;
-  return Number(right.package_id) < Number(left.package_id) ? right : left;
-};
-
-const uniqueOfferRepresentatives = offers => {
-  const representatives = new Map();
-  offers.forEach(pkg => {
-    const key = offerKey(pkg);
-    representatives.set(key, representatives.has(key) ? preferredOffer(representatives.get(key), pkg) : pkg);
-  });
-  return [...representatives.values()];
-};
-
 
 const coordinateKey = profile => {
   const lat = Number(profile?.lat);
@@ -317,27 +295,29 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
   const currentPackage = activePackages.find(pkg => !isFutureReservation(pkg));
   const nextReservation = activePackages.find(isFutureReservation);
   const canAcceptOffer = !currentPackage && !nextReservation;
-  const scopedOffers = offers.filter(includesSelectedOrder);
-  const visibleOffers = scopedOffers.filter(pkg => !declinedOfferKeys().has(offerKey(pkg)));
-  const uniqueOffers = uniqueOfferRepresentatives(visibleOffers);
-  const sortedVisibleOffers = uniqueOffers.slice().sort((left, right) => {
+  // 모든 OFFERED 패키지를 누적해서 보여 준다. 이전에는 선택 주문 필터와
+  // 동일 주문 조합 중복 제거 때문에 새 제안이 기존 제안을 덮어쓴 것처럼 보였다.
+  const visibleOffers = offers.filter(pkg => {
+    const hasAcceptedOrder = Array.isArray(pkg.order_ids)
+      && pkg.order_ids.some(orderId => acceptedOfferOrderIds.has(String(orderId)));
+    return !hasAcceptedOrder && !declinedOfferKeys().has(offerKey(pkg));
+  });
+  const sortedVisibleOffers = visibleOffers.slice().sort((left, right) => {
     const difference = offerSortValue(right) - offerSortValue(left);
     return difference || Number(left.package_id) - Number(right.package_id);
   });
-  const displayedOffers = sortedVisibleOffers.slice(0, maxVisibleOffers);
-  const declinedOfferCount = scopedOffers.length - visibleOffers.length;
-  const duplicateOfferCount = visibleOffers.length - uniqueOffers.length;
-  const overflowOfferCount = Math.max(0, sortedVisibleOffers.length - displayedOffers.length);
+  const displayedOffers = sortedVisibleOffers;
+  const declinedOfferCount = offers.length - visibleOffers.length;
   const name = profile?.name || riderId;
   resolveLocationAddress(profile);
   const coordinate = coordinateLabel(profile);
   const position = locationAddress || (coordinate ? '주소 확인 중' : '위치 정보 미제공');
 
   Yogiyo.el('riderName').textContent = name;
-  Yogiyo.el('riderMeta').textContent = [profile?.region, profile?.status, hasSelectedOrder() ? `주문 ${selectedOrderId} 제안만 표시` : undefined].filter(Boolean).join(' · ') || '라이더 정보를 확인 중';
-  Yogiyo.el('packageState').textContent = activePackages.length ? `진행 패키지 ${activePackages.length}건` : uniqueOffers.length ? `배차 제안 ${uniqueOffers.length}건` : '진행 중인 패키지 없음';
+  Yogiyo.el('riderMeta').textContent = [profile?.region, profile?.status].filter(Boolean).join(' · ') || '라이더 정보를 확인 중';
+  Yogiyo.el('packageState').textContent = activePackages.length ? `진행 패키지 ${activePackages.length}건` : visibleOffers.length ? `배차 제안 ${visibleOffers.length}건` : '진행 중인 패키지 없음';
   Yogiyo.el('packageCount').textContent = `${packages.length}건`;
-  Yogiyo.el('offerCount').textContent = offersError ? '조회 실패' : `${uniqueOffers.length}건${overflowOfferCount ? ` 중 ${displayedOffers.length}건 표시` : ''}`;
+  Yogiyo.el('offerCount').textContent = offersError ? '조회 실패' : `${visibleOffers.length}건`;
   Yogiyo.el('offerSortSelect').value = offerSort;
   Yogiyo.el('completedCount').textContent = `${Number(profile?.completed_order_count || 0)}건`;
   const hasEarnings = Boolean(earnings);
@@ -357,7 +337,7 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
   Yogiyo.el('riderLocationCount').textContent = '내 위치 · 5초 갱신';
   Yogiyo.el('currentPackageSummary').textContent = currentPackage
     ? `패키지 ${currentPackage.package_id} · ${packageStatus(currentPackage.status)}`
-    : uniqueOffers.length ? `${uniqueOffers.length}개의 배차 제안을 확인해 주세요.` : '현재 패키지 정보가 없습니다.';
+    : visibleOffers.length ? `${visibleOffers.length}개의 배차 제안을 확인해 주세요.` : '현재 패키지 정보가 없습니다.';
   Yogiyo.el('currentRun').innerHTML = runStatusCard(currentPackage);
   Yogiyo.el('nextRunReservation').innerHTML = nextReservation
     ? runStatusCard(nextReservation, { reservation: true })
@@ -368,13 +348,10 @@ function renderRider({ profile, offers, offersError, packages, earnings, earning
     Yogiyo.el('riderOffers').innerHTML = `<div class="state-card error"><div class="state-icon" aria-hidden="true">!</div><div><strong>배차 제안을 불러오지 못했습니다.</strong><p>${Yogiyo.escape(Yogiyo.errorMessage(offersError, '배차 제안'))}</p><button type="button" class="ghost-button" data-offer-retry>다시 확인</button></div></div>`;
   } else if (!canAcceptOffer) {
     Yogiyo.el('riderOffers').innerHTML = '<div class="state-card empty"><div class="state-icon" aria-hidden="true">🛵</div><div><strong>현재 패키지를 먼저 완료해 주세요.</strong><p>진행 중인 패키지가 있어 새로운 배차 제안은 수락할 수 없습니다.</p></div></div>';
-  } else if (!uniqueOffers.length) {
-    Yogiyo.el('riderOffers').innerHTML = `<div class="state-card empty"><div class="state-icon" aria-hidden="true">⌕</div><div><strong>확인할 배차 제안이 없습니다.</strong><p>${declinedOfferCount ? `이 화면에서 거절한 제안 ${declinedOfferCount}건을 제외했습니다. 거절은 서버에 저장되지 않습니다.` : hasSelectedOrder() ? `주문 ${selectedOrderId}의 배차 제안을 기다리고 있습니다. 조리 시작 후 클러스터링 주기와 다음 5초 조회가 지나면 표시됩니다.` : '조리 시작 후 백엔드의 30초 클러스터링 주기가 지나면, 다음 5초 조회에 표시됩니다.'}</p></div></div>`;
+  } else if (!visibleOffers.length) {
+    Yogiyo.el('riderOffers').innerHTML = `<div class="state-card empty"><div class="state-icon" aria-hidden="true">⌕</div><div><strong>확인할 배차 제안이 없습니다.</strong><p>${declinedOfferCount ? `이 화면에서 제외된 제안 ${declinedOfferCount}건이 있습니다.` : '조리 시작 후 백엔드의 배차 제안을 기다리고 있습니다.'}</p></div></div>`;
   } else {
-    const offerNotice = duplicateOfferCount || overflowOfferCount
-      ? `<p class="offer-list-notice">${duplicateOfferCount ? `동일 주문 조합의 경로안 ${duplicateOfferCount}건은 매칭 점수가 가장 높은 제안으로 정리했습니다.` : ''}${duplicateOfferCount && overflowOfferCount ? ' ' : ''}${overflowOfferCount ? `상위 ${maxVisibleOffers}건만 표시합니다.` : ''}</p>`
-      : '';
-    Yogiyo.el('riderOffers').innerHTML = `${offerNotice}<div class="offer-list">${displayedOffers.map(pkg => {
+    Yogiyo.el('riderOffers').innerHTML = `<div class="offer-list">${displayedOffers.map(pkg => {
       const score = Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '-';
       const revenue = Number.isFinite(Number(pkg.package_revenue)) ? Yogiyo.money(pkg.package_revenue) : '정보 없음';
       return `<article class="offer-row"><div class="offer-main"><strong>패키지 ${Yogiyo.escape(pkg.package_id)}</strong><span>매칭 ${Yogiyo.escape(score)} · 예상 수익 ${Yogiyo.escape(revenue)}</span></div><div class="offer-actions"><button class="ghost-button" type="button" data-offer-detail="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 상세 조회">상세</button><button class="ghost-button" type="button" data-offer-decline="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 제안 거절">거절</button><button class="primary-button" type="button" data-offer-accept="${pkg.package_id}" aria-label="패키지 ${pkg.package_id} 제안 수락">수락</button></div></article>`;
@@ -469,10 +446,12 @@ async function acceptOffer(packageId, button) {
     try {
       const offer = currentRider?.offers?.find(item => String(item.package_id) === String(packageId));
       const response = await Yogiyo.apiClient.riders.accept(riderId, packageId);
+      const acceptedOrderIds = Array.isArray(response.order_ids) ? response.order_ids : offer?.order_ids || [];
+      acceptedOrderIds.forEach(orderId => acceptedOfferOrderIds.add(String(orderId)));
       recentlyAcceptedPackageId = String(response.package_id);
       window.clearTimeout(recentlyAcceptedTimer);
       Yogiyo.toast(`패키지 ${response.package_id} 배차를 수락했습니다. OFFERED → MATCHING으로 전환됩니다.`);
-      notifyDemoPackageAccepted(response, Array.isArray(response.order_ids) ? response.order_ids : offer?.order_ids || []);
+      notifyDemoPackageAccepted(response, acceptedOrderIds);
       await loadRider();
       recentlyAcceptedTimer = window.setTimeout(() => {
         recentlyAcceptedPackageId = undefined;
