@@ -74,4 +74,5 @@ test('세 역할 화면의 LLM 안내는 전용 파란색 토큰을 사용한다
   assert.match(styles, /--info: #61616b/);
   assert.match(styles, /--llm: #3f6fe5/);
   assert.match(styles, /\.llm-guidance \{ background:var\(--llm-soft\); color:var\(--llm\)/);
+  assert.match(styles, /\.offer-ai-guidance \{ grid-column:1 \/ -1; width:100%/);
 });
