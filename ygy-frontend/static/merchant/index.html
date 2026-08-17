@@ -15,18 +15,15 @@
       </header>
       <div class="mobile-scroll">
         <section class="section">
-          <div class="section-title-row"><h2>매장 주문 조회</h2><span>숫자 ID</span></div>
-          <div class="button-row"><input id="storeIdInput" class="text-input" inputmode="numeric" aria-label="매장 ID" placeholder="예: 781" /><button id="merchantDispatchButton" class="primary-button">매장 조회</button></div>
-          <p class="subtext" style="margin:9px 2px 0">시연 예시: 매장 781, 467, 273</p>
-        </section>
-        <section class="section">
           <div class="card">
             <div class="section-title-row"><h2>주문 현황</h2><button class="icon-button" aria-label="통합 시연으로 이동" title="통합 시연으로 이동" onclick="location.href='/demo'">↗</button></div>
-            <div class="metric-grid">
+            <div class="metric-grid merchant-metric-grid">
               <div class="metric"><span class="metric-label">신규 주문</span><strong id="newCount">0</strong><small>건</small></div>
-              <div class="metric"><span class="metric-label">배차 완료</span><strong id="cookingCount">0</strong><small>건</small></div>
-              <div class="metric"><span class="metric-label">취소 주문</span><strong id="readyCount">0</strong><small>건</small></div>
+              <div class="metric"><span class="metric-label">조리 중</span><strong id="cookingCount">0</strong><small>건</small></div>
+              <div class="metric"><span class="metric-label">수락 대기</span><strong id="offeredCount">0</strong><small>건</small></div>
+              <div class="metric"><span class="metric-label">배차 완료</span><strong id="readyCount">0</strong><small>건</small></div>
             </div>
+            <p class="subtext" style="margin:10px 2px 0">시연 모드에서는 조리 시작 시 889점과 다른 시연 매장의 신규 주문이 함께 조리 시작됩니다.</p>
           </div>
         </section>
         <section id="merchantLoadState" class="section" aria-live="polite" hidden></section>
@@ -44,6 +41,10 @@
               <div class="route-strategy-box"><strong>방문 순서</strong><span id="packageStrategy">방문 순서 정보 없음</span></div>
               <div class="notice info" style="margin-top:14px"><span>ⓘ</span><div><strong>주문 API 기준</strong><span id="packageReason">패키지와 라이더 정보는 주문 API 응답을 기준으로 표시합니다.</span></div></div>
             </div>
+          </section>
+          <section id="merchantFutureSlotSection" class="section" hidden>
+            <div class="section-title-row"><h2>다음 배달 예약</h2><span class="badge brand">Future Slot</span></div>
+            <div id="merchantFutureSlotContent"></div>
           </section>
         </div>
       </div>

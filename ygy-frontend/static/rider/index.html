@@ -14,10 +14,6 @@
         <div id="connection" class="connection-pill"><i></i><span>연결 중</span></div>
       </header>
       <div class="mobile-scroll">
-        <section class="section">
-          <div class="section-title-row"><h2>라이더 조회</h2><span>문자열 ID</span></div>
-          <div class="button-row"><input id="riderIdInput" class="text-input" aria-label="라이더 ID" placeholder="예: rider_102" /><button id="loadRiderButton" class="primary-button">라이더 조회</button></div>
-        </section>
         <section id="riderLoadState" class="section" aria-live="polite" hidden></section>
         <div id="riderContent">
           <section class="section">
@@ -27,6 +23,14 @@
               <p class="hero-copy">픽업과 배달 완료는 패키지 단위로 실제 API에 반영됩니다.</p>
               <div class="hero-meta"><span class="hero-chip" id="packageCount">0건</span><span class="hero-chip" id="completedCount">완료 0건</span></div>
             </div>
+          </section>
+          <section class="section">
+            <div class="section-title-row"><h2>현재 운행</h2><span>수락 후 진행</span></div>
+            <div id="currentRun"><div class="card skeleton"></div></div>
+          </section>
+          <section class="section">
+            <div class="section-title-row"><h2>다음 운행 예약</h2><span>Future Slot</span></div>
+            <div id="nextRunReservation"><div class="card skeleton"></div></div>
           </section>
           <section class="section">
             <div class="section-title-row"><h2>오늘 수익 요약</h2><span class="badge info">라이더 수익 API 기준</span></div>
@@ -48,6 +52,11 @@
             </div>
           </section>
           <section class="section">
+            <div class="section-title-row"><h2>배차 제안</h2><div class="offer-title-actions"><span id="offerCount">0건</span><select id="offerSortSelect" class="offer-sort" aria-label="배차 제안 정렬"><option value="score">매칭 점수순</option><option value="revenue">예상 수익순</option></select></div></div>
+            <p class="subtext" style="margin:-5px 2px 10px">필수 정보만 표시합니다. 거절은 서버에 저장되지 않고 현재 화면에서만 숨깁니다.</p>
+            <div id="riderOffers"><div class="card skeleton"></div></div>
+          </section>
+          <section class="section">
             <div class="section-title-row"><h2>내 운행 위치</h2><span id="riderLocationCount">위치 조회 중</span></div>
             <div class="card map-card"><div class="map-head"><span class="badge info">좌표 기반 지도</span><span class="subtext">카카오맵 전 SVG 렌더러</span></div><div class="map-canvas" id="riderMap"><div class="map-legend">파랑: 내 위치 · 검정/분홍: 패키지 경로</div></div></div>
           </section>
@@ -58,7 +67,7 @@
         </div>
       </div>
       <div id="packageDetailBackdrop" class="sheet-backdrop" aria-hidden="true"></div>
-      <aside id="packageDetailSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="packageDetailTitle" aria-hidden="true">
+      <aside id="packageDetailSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="packageDetailTitle" aria-describedby="packageDetailSummary" aria-hidden="true">
         <div class="sheet-handle" aria-hidden="true"></div>
         <div class="row"><h2 id="packageDetailTitle" class="sheet-title">패키지 상세</h2><button id="packageDetailCloseButton" class="icon-button" type="button" aria-label="패키지 상세 닫기">×</button></div>
         <p id="packageDetailSummary" class="sheet-summary">상세 배차 정보를 선택해 주세요.</p>

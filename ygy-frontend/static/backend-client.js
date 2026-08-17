@@ -3,9 +3,9 @@
   const apiBaseUrl = String(config.apiBaseUrl || '').replace(/\/+$/, '');
   const apiPaths = config.apiPaths && typeof config.apiPaths === 'object' ? config.apiPaths : {};
   const defaultIds = Object.freeze({
-    customer: String(config.defaultOrderId || '118'),
-    merchant: String(config.defaultStoreId || '781'),
-    rider: String(config.defaultRiderId || 'rider_102'),
+    customer: String(config.defaultOrderId ?? ''),
+    merchant: String(config.defaultStoreId || '889'),
+    rider: String(config.defaultRiderId || 'rider_12'),
   });
 
   const endpoint = (name, fallback, params = {}) => {
@@ -54,6 +54,14 @@
     lng: toNumber(rider.lng ?? rider.current_lng),
     completed_order_count: Number(rider.completed_order_count ?? 0),
   });
+  const normalizeMerchantOrder = order => ({
+    ...order,
+    menu_items: normalizeMenuItems(order.menu_items),
+    route_detail: normalizeRoute(order.route_detail),
+    owner_cook_min: toNumber(order.owner_cook_min),
+    predicted_cook_min: toNumber(order.predicted_cook_min),
+    eta_min: toNumber(order.eta_min),
+  });
 
   const request = async (path, options = {}) => {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
@@ -76,6 +84,7 @@
 
   const apiClient = Object.freeze({
     customers: Object.freeze({
+      getDemoActive: () => request(endpoint('customerDemoActive', '/api/customer/demo/active')),
       get: async orderId => {
         const data = await request(endpoint('customer', '/api/customer/:orderId', { orderId }));
         return { ...data, menu_items: normalizeMenuItems(data.menu_items), eta_min: toNumber(data.eta_min) };
@@ -87,19 +96,24 @@
         const data = await request(endpoint('merchant', '/api/merchant/:storeId', { storeId }));
         return {
           ...data,
-          orders: asArray(data.orders).map(order => ({
-            ...order,
-            menu_items: normalizeMenuItems(order.menu_items),
-            route_detail: normalizeRoute(order.route_detail),
-            owner_cook_min: toNumber(order.owner_cook_min),
-            predicted_cook_min: toNumber(order.predicted_cook_min),
-            eta_min: toNumber(order.eta_min),
-          })),
+          orders: asArray(data.orders).map(normalizeMerchantOrder),
         };
       },
+      nextToCook: async () => normalizeMerchantOrder(await request(endpoint('merchantNextToCook', '/api/merchant/next-to-cook'))),
       updateCookTime: (orderId, ownerCookMin) => request(
         endpoint('merchantCookTime', '/api/merchant/orders/:orderId/cook-time', { orderId }),
         { method: 'PUT', body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }) },
+      ),
+      demoTrigger: ({ primaryStoreId, primaryOrderId, ownerCookMin }) => request(
+        endpoint('merchantDemoTrigger', '/api/merchant/demo-trigger'),
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            primary_store_id: Number(primaryStoreId),
+            primary_order_id: Number(primaryOrderId),
+            owner_cook_min: Number(ownerCookMin),
+          }),
+        },
       ),
     }),
     riders: Object.freeze({
@@ -127,6 +141,11 @@
         };
       },
       profile: async riderId => normalizeRider(await request(endpoint('riderProfile', '/api/rider/:riderId/profile', { riderId }))),
+      offers: async riderId => {
+        const data = await request(endpoint('riderOffers', '/api/rider/:riderId/offers', { riderId }));
+        return { ...data, offers: asArray(data.offers).map(normalizePackage) };
+      },
+      accept: (riderId, packageId) => request(endpoint('riderAccept', '/api/rider/:riderId/package/:packageId/accept', { riderId, packageId }), { method: 'PUT' }),
       pickup: (riderId, packageId) => request(endpoint('riderPickup', '/api/rider/:riderId/package/:packageId/pickup', { riderId, packageId }), { method: 'PUT' }),
       complete: (riderId, packageId) => request(endpoint('riderComplete', '/api/rider/:riderId/package/:packageId/complete', { riderId, packageId }), { method: 'PUT' }),
     }),

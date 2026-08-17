@@ -8,7 +8,7 @@ from common.config.menu_data import CATEGORY_MENU_PRICE_RANGE, SIDE_MENUS
 from common.config import (
     CATEGORY_COOK_TIME_RANGE, COOK_TIME_STEP_MINUTES,
     COOK_TIME_MIN, COOK_TIME_MAX, DELIVERY_DISTANCE_RANGE_DEGREES,
-    DELIVERY_FEE_BASE, CATEGORY_CORRECTION_FACTORS, DEFAULT_CORRECTION_FACTOR
+    DELIVERY_FEE_BASE, CATEGORY_CORRECTION_FACTORS, DEFAULT_CORRECTION_FACTOR, DEMO_STORE_PROBABILITY, DEMO_STORE_IDS
 )
 
 
@@ -47,20 +47,18 @@ def generate_menu_items(store):
     return items
 
 
-def generate_dummy_order(order_id):
-    store = random.choice(stores)
-    cook_min_range = CATEGORY_COOK_TIME_RANGE.get(store["category"], (10, 20))
-    raw_cook_time = random.randint(*cook_min_range)
-    cook_time = round_to_step(raw_cook_time, COOK_TIME_STEP_MINUTES, COOK_TIME_MIN, COOK_TIME_MAX)
-
-    factor = CATEGORY_CORRECTION_FACTORS.get(store["category"], DEFAULT_CORRECTION_FACTOR)
-    predicted_cook_min = round(cook_time * factor, 1)
-
+# 조리시간 없이 주문 생성 + demo용으로 설정한 매장에 더 많은 주문
+def generate_dummy_order():
+    if random.random() < DEMO_STORE_PROBABILITY:
+        demo_store_id = random.choice(DEMO_STORE_IDS)
+        store = next((s for s in stores if s["store_id"] == demo_store_id), random.choice(stores))
+    else:
+        store = random.choice(stores)
+    
     menu_items = generate_menu_items(store)
     amount = sum(item["price"] * item["qty"] for item in menu_items)
 
     return {
-        "order_id": order_id,
         "store_id": store["store_id"],
         "store_name": store["name"],
         "category": store["category"],
@@ -71,8 +69,8 @@ def generate_dummy_order(order_id):
         "delivery_fee": DELIVERY_FEE_BASE,
         "store_lat": store["lat"],
         "store_lng": store["lng"],
-        "base_cooking_min": cook_time,
-        "predicted_cook_min": predicted_cook_min,
+        "base_cooking_min": None,
+        "predicted_cook_min": None,
         "delivery_lat": store["lat"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES),
         "delivery_lng": store["lng"] + random.uniform(-DELIVERY_DISTANCE_RANGE_DEGREES, DELIVERY_DISTANCE_RANGE_DEGREES),
         "created_at": time.time()
@@ -80,14 +78,12 @@ def generate_dummy_order(order_id):
 
 
 if __name__ == "__main__":
-    order_id = 1
     try:
         while True:
-            order = generate_dummy_order(order_id)
+            order = generate_dummy_order()
             producer.send('order-events', order)
             print(f"주문 전송: {order}")
-            order_id += 1
-            time.sleep(0.5)
+            time.sleep(0.7)
     except KeyboardInterrupt:
         print("\nProducer 종료")
         producer.flush()

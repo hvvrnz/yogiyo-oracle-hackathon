@@ -115,3 +115,7 @@ ALTER TABLE packages ADD CONSTRAINT fk_packages_rider
 
 ALTER TABLE orders ADD CONSTRAINT fk_orders_store
     FOREIGN KEY (store_id) REFERENCES stores(store_id);
+
+-- orders.status 값 체계: NEW(조리시작 전) → COOKING(조리시작됨, 배차대상) → MATCHED → ...
+-- owner_cook_min은 이제 NULL 허용 (조리시작 전엔 비어있음)
+UPDATE orders SET owner_cook_min = NULL;

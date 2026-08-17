@@ -138,3 +138,49 @@ def get_rider_earnings(rider_id: str):
         "total_revenue": total_revenue,
         "packages": packages,
     }
+
+
+@router.get("/{rider_id}/offers")
+def get_rider_offers(rider_id: str, radius_km: float = 5):
+    """
+    이 라이더 근처에서, 아직 수락 안 된(OFFERED) 패키지 목록 조회.
+    """
+    from stream_processor.riders.geo_client import get_rider_position
+
+    pos = get_rider_position(rider_id)
+    if not pos:
+        raise HTTPException(status_code=404, detail="라이더 위치를 찾을 수 없습니다.")
+
+    # 간단하게: 상태가 OFFERED인 패키지 전체 반환 (거리 필터는 필요시 추가)
+    offers = fetch_all("""
+        SELECT package_id, package_type, bundle_size, score,
+               package_revenue, hourly_revenue, order_ids, route_detail
+        FROM packages
+        WHERE status = 'OFFERED'
+        ORDER BY hourly_revenue DESC
+    """)
+    return {"rider_id": rider_id, "offers": offers}
+
+
+@router.put("/{rider_id}/package/{package_id}/accept")
+def accept_offer(rider_id: str, package_id: int):
+    """
+    라이더가 제안된 패키지 중 하나를 선택해서 수락.
+    """
+    from stream_processor.riders.geo_client import set_rider_busy
+
+    row_count = execute_and_commit("""
+        UPDATE packages SET rider_id = :rider_id, status = 'MATCHING', accepted_at = SYSTIMESTAMP
+        WHERE package_id = :package_id AND status = 'OFFERED'
+    """, {"rider_id": rider_id, "package_id": package_id})
+
+    if row_count == 0:
+        raise HTTPException(status_code=409, detail="이미 다른 라이더가 수락했거나 존재하지 않는 패키지입니다.")
+
+    execute_and_commit(
+        "UPDATE orders SET status = 'MATCHED' WHERE package_id = :package_id",
+        {"package_id": package_id}
+    )
+    set_rider_busy(rider_id)
+
+    return {"package_id": package_id, "rider_id": rider_id, "status": "MATCHING"}

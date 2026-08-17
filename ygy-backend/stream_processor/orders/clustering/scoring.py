@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from common.geo import haversine
 from common.config import (
     FOOD_CATEGORY_URGENCY, UrgencyLevel,
@@ -11,14 +12,20 @@ def get_urgency(category):
     return FOOD_CATEGORY_URGENCY.get(category, UrgencyLevel.MODERATE)
 
 
+
 def remaining_cook_time(order):
     """
-    주문 접수 이후 시간이 흐른 만큼을 반영해, '지금 이 순간' 남은 조리시간을 계산.
-    이미 조리 완료됐을 경우 0으로 처리.
+    주문 접수 이후 경과시간을 반영한 현재 남은 조리시간.
+    created_at은 Oracle TIMESTAMP에서 조회된 datetime 객체.
     """
-    elapsed_min = (time.time() - order["created_at"]) / 60
-    return max(order["base_cooking_min"] - elapsed_min, 0)
+    elapsed_min = (
+        datetime.now() - order["created_at"]
+    ).total_seconds() / 60
 
+    return max(
+        order["base_cooking_min"] - elapsed_min,
+        0
+    )
 
 def cluster_score(order, other):
     # 서로 다른 권역이면 애초에 묶일 수 없음 (매우 큰 페널티로 사실상 배제)
