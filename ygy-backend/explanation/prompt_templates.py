@@ -2,6 +2,8 @@
 
 import json
 
+from explanation.demo_context import build_demo_explanation_context
+
 
 SYSTEM_PROMPT = """
 당신은 음식 배달 패키지의 확정된 결과를 설명하는 한국어 안내 작성기입니다.
@@ -10,6 +12,7 @@ SYSTEM_PROMPT = """
 응답은 Markdown 없이 아래 JSON 객체만 반환해야 합니다.
 {
   "consumer_text": "고객용 안내",
+  "merchant_text": "사장님용 안내",
   "rider_text": "라이더용 안내"
 }
 """.strip()
@@ -129,7 +132,16 @@ def normalize_explanation_context(context):
 
 def build_messages(context):
     """Build strict JSON messages for an OpenAI-compatible chat completion API."""
-    normalized = normalize_explanation_context(context)
+    context = context if isinstance(context, dict) else {}
+    legacy_normalized = normalize_explanation_context(context)
+    normalized = build_demo_explanation_context({
+        "package": context.get("package") or context.get("rider_offer") or legacy_normalized["package"],
+        "orders": context.get("orders") or legacy_normalized["orders"],
+        "customer_order": context.get("customer_order"),
+        "merchant_order": context.get("merchant_order"),
+        "rider_profile": context.get("rider_profile"),
+        "next_stop": context.get("next_stop"),
+    })
     data = json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
     user_prompt = """
 아래는 이미 확정된 배차 결과 데이터입니다.
@@ -137,10 +149,11 @@ def build_messages(context):
 {data}
 
 작성 규칙:
-1. consumer_text는 2문장 이하, 220자 이하의 고객 안내입니다. 패키지 공통 문구이므로 다른 주문, 다른 고객, 주문 번호, 라이더 ID, 매장명, 개별 ETA를 언급하지 마세요.
-2. rider_text는 3문장 이하, 500자 이하의 운행 안내입니다. route_detail과 timeline에 있는 픽업·배달 순서, 조리시간, 대기시간만 근거로 쓰세요.
-3. 점수는 결과값일 뿐 후보 간 우위를 증명하지 않습니다. 다른 후보보다 좋았다는 표현을 쓰지 마세요.
-4. 설명이 가능한 근거가 부족하면 그 사실을 짧고 정직하게 안내하세요.
+1. consumer_text는 2문장 이하, 220자 이하의 고객 안내입니다. 다른 주문, 다른 고객, 주문 번호, 라이더 ID, 매장명, 묶음 상세, 라이더 수익을 언급하지 마세요.
+2. merchant_text는 2문장 이하, 300자 이하의 조리·포장 안내입니다. merchant_order의 조리시간과 상태, 제공된 경로 정보만 근거로 쓰세요. 제공되지 않은 포장 완료 시각이나 우선순위를 만들지 마세요.
+3. rider_text는 3문장 이하, 500자 이하의 수락 판단·운행 안내입니다. package의 수익·경로·시간 분석만 근거로 쓰세요. next_stop의 label/type은 화면 템플릿용이므로 문구에 반복하지 마세요.
+4. 점수는 결과값일 뿐 후보 간 우위를 증명하지 않습니다. 다른 후보보다 좋았다는 표현을 쓰지 마세요.
+5. 설명이 가능한 근거가 부족하면 그 사실을 짧고 정직하게 안내하세요.
 """.strip().format(data=data)
     return [
         {"role": "system", "content": SYSTEM_PROMPT},

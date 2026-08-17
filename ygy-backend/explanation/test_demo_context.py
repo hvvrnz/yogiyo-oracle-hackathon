@@ -1,0 +1,50 @@
+"""Unit tests for demo explanation context and role output validation."""
+
+import unittest
+
+from explanation.demo_context import build_demo_explanation_context
+from explanation.generator import _validated_text, demo_explanation_fallback
+from explanation.prompt_templates import build_messages
+
+
+class DemoExplanationContextTest(unittest.TestCase):
+    def setUp(self):
+        self.context = {
+            "package": {
+                "package_id": 80001,
+                "package_type": "BUNDLE",
+                "bundle_size": 3,
+                "score": 41,
+                "package_revenue": 12700,
+                "hourly_revenue": 22500,
+                "order_ids": [90001, 90002, 90003],
+                "route_detail": [{"order_id": 90002, "type": "pickup"}],
+            },
+            "orders": [{"order_id": 90001, "store_name": "테스트 매장", "owner_cook_min": 20}],
+            "customer_order": {"order_id": 90001, "delivery_address": "테스트 주소", "status": "MATCHED"},
+            "merchant_order": {"order_id": 90001, "owner_cook_min": 20, "status": "COOKING"},
+            "rider_profile": {"status": "AVAILABLE"},
+            "next_stop": {"order_id": 90002, "type": "pickup", "label": "테스트 매장"},
+        }
+
+    def test_normalizes_final_demo_fields(self):
+        normalized = build_demo_explanation_context(self.context)
+        self.assertEqual(normalized["package"]["package_id"], 80001)
+        self.assertEqual(normalized["customer_order"]["delivery_address"], "테스트 주소")
+        self.assertEqual(normalized["merchant_order"]["owner_cook_min"], 20)
+        self.assertEqual(normalized["next_stop"]["type"], "pickup")
+
+    def test_prompt_requires_three_role_outputs(self):
+        messages = build_messages(self.context)
+        self.assertIn("merchant_text", messages[0]["content"])
+        self.assertIn("next_stop", messages[1]["content"])
+
+    def test_validates_merchant_text_and_has_fallback(self):
+        self.assertEqual(_validated_text({"merchant_text": "포장을 준비해 주세요."}, "merchant_text", 300), "포장을 준비해 주세요.")
+        fallback = demo_explanation_fallback(self.context)
+        self.assertIn("merchant_text", fallback)
+        self.assertIn("20분", fallback["merchant_text"])
+
+
+if __name__ == "__main__":
+    unittest.main()

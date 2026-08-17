@@ -5,6 +5,7 @@ import os
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from explanation.demo_context import build_demo_explanation_context
 from explanation.prompt_templates import build_messages
 
 
@@ -94,7 +95,7 @@ def _validated_text(result, field, maximum_length):
 
 
 def generate_package_explanation(context):
-    """Generate validated customer and rider text from a completed package context."""
+    """Generate validated customer, merchant, and rider text from package data."""
     settings = _load_settings()
     payload = {
         "model": settings["model"],
@@ -110,5 +111,33 @@ def generate_package_explanation(context):
     result = _extract_json(content)
     return {
         "consumer_text": _validated_text(result, "consumer_text", 220),
+        "merchant_text": _validated_text(result, "merchant_text", 300),
         "rider_text": _validated_text(result, "rider_text", 500),
+    }
+
+
+def generate_demo_explanations(context):
+    """Generate role-scoped copy from final demo API state."""
+    return generate_package_explanation(context)
+
+
+def demo_explanation_fallback(context):
+    """Return safe role copy when an LLM provider is unavailable.
+
+    Demo API handlers can use this result instead of failing a state-changing
+    request such as cook-start. It intentionally summarizes only supplied
+    state and never fabricates ETA, route, or revenue values.
+    """
+    normalized = build_demo_explanation_context(context)
+    merchant = normalized["merchant_order"]
+    package = normalized["package"]
+    owner_cook_min = merchant.get("owner_cook_min")
+    package_ready = package.get("package_id") is not None
+    merchant_text = "조리·포장 안내를 준비 중입니다."
+    if owner_cook_min is not None:
+        merchant_text = "설정한 조리시간 %s분을 기준으로 조리·포장을 준비해 주세요." % owner_cook_min
+    return {
+        "consumer_text": "배차가 확정되면 배송 진행 상황을 안내해 드립니다." if not package_ready else "배차가 확정되어 배송을 준비하고 있습니다.",
+        "merchant_text": merchant_text,
+        "rider_text": "패키지의 수익과 방문 순서를 확인한 뒤 수락해 주세요." if package_ready else "배차 제안 정보를 준비 중입니다.",
     }
