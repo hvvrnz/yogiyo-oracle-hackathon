@@ -6,6 +6,7 @@ const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 test('고객 화면은 전체 주문 상태와 배차 단계 안내를 유지한다', () => {
   const source = read('../static/customer/app.js');
+  const template = read('../static/customer/index.html');
   for (const status of ['NEW', 'COOKING', 'MATCHED', 'PICKED_UP', 'DELIVERED']) {
     assert.match(source, new RegExp(`${status}:`));
   }
@@ -18,6 +19,9 @@ test('고객 화면은 전체 주문 상태와 배차 단계 안내를 유지한
   assert.match(source, /mergeDemoAcceptedAssignment/);
   assert.match(source, /hasOfferedPackage/);
   assert.match(source, /LLM 배차 안내 생성 준비 중입니다/);
+  assert.match(source, /notice llm-guidance/);
+  assert.match(source, /내 주문번호 #\$\{order\.order_id\}/);
+  assert.match(template, /id="orderNumber"/);
 });
 
 test('고객 화면은 매장 주문 중 취소되지 않은 한 건을 선택해 조회한다', () => {
@@ -66,6 +70,9 @@ test('사장님 화면은 배차 제안·수락 단계를 구분하고 조리 �
   assert.match(client, /primary_order_id/);
   assert.doesNotMatch(template, /demoBulkCookStartButton/);
   assert.match(template, /id="offeredCount"/);
+  assert.match(template, /id="merchantExplanationContent"/);
+  assert.match(screen, /AI 조리·포장 안내/);
+  assert.match(template, /llm-guidance/);
 });
 
 test('라이더 화면은 offers 수락 API와 404·409 경쟁 오류 안내를 유지한다', () => {
@@ -83,6 +90,10 @@ test('라이더 제안은 최소 정보의 스크롤 리스트와 수락·거절
   const styles = read('../static/common.css');
   assert.match(screen, /class="offer-list"/);
   assert.match(screen, /data-offer-accept/);
+  assert.match(screen, /AI 수락 판단/);
+  assert.match(screen, /llm-guidance offer-ai-guidance/);
+  assert.match(screen, /loadOfferExplanation/);
+  assert.match(screen, /explanations\.get\(packageId\)/);
   assert.match(screen, /data-offer-decline/);
   assert.match(screen, /data-offer-detail/);
   assert.match(screen, /function declineOffer/);
@@ -208,4 +219,11 @@ test('역할 화면과 통합 시연 프레임은 모바일 세로 비율을 유
   assert.match(styles, /html\.embedded \.mobile-shell/);
   assert.match(demo, /aspect-ratio:390\/844/);
   assert.match(demo, /repeat\(auto-fit,minmax\(280px,390px\)\)/);
+});
+
+test('세 역할 화면의 LLM 안내는 전용 색상 토큰을 사용한다', () => {
+  const styles = read('../static/common.css');
+  assert.match(styles, /--info: #61616b/);
+  assert.match(styles, /--llm: #3f6fe5/);
+  assert.match(styles, /\.llm-guidance \{ background:var\(--llm-soft\); color:var\(--llm\)/);
 });

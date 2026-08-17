@@ -77,16 +77,16 @@ function renderCustomerExplanation() {
   }
 
   if (state.status === 'loading') {
-    content.innerHTML = '<div class="notice info"><span>ⓘ</span><div><strong>배차 안내를 불러오는 중입니다.</strong><span>현재 배차 정보를 바탕으로 준비된 안내를 확인하고 있어요.</span></div></div>';
+    content.innerHTML = '<div class="notice llm-guidance"><span>✦</span><div><strong>배차 안내를 불러오는 중입니다.</strong><span>현재 배차 정보를 바탕으로 준비된 안내를 확인하고 있어요.</span></div></div>';
     return;
   }
   if (state.status === 'ready') {
-    content.innerHTML = `<div class="notice info"><span>ⓘ</span><div><strong>배차 안내</strong><span class="explanation-copy">${Yogiyo.escape(state.text)}</span></div></div>`;
+    content.innerHTML = `<div class="notice llm-guidance"><span>✦</span><div><strong>배차 안내</strong><span class="explanation-copy">${Yogiyo.escape(state.text)}</span></div></div>`;
     return;
   }
 
   const isMissing = state.status === 'missing';
-  content.innerHTML = `<div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? 'LLM 배차 안내 생성 준비 중입니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '현재는 저장된 안내를 조회합니다. 생성된 문구가 준비되면 이곳에 표시됩니다.' : Yogiyo.escape(Yogiyo.errorMessage(state.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-customer-explanation-retry>다시 확인</button></div></div>`;
+  content.innerHTML = `<div class="notice llm-guidance"><span>✦</span><div><strong>${isMissing ? 'LLM 배차 안내 생성 준비 중입니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '현재는 저장된 안내를 조회합니다. 생성된 문구가 준비되면 이곳에 표시됩니다.' : Yogiyo.escape(Yogiyo.errorMessage(state.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-customer-explanation-retry>다시 확인</button></div></div>`;
   content.querySelector('[data-customer-explanation-retry]').addEventListener('click', () => {
     loadCustomerExplanation(state.packageId, { force: true });
   });
@@ -161,13 +161,14 @@ function renderCustomer(order) {
     : Yogiyo.mapData.create();
   const map = Yogiyo.mapData.combine(Yogiyo.mapData.fromCustomerOrder(order), riderMap);
 
-  Yogiyo.el('orderId').textContent = `주문 ${order.order_id} · ${order.store_name}`;
+  Yogiyo.el('orderId').textContent = `내 주문번호 #${order.order_id} · ${order.store_name}`;
   Yogiyo.el('etaWindow').textContent = etaLabel;
   Yogiyo.el('currentMessage').textContent = meta.message;
   Yogiyo.el('deliveryOrder').textContent = meta.label;
   Yogiyo.el('etaUpdated').textContent = usingDemoActiveOrder ? '현재 시연 주문 자동 조회' : isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
   Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(meta.label)}`;
   Yogiyo.el('storeName').textContent = order.store_name;
+  Yogiyo.el('orderNumber').textContent = `내 주문번호 #${order.order_id}`;
   Yogiyo.el('menuSummary').textContent = menuSummary(items);
   Yogiyo.el('remainingMin').textContent = order.status === 'CANCELLED' ? '취소됨' : etaLabel;
   Yogiyo.el('packageId').textContent = assignmentConfirmed
