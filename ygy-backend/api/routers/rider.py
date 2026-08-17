@@ -171,8 +171,20 @@ def get_rider_offers(rider_id: str, radius_km: float = 5):
 def accept_offer(rider_id: str, package_id: int):
     """
     라이더가 제안된 패키지 중 하나를 선택해서 수락.
+    이 패키지에 포함된 주문들이 다른 OFFERED 패키지에도 중복으로
+    들어있다면, 그 다른 패키지들은 취소하고, 남은 주문은 다시
+    배차 후보(NEW)로 되돌린다.
     """
     from stream_processor.riders.geo_client import set_rider_busy
+    import json
+
+    accepted = fetch_one("""
+        SELECT package_id, order_ids FROM packages
+        WHERE package_id = :package_id AND status = 'OFFERED'
+    """, {"package_id": package_id})
+
+    if not accepted:
+        raise HTTPException(status_code=409, detail="이미 다른 라이더가 수락했거나 존재하지 않는 패키지입니다.")
 
     row_count = execute_and_commit("""
         UPDATE packages SET rider_id = :rider_id, status = 'MATCHING', accepted_at = SYSTIMESTAMP
@@ -182,10 +194,42 @@ def accept_offer(rider_id: str, package_id: int):
     if row_count == 0:
         raise HTTPException(status_code=409, detail="이미 다른 라이더가 수락했거나 존재하지 않는 패키지입니다.")
 
+    accepted_order_ids = accepted["order_ids"]
+    accepted_order_ids = json.loads(accepted_order_ids) if isinstance(accepted_order_ids, str) else accepted_order_ids
+
     execute_and_commit(
         "UPDATE orders SET status = 'MATCHED' WHERE package_id = :package_id",
         {"package_id": package_id}
     )
+
+    # 같은 주문을 포함한 다른 OFFERED 패키지들 찾아서 취소
+    placeholders = ",".join(f":id{i}" for i in range(len(accepted_order_ids)))
+    params = {f"id{i}": oid for i, oid in enumerate(accepted_order_ids)}
+
+    conflicting_packages = fetch_all(f"""
+        SELECT DISTINCT p.package_id, p.order_ids FROM packages p
+        JOIN orders o ON o.package_id = p.package_id
+        WHERE p.status = 'OFFERED' AND p.package_id != :accepted_package_id
+        AND o.order_id IN ({placeholders})
+    """, {**params, "accepted_package_id": package_id})
+
+    for conflict_pkg in conflicting_packages:
+        execute_and_commit(
+            "UPDATE packages SET status = 'CANCELLED' WHERE package_id = :package_id",
+            {"package_id": conflict_pkg["package_id"]}
+        )
+
+        conflict_order_ids = conflict_pkg["order_ids"]
+        conflict_order_ids = json.loads(conflict_order_ids) if isinstance(conflict_order_ids, str) else conflict_order_ids
+
+        # 그 패키지 안에서, 이번에 확정 안 된(아직 남은) 주문들은 다시 배차 대상으로
+        remaining_order_ids = [oid for oid in conflict_order_ids if oid not in accepted_order_ids]
+        for remaining_id in remaining_order_ids:
+            execute_and_commit(
+                "UPDATE orders SET status = 'COOKING', package_id = NULL WHERE order_id = :order_id",
+                {"order_id": remaining_id}
+            )
+
     set_rider_busy(rider_id)
 
     return {"package_id": package_id, "rider_id": rider_id, "status": "MATCHING"}

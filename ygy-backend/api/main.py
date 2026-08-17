@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import rider, customer, merchant, store, explanation, package
+from api.routers import rider, customer, merchant, store, explanation, package, demo
 
 app = FastAPI(title="실속배달 API")
 
@@ -17,6 +17,7 @@ app.include_router(merchant.router)
 app.include_router(store.router)
 app.include_router(explanation.router)
 app.include_router(package.router)
+app.include_router(demo.router)
 
 
 @app.get("/")
