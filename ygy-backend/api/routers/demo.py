@@ -98,7 +98,7 @@ def _demo_orders():
     ]
 
 
-def _demo_explanation_context():
+def _demo_explanation_context(explanation_stage):
     customer_order = {
         "order_id": 90001, "store_name": STORE_A["name"],
         "delivery_address": DELIVERY_A["address"], "status": "MATCHED",
@@ -107,6 +107,7 @@ def _demo_explanation_context():
         "eta_min": SCORE_DETAIL["total_time"],
     }
     return {
+        "explanation_stage": explanation_stage,
         "package": dict(_package_summary(), score_detail=SCORE_DETAIL, status="OFFERED"),
         "orders": _demo_orders(),
         "customer_order": customer_order,
@@ -115,9 +116,10 @@ def _demo_explanation_context():
     }
 
 
-def _get_demo_explanations():
+def _get_demo_explanations(explanation_stage):
     """Generate once per demo package and keep demo state usable on LLM errors."""
-    cached = demo_explanations.get(PACKAGE_ID)
+    cache_key = (PACKAGE_ID, explanation_stage)
+    cached = demo_explanations.get(cache_key)
     if cached:
         return cached
 
@@ -128,12 +130,12 @@ def _get_demo_explanations():
         generate_demo_explanations,
     )
 
-    context = _demo_explanation_context()
+    context = _demo_explanation_context(explanation_stage)
     try:
         generated = generate_demo_explanations(context)
     except (LLMConfigurationError, LLMGenerationError):
         generated = demo_explanation_fallback(context)
-    demo_explanations[PACKAGE_ID] = generated
+    demo_explanations[cache_key] = generated
     return generated
 
 
@@ -154,7 +156,7 @@ def _customer_response():
         "eta_min": SCORE_DETAIL["total_time"] if step >= 2 else None,
     }
     if step >= 2:
-        response["consumer_text"] = _get_demo_explanations()["consumer_text"]
+        response["consumer_text"] = _get_demo_explanations("MATCHED")["consumer_text"]
     return response
 
 
@@ -178,8 +180,8 @@ def demo_merchant_next():
     if step == 1:
         return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000,
                 "status": "COOKING", "owner_cook_min": _owner_cook_min["value"],
-                "merchant_text": _get_demo_explanations()["merchant_text"]}
-    return {"message": "조리 대기 주문 없음"}
+                "merchant_text": _get_demo_explanations("COOKING")["merchant_text"]}
+    return {"message": "조리 대기 주문 없음", "merchant_text": _get_demo_explanations("MATCHED")["merchant_text"]}
 
 
 @router.post("/merchant/cook-start")
@@ -190,7 +192,7 @@ def demo_cook_start(body: CookTimeInput):
     """
     _owner_cook_min["value"] = body.owner_cook_min
     demo_state["step"] = 1
-    _get_demo_explanations()
+    _get_demo_explanations("COOKING")
     return {
         "triggered": [
             {"order_id": 90001, "store_id": STORE_A["store_id"], "owner_cook_min": body.owner_cook_min, "triggered_by": "user"},
@@ -206,7 +208,7 @@ def demo_rider_offers():
     if demo_state["step"] != 1:
         return {"rider_id": RIDER_ID, "offers": []}
     offer = _package_summary()
-    offer["rider_text"] = _get_demo_explanations()["rider_text"]
+    offer["rider_text"] = _get_demo_explanations("COOKING")["rider_text"]
     return {"rider_id": RIDER_ID, "offers": [offer]}
 
 
@@ -229,7 +231,7 @@ def demo_rider_packages():
     pkg = _package_summary()
     pkg["status"] = status_map[step]
     pkg["score_detail"] = SCORE_DETAIL
-    pkg["rider_text"] = _get_demo_explanations()["rider_text"]
+    pkg["rider_text"] = _get_demo_explanations("MATCHED")["rider_text"]
     return {"rider_id": RIDER_ID, "current_lat": RIDER_LAT, "current_lng": RIDER_LNG, "packages": [pkg]}
 
 
@@ -240,6 +242,7 @@ def demo_accept(package_id: int):
     if demo_state["step"] != 1:
         raise HTTPException(status_code=409, detail="이미 다른 라이더가 수락했거나 존재하지 않는 패키지입니다.")
     demo_state["step"] = 2
+    _get_demo_explanations("MATCHED")
     return {"package_id": PACKAGE_ID, "rider_id": RIDER_ID, "status": "MATCHING"}
 
 

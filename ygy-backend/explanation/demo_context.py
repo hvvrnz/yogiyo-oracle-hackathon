@@ -96,6 +96,7 @@ def build_demo_explanation_context(context):
     next_stop = _mapping(context.get("next_stop"))
 
     return {
+        "explanation_stage": _safe_value(context.get("explanation_stage")),
         "package": {
             "package_id": _safe_value(package.get("package_id")),
             "package_type": _safe_value(package.get("package_type")),

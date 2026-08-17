@@ -135,6 +135,7 @@ def demo_explanation_fallback(context):
     state and never fabricates ETA, route, or revenue values.
     """
     normalized = build_demo_explanation_context(context)
+    stage = normalized.get("explanation_stage")
     merchant = normalized["merchant_order"]
     package = normalized["package"]
     score_detail = package.get("score_detail") or {}
@@ -142,7 +143,7 @@ def demo_explanation_fallback(context):
     package_ready = package.get("package_id") is not None
     merchant_text = "• 조리·포장 안내: 준비 중"
     if owner_cook_min is not None:
-        merchant_text = "• 조리 기준: %s분\n• 조리·포장: 준비" % owner_cook_min
+        merchant_text = "• 조리 기준: %s분\n• 포장 준비: 조리 완료 시점 기준" % owner_cook_min
     bundle_size = package.get("bundle_size")
     total_time = score_detail.get("total_time")
     food_sitting_time = score_detail.get("food_sitting_time")
@@ -150,7 +151,7 @@ def demo_explanation_fallback(context):
     if package_ready:
         consumer_lines = ["• 배송 상태: 배차 확정"]
         if bundle_size:
-            consumer_lines.append("• 묶음 배차: %s건 동시 배송" % bundle_size)
+            consumer_lines[0] = "• 총 묶음 주문: %s건" % bundle_size
         if total_time is not None or food_sitting_time is not None:
             metrics = []
             if total_time is not None:
@@ -158,6 +159,12 @@ def demo_explanation_fallback(context):
             if food_sitting_time is not None:
                 metrics.append("음식 대기 %s분" % food_sitting_time)
             consumer_lines.append("• 배차 근거: %s 기준" % ", ".join(metrics))
+        dropoffs = [step for step in package.get("route_detail", []) if step.get("type") == "dropoff"]
+        customer_order_id = normalized["customer_order"].get("order_id")
+        for index, step in enumerate(dropoffs, start=1):
+            if step.get("order_id") == customer_order_id:
+                consumer_lines.append("• 예상 배달 순서: %s개 주문 중 %s번째" % (len(dropoffs), index))
+                break
 
     revenue = package.get("package_revenue")
     rider_lines = []
@@ -168,6 +175,22 @@ def demo_explanation_fallback(context):
     courier_wait_time = score_detail.get("courier_wait_time")
     if courier_wait_time is not None:
         rider_lines.append("• 예상 대기: %s분" % courier_wait_time)
+    if stage == "COOKING":
+        merchant_text += "\n• 배차 상태: 라이더 수락 대기"
+    elif stage == "MATCHED":
+        rider_arrival = None
+        merchant_order_id = merchant.get("order_id")
+        for step in score_detail.get("timeline", []):
+            if step.get("order_id") == merchant_order_id and step.get("type") == "pickup":
+                rider_arrival = step.get("arrival_time_min")
+                break
+        merchant_lines = []
+        if rider_arrival is not None:
+            merchant_lines.append("• 라이더 도착 예상: 약 %s분 후" % rider_arrival)
+        if owner_cook_min is not None:
+            merchant_lines.append("• 조리·포장 기준: %s분" % owner_cook_min)
+        merchant_text = "\n".join(merchant_lines) or merchant_text
+
     return {
         "consumer_text": "\n".join(consumer_lines),
         "merchant_text": merchant_text,

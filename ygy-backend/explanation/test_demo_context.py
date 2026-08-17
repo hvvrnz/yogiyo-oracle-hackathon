@@ -53,7 +53,7 @@ class DemoExplanationContextTest(unittest.TestCase):
         self.assertIn("20분", fallback["merchant_text"])
         self.assertTrue(all(line.startswith("• ") for line in fallback["rider_text"].splitlines()))
         self.assertNotIn("방문 순서", fallback["rider_text"])
-        self.assertIn("묶음 배차", fallback["consumer_text"])
+        self.assertIn("총 묶음 주문", fallback["consumer_text"])
 
 
 if __name__ == "__main__":

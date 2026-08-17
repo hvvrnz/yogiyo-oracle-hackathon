@@ -130,24 +130,45 @@ def normalize_explanation_context(context):
     }
 
 
+def _delivery_position(normalized):
+    customer_order_id = normalized["customer_order"].get("order_id")
+    dropoffs = [step for step in normalized["package"]["route_detail"] if step.get("type") == "dropoff"]
+    for index, step in enumerate(dropoffs, start=1):
+        if step.get("order_id") == customer_order_id:
+            return {"position": index, "total": len(dropoffs)}
+    return {"position": None, "total": len(dropoffs) or None}
+
+
+def _merchant_rider_arrival_min(normalized):
+    merchant_order_id = normalized["merchant_order"].get("order_id")
+    for step in normalized["package"]["score_detail"]["timeline"]:
+        if step.get("order_id") == merchant_order_id and step.get("type") == "pickup":
+            return step.get("arrival_time_min")
+    return None
+
+
 def _role_scoped_context(normalized):
     """Keep each role's prompt input limited to its decision-relevant facts."""
     package = normalized["package"]
     score_detail = package["score_detail"]
     merchant = normalized["merchant_order"]
     customer = normalized["customer_order"]
+    stage = normalized.get("explanation_stage")
     return {
+        "explanation_stage": stage,
         "consumer_context": {
             "delivery_status": customer.get("status"),
             "package_type": package.get("package_type"),
             "bundle_size": package.get("bundle_size"),
             "total_time_min": score_detail.get("total_time"),
             "food_sitting_time_min": score_detail.get("food_sitting_time"),
+            "delivery_order": _delivery_position(normalized),
         },
         "merchant_context": {
             "order_status": merchant.get("status"),
             "owner_cook_min": merchant.get("owner_cook_min"),
             "predicted_cook_min": merchant.get("predicted_cook_min"),
+            "rider_arrival_min": _merchant_rider_arrival_min(normalized),
         },
         "rider_context": {
             "package_type": package.get("package_type"),
@@ -172,6 +193,7 @@ def build_messages(context):
         "merchant_order": context.get("merchant_order"),
         "rider_profile": context.get("rider_profile"),
         "next_stop": context.get("next_stop"),
+        "explanation_stage": context.get("explanation_stage"),
     })
     data = json.dumps(_role_scoped_context(normalized), ensure_ascii=False, separators=(",", ":"))
     user_prompt = """
@@ -182,9 +204,12 @@ def build_messages(context):
 작성 규칙:
 1. 세 text 값은 모두 1~3개의 개조식 줄로만 작성하세요. 각 줄은 반드시 "• "로 시작하고 줄바꿈(\n)으로 구분하세요.
 2. 제목, 인사, 도입 문장, 문단형 서술, "합니다/하세요" 같은 문장형 종결어미를 쓰지 마세요. "• 조리 기준: 20분"처럼 항목명과 값·판단 근거만 간결하게 쓰세요.
-3. consumer_text는 220자 이하의 고객 안내입니다. BUNDLE이면 묶음 배차의 합리적 근거를 bundle_size, total_time_min, food_sitting_time_min 범위에서 설명하세요. 고객의 배달지, 다른 주문·고객, 주문 번호, 라이더 ID, 매장명, 라이더 수익은 언급하지 마세요.
-4. merchant_text는 300자 이하의 조리·포장 안내입니다. merchant_context의 본인 주문 조리시간과 상태만 근거로 쓰세요. 다른 매장, 다른 주문, 픽업 장소, 배달 경로, 픽업·배달 순서, 라이더 정보는 언급하지 마세요.
-5. rider_text는 500자 이하의 수락 판단 안내입니다. rider_context의 수익·총 소요시간·대기시간만 근거로 쓰세요. 경로, 픽업 장소, 배달지, 픽업·배달 순서, next_stop 정보는 언급하지 마세요. 이 정보는 화면의 별도 운행 영역에서 제공합니다.
+3. explanation_stage가 COOKING이면 merchant_text는 조리 기준·포장 준비·라이더 수락 대기의 3개 항목으로, rider_text는 묶음 건수·예상 수익·대기시간의 3개 항목으로 작성하세요.
+4. explanation_stage가 MATCHED이면 consumer_text는 (a) 총 묶음 주문 수, (b) 음식 대기시간과 총 소요시간을 근거로 한 묶음 이유, (c) delivery_order의 전체 주문 수 중 예상 배달 순서의 3개 항목으로 작성하세요. 고객의 배달지, 다른 주문·고객, 주문 번호, 라이더 ID, 매장명, 라이더 수익은 언급하지 마세요.
+5. explanation_stage가 MATCHED이면 merchant_text는 rider_arrival_min 기반 라이더 도착 예상과 owner_cook_min 기반 조리·포장 기준의 2개 항목으로 작성하세요. "N분 안에 마쳐야"처럼 실제 데이터보다 강한 마감 표현은 쓰지 마세요.
+6. merchant_text에는 다른 매장, 다른 주문, 픽업 장소, 배달 경로, 픽업·배달 순서, 라이더 정보는 언급하지 마세요. rider_text에는 경로, 픽업 장소, 배달지, 픽업·배달 순서, next_stop 정보를 언급하지 마세요. 이 정보는 화면의 별도 운행 영역에서 제공합니다.
+7. 점수는 결과값일 뿐 후보 간 우위를 증명하지 않습니다. 다른 후보보다 좋았다는 표현을 쓰지 마세요.
+8. 설명이 가능한 근거가 부족하면 그 사실을 짧고 정직한 개조식으로 안내하세요.
 6. 점수는 결과값일 뿐 후보 간 우위를 증명하지 않습니다. 다른 후보보다 좋았다는 표현을 쓰지 마세요.
 7. 설명이 가능한 근거가 부족하면 그 사실을 짧고 정직한 개조식으로 안내하세요.
 """.strip().format(data=data)
