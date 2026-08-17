@@ -143,7 +143,10 @@ def get_rider_earnings(rider_id: str):
 @router.get("/{rider_id}/offers")
 def get_rider_offers(rider_id: str, radius_km: float = 5):
     """
-    이 라이더 근처에서, 아직 수락 안 된(OFFERED) 패키지 목록 조회.
+    889 매장이 포함된(BUNDLE이든 SOLO든) OFFERED 패키지만
+    최대 5건, 시간당 수익 높은 순으로 반환.
+    시연 화면이 889 하나만 다루므로, 다른 매장 조합은 애초에
+    라이더한테 제안 목록에서 안 보이게 필터링.
     """
     from stream_processor.riders.geo_client import get_rider_position
 
@@ -151,16 +154,18 @@ def get_rider_offers(rider_id: str, radius_km: float = 5):
     if not pos:
         raise HTTPException(status_code=404, detail="라이더 위치를 찾을 수 없습니다.")
 
-    # 간단하게: 상태가 OFFERED인 패키지 전체 반환 (거리 필터는 필요시 추가)
     offers = fetch_all("""
-        SELECT package_id, package_type, bundle_size, score,
-               package_revenue, hourly_revenue, order_ids, route_detail
-        FROM packages
-        WHERE status = 'OFFERED'
-        ORDER BY hourly_revenue DESC
+        SELECT DISTINCT p.package_id, p.package_type, p.bundle_size, p.score,
+               p.package_revenue, p.hourly_revenue, p.order_ids, p.route_detail
+        FROM packages p
+        JOIN orders o ON o.package_id = p.package_id
+        WHERE p.status = 'OFFERED'
+        AND o.store_id = 889
+        ORDER BY p.hourly_revenue DESC
+        FETCH FIRST 5 ROWS ONLY
     """)
-    return {"rider_id": rider_id, "offers": offers}
 
+    return {"rider_id": rider_id, "offers": offers}
 
 @router.put("/{rider_id}/package/{package_id}/accept")
 def accept_offer(rider_id: str, package_id: int):
