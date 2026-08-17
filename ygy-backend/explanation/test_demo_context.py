@@ -47,12 +47,12 @@ class DemoExplanationContextTest(unittest.TestCase):
     def test_validates_merchant_text_and_has_fallback(self):
         self.assertEqual(
             _validated_text({"merchant_text": "- 조리 기준: 20분\n포장 상태: 준비"}, "merchant_text", 300),
-            "조리 기준: 20분\n포장 상태: 준비",
+            "• 조리 기준: 20분\n• 포장 상태: 준비",
         )
         fallback = demo_explanation_fallback(self.context)
         self.assertIn("merchant_text", fallback)
         self.assertIn("20분", fallback["merchant_text"])
-        self.assertNotIn("•", fallback["rider_text"])
+        self.assertTrue(all(line.startswith("• ") for line in fallback["rider_text"].splitlines()))
         self.assertIn("\n", fallback["rider_text"])
         self.assertNotIn("방문 순서", fallback["rider_text"])
         self.assertIn("함께 배달돼요", fallback["consumer_text"])
