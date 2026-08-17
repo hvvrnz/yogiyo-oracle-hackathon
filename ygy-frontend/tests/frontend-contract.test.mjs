@@ -223,6 +223,7 @@ test('역할 화면과 통합 시연 프레임은 모바일 세로 비율을 유
 
 test('세 역할 화면의 LLM 안내는 전용 색상 토큰을 사용한다', () => {
   const styles = read('../static/common.css');
-  assert.match(styles, /--llm: #6d4cc7/);
+  assert.match(styles, /--info: #61616b/);
+  assert.match(styles, /--llm: #3f6fe5/);
   assert.match(styles, /\.llm-guidance \{ background:var\(--llm-soft\); color:var\(--llm\)/);
 });
