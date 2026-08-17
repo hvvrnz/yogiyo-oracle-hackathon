@@ -169,12 +169,12 @@ const explanationText = value => {
 const offerExplanationCard = pkg => {
   const state = offerExplanationByPackageId.get(String(pkg.package_id));
   if (state?.status === 'ready') {
-    return `<div class="offer-ai-guidance"><strong>AI 수락 판단</strong><span>${Yogiyo.escape(state.text)}</span></div>`;
+    return `<div class="llm-guidance offer-ai-guidance"><strong>AI 수락 판단</strong><span>${Yogiyo.escape(state.text)}</span></div>`;
   }
   if (state?.status === 'error') {
-    return `<div class="offer-ai-guidance unavailable"><strong>AI 수락 판단</strong><span>안내를 불러오지 못했습니다. 상세 정보에서 배차 조건을 확인해 주세요.</span></div>`;
+    return `<div class="llm-guidance offer-ai-guidance"><strong>AI 수락 판단</strong><span>안내를 불러오지 못했습니다. 상세 정보에서 배차 조건을 확인해 주세요.</span></div>`;
   }
-  return `<div class="offer-ai-guidance ${state?.status === 'missing' ? 'unavailable' : ''}"><strong>AI 수락 판단</strong><span>${state?.status === 'missing' ? 'AI 안내가 생성되면 이곳에서 수락 전 운행 요약을 확인할 수 있습니다.' : '수락 전 운행 리스크와 방문 순서를 확인하는 AI 안내를 불러오는 중입니다.'}</span></div>`;
+  return `<div class="llm-guidance offer-ai-guidance"><strong>AI 수락 판단</strong><span>${state?.status === 'missing' ? 'AI 안내가 생성되면 이곳에서 수락 전 운행 요약을 확인할 수 있습니다.' : '수락 전 운행 리스크와 방문 순서를 확인하는 AI 안내를 불러오는 중입니다.'}</span></div>`;
 };
 
 function loadOfferExplanation(packageId) {
@@ -199,14 +199,14 @@ function loadOfferExplanation(packageId) {
 
 const packageExplanationCard = state => {
   if (state?.status === 'ready') {
-    return `<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice info"><span>ⓘ</span><div><strong>운행 안내</strong><span class="explanation-copy">${Yogiyo.escape(state.text)}</span></div></div></div>`;
+    return `<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice llm-guidance"><span>✦</span><div><strong>운행 안내</strong><span class="explanation-copy">${Yogiyo.escape(state.text)}</span></div></div></div>`;
   }
   if (state?.status === 'loading') {
-    return '<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice info"><span>ⓘ</span><div><strong>배차 안내를 불러오는 중입니다.</strong><span>현재 패키지의 운행 안내를 확인하고 있어요.</span></div></div></div>';
+    return '<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice llm-guidance"><span>✦</span><div><strong>배차 안내를 불러오는 중입니다.</strong><span>현재 패키지의 운행 안내를 확인하고 있어요.</span></div></div></div>';
   }
 
   const isMissing = state?.status === 'missing';
-  return `<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice ${isMissing ? 'info' : 'warn'}"><span>${isMissing ? 'ⓘ' : '!'}</span><div><strong>${isMissing ? '배차 설명이 아직 생성되지 않았습니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '설명이 생성되면 이곳에서 운행 근거를 확인할 수 있습니다.' : Yogiyo.escape(Yogiyo.errorMessage(state?.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-package-explanation-retry>다시 확인</button></div></div></div>`;
+  return `<div class="card"><div class="section-title-row"><h2>배차 안내</h2><span>AI 설명</span></div><div class="notice llm-guidance"><span>✦</span><div><strong>${isMissing ? '배차 설명이 아직 생성되지 않았습니다.' : '배차 안내를 불러오지 못했습니다.'}</strong><span>${isMissing ? '설명이 생성되면 이곳에서 운행 근거를 확인할 수 있습니다.' : Yogiyo.escape(Yogiyo.errorMessage(state?.error, '배차 안내'))}</span><button type="button" class="ghost-button explanation-retry" data-package-explanation-retry>다시 확인</button></div></div></div>`;
 };
 
 const packageDetailTimeline = timeline => {

@@ -13,6 +13,8 @@
   --warn-soft: #fff4e8;
   --info: #3f6fe5;
   --info-soft: #edf2ff;
+  --llm: #6d4cc7;
+  --llm-soft: #f2efff;
   --danger: #d93b53;
   --shadow: 0 22px 60px rgba(20, 20, 35, 0.14);
   --radius: 22px;
@@ -296,10 +298,10 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .route-stop-help { margin:0 1px; color:var(--muted); font-size:11px; line-height:1.45; }
 .order-menu { font-size:15px; font-weight:800; margin:8px 0 3px; }
 .order-id { font-size:11px; color:var(--muted); }
-.merchant-ai-guidance strong, .offer-ai-guidance strong { display:block; margin-bottom:3px; }
-.merchant-ai-guidance span, .offer-ai-guidance span { display:block; font-size:11px; line-height:1.5; }
-.offer-ai-guidance { margin-top:10px; padding:10px 11px; border-radius:13px; background:var(--info-soft); color:#3157b5; }
-.offer-ai-guidance.unavailable { background:#f4f4f7; color:var(--muted); }
+.llm-guidance { background:var(--llm-soft); color:var(--llm); border:1px solid #ddd3ff; }
+.llm-guidance strong { display:block; margin-bottom:3px; }
+.llm-guidance span { display:block; font-size:11px; line-height:1.5; }
+.offer-ai-guidance { margin-top:10px; padding:10px 11px; border-radius:13px; }
 .action-dock { position:sticky; bottom:0; z-index:8; padding:12px 16px 14px; background:linear-gradient(transparent, rgba(245,245,248,.92) 24%, var(--canvas) 48%); }
 
 .connection-pill { display:inline-flex; align-items:center; gap:6px; font-size:10px; color:var(--muted); }
