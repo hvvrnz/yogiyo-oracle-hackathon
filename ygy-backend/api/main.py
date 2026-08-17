@@ -22,4 +22,4 @@ app.include_router(demo.router)
 
 @app.get("/")
 def root():
-    return {"message": "실속배달 배차 시퀀싱 API"}
+    return {"message": "요기요 실속배달 배차 시퀀싱 API"}
