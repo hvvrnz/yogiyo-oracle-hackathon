@@ -5,6 +5,7 @@ router = APIRouter(prefix="/api/demo", tags=["demo"])
 
 demo_state = {"step": 0}
 route_progress = {"current_index": 0}
+demo_explanations = {}
 
 # ── 매장 3개 (889/894/815 강남 - 815는 30분짜리 긴 조리시간 매장) ──
 STORE_A = {"store_id": 889, "name": "요기요햄버거 강남점🍔", "category": "버거", "region": "강남", "lat": 37.505486, "lng": 127.02069, "avg_delivery_eta_min": 35}
@@ -89,10 +90,57 @@ def _package_summary():
     }
 
 
+def _demo_orders():
+    return [
+        {"order_id": 90001, "store_name": STORE_A["name"], "status": "COOKING", "owner_cook_min": _owner_cook_min["value"], "predicted_cook_min": 20},
+        {"order_id": 90002, "store_name": STORE_B["name"], "status": "COOKING", "owner_cook_min": 15, "predicted_cook_min": 15},
+        {"order_id": 90003, "store_name": STORE_C["name"], "status": "COOKING", "owner_cook_min": 30, "predicted_cook_min": 30},
+    ]
+
+
+def _demo_explanation_context():
+    customer_order = {
+        "order_id": 90001, "store_name": STORE_A["name"],
+        "delivery_address": DELIVERY_A["address"], "status": "MATCHED",
+        "package_id": PACKAGE_ID, "rider_id": RIDER_ID,
+        "route_detail": ROUTE_DETAIL, "score_detail": SCORE_DETAIL,
+        "eta_min": SCORE_DETAIL["total_time"],
+    }
+    return {
+        "package": dict(_package_summary(), score_detail=SCORE_DETAIL, status="OFFERED"),
+        "orders": _demo_orders(),
+        "customer_order": customer_order,
+        "merchant_order": _demo_orders()[0],
+        "rider_profile": {"rider_id": RIDER_ID, "status": "AVAILABLE"},
+    }
+
+
+def _get_demo_explanations():
+    """Generate once per demo package and keep demo state usable on LLM errors."""
+    cached = demo_explanations.get(PACKAGE_ID)
+    if cached:
+        return cached
+
+    from explanation.generator import (
+        LLMConfigurationError,
+        LLMGenerationError,
+        demo_explanation_fallback,
+        generate_demo_explanations,
+    )
+
+    context = _demo_explanation_context()
+    try:
+        generated = generate_demo_explanations(context)
+    except (LLMConfigurationError, LLMGenerationError):
+        generated = demo_explanation_fallback(context)
+    demo_explanations[PACKAGE_ID] = generated
+    return generated
+
+
 def _customer_response():
     step = demo_state["step"]
     status_map = {0: "NEW", 1: "COOKING", 2: "MATCHED", 3: "PICKED_UP", 4: "DELIVERED"}
-    return {
+    response = {
         "order_id": 90001, "store_name": STORE_A["name"],
         "store_lat": STORE_A["lat"], "store_lng": STORE_A["lng"],
         "delivery_lat": DELIVERY_A["lat"], "delivery_lng": DELIVERY_A["lng"],
@@ -105,6 +153,9 @@ def _customer_response():
         "score_detail": SCORE_DETAIL if step >= 2 else None,
         "eta_min": SCORE_DETAIL["total_time"] if step >= 2 else None,
     }
+    if step >= 2:
+        response["consumer_text"] = _get_demo_explanations()["consumer_text"]
+    return response
 
 
 @router.get("/customer/order")
@@ -126,7 +177,8 @@ def demo_merchant_next():
         return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000, "status": "NEW"}
     if step == 1:
         return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000,
-                "status": "COOKING", "owner_cook_min": _owner_cook_min["value"]}
+                "status": "COOKING", "owner_cook_min": _owner_cook_min["value"],
+                "merchant_text": _get_demo_explanations()["merchant_text"]}
     return {"message": "조리 대기 주문 없음"}
 
 
@@ -138,6 +190,7 @@ def demo_cook_start(body: CookTimeInput):
     """
     _owner_cook_min["value"] = body.owner_cook_min
     demo_state["step"] = 1
+    _get_demo_explanations()
     return {
         "triggered": [
             {"order_id": 90001, "store_id": STORE_A["store_id"], "owner_cook_min": body.owner_cook_min, "triggered_by": "user"},
@@ -152,7 +205,9 @@ def demo_rider_offers():
     """라이더 화면 - 5초마다 호출."""
     if demo_state["step"] != 1:
         return {"rider_id": RIDER_ID, "offers": []}
-    return {"rider_id": RIDER_ID, "offers": [_package_summary()]}
+    offer = _package_summary()
+    offer["rider_text"] = _get_demo_explanations()["rider_text"]
+    return {"rider_id": RIDER_ID, "offers": [offer]}
 
 
 @router.get("/rider/profile")
@@ -174,6 +229,7 @@ def demo_rider_packages():
     pkg = _package_summary()
     pkg["status"] = status_map[step]
     pkg["score_detail"] = SCORE_DETAIL
+    pkg["rider_text"] = _get_demo_explanations()["rider_text"]
     return {"rider_id": RIDER_ID, "current_lat": RIDER_LAT, "current_lng": RIDER_LNG, "packages": [pkg]}
 
 
@@ -241,4 +297,5 @@ def demo_reset_scenario():
     demo_state["step"] = 0
     route_progress["current_index"] = 0
     _owner_cook_min["value"] = 20
+    demo_explanations.clear()
     return {"step": 0}
