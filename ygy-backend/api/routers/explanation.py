@@ -69,3 +69,50 @@ def get_explanation(package_id: int):
         raise HTTPException(status_code=404, detail="해당 패키지의 설명이 없습니다.")
 
     return explanation
+
+
+@router.post("/generate/{package_id}")
+def generate_and_save_explanation(package_id: int, force: bool = False):
+    """Generate a server-side explanation once, then persist it for both audiences."""
+    from explanation.generator import (
+        LLMConfigurationError,
+        LLMGenerationError,
+        generate_package_explanation,
+    )
+
+    context = get_explanation_context(package_id)
+    if not force:
+        existing = fetch_one("""
+            SELECT explanation_id, package_id, consumer_text, rider_text, created_at
+            FROM explanations
+            WHERE package_id = :package_id
+            ORDER BY created_at DESC
+            FETCH FIRST 1 ROW ONLY
+        """, {"package_id": package_id})
+        if existing:
+            return {
+                "package_id": package_id,
+                "status": "cached",
+                "consumer_text": existing["consumer_text"],
+                "rider_text": existing["rider_text"],
+                "created_at": existing["created_at"],
+            }
+
+    try:
+        generated = generate_package_explanation(context)
+    except LLMConfigurationError as error:
+        raise HTTPException(status_code=503, detail=str(error))
+    except LLMGenerationError as error:
+        raise HTTPException(status_code=502, detail=str(error))
+
+    save_explanation(ExplanationCreate(
+        package_id=package_id,
+        consumer_text=generated["consumer_text"],
+        rider_text=generated["rider_text"],
+    ))
+    return {
+        "package_id": package_id,
+        "status": "generated",
+        "consumer_text": generated["consumer_text"],
+        "rider_text": generated["rider_text"],
+    }
