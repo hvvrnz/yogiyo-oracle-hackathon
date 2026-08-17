@@ -68,6 +68,8 @@ const riderIdentity = order => {
 const riderSummary = order => order?.rider_id ? `배정 라이더: ${riderIdentity(order)}` : '라이더 배정 정보 없음';
 
 const merchantExplanationPlaceholder = order => {
+  const text = String(order?.merchant_text || '').trim();
+  if (text) return text;
   if (!hasPackage(order)) return '배차가 확정되면 조리·포장 우선순위 안내가 이곳에 표시됩니다.';
   if (hasOfferedPackage(order)) return '라이더 수락 전입니다. 수락 후 확정된 배차 기준으로 조리·포장 안내가 표시됩니다.';
   if (hasConfirmedAssignment(order)) return '확정된 배차 기준의 AI 조리·포장 안내를 준비 중입니다.';

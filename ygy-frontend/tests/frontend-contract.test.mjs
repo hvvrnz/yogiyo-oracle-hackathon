@@ -27,6 +27,7 @@ test('고객 화면은 시연 주문 API만 5초마다 조회한다', () => {
   assert.match(source, /시연 주문 API · 5초 갱신/);
   assert.match(source, /delivery_address/);
   assert.match(source, /배차 수락 대기/);
+  assert.match(source, /consumer_text/);
   assert.doesNotMatch(source, /apiClient\.(customers|merchants|riders|explanations)/);
   assert.doesNotMatch(source, /reverseGeocode/);
 });
@@ -39,6 +40,7 @@ test('사장님 화면은 조리 시작 응답의 동시 시작 매장을 안내
   assert.match(source, /조리 중 · 배차 수락 대기/);
   assert.match(source, /매장 조리 시작됨/);
   assert.match(source, /apiClient\.demo\.stores\(\)/);
+  assert.match(source, /merchant_text/);
   assert.doesNotMatch(source, /demoTrigger|updateCookTime|apiClient\.merchants/);
 });
 
@@ -52,6 +54,7 @@ test('라이더 화면은 다음 작업 조회와 단일 완료 API로 순서대
   assert.match(source, /픽업하세요/);
   assert.match(source, /배달하세요/);
   assert.match(source, /profile\.status === 'BUSY'/);
+  assert.match(source, /rider_text/);
   assert.doesNotMatch(source, /apiClient\.demo\.(riderPackages|pickupPackage|completePackage)/);
   assert.doesNotMatch(source, /apiClient\.(customers|merchants|riders|packages|explanations)/);
   assert.doesNotMatch(source, /reverseGeocode/);
