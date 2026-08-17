@@ -161,13 +161,14 @@ function renderCustomer(order) {
     : Yogiyo.mapData.create();
   const map = Yogiyo.mapData.combine(Yogiyo.mapData.fromCustomerOrder(order), riderMap);
 
-  Yogiyo.el('orderId').textContent = `주문 ${order.order_id} · ${order.store_name}`;
+  Yogiyo.el('orderId').textContent = `내 주문번호 #${order.order_id} · ${order.store_name}`;
   Yogiyo.el('etaWindow').textContent = etaLabel;
   Yogiyo.el('currentMessage').textContent = meta.message;
   Yogiyo.el('deliveryOrder').textContent = meta.label;
   Yogiyo.el('etaUpdated').textContent = usingDemoActiveOrder ? '현재 시연 주문 자동 조회' : isDirectOrderLookup ? '주문 ID 직접 조회' : `매장 ${storeId} 주문 중 임의 선택`;
   Yogiyo.el('statusBadge').innerHTML = `<span class="dot"></span>${Yogiyo.escape(meta.label)}`;
   Yogiyo.el('storeName').textContent = order.store_name;
+  Yogiyo.el('orderNumber').textContent = `내 주문번호 #${order.order_id}`;
   Yogiyo.el('menuSummary').textContent = menuSummary(items);
   Yogiyo.el('remainingMin').textContent = order.status === 'CANCELLED' ? '취소됨' : etaLabel;
   Yogiyo.el('packageId').textContent = assignmentConfirmed
