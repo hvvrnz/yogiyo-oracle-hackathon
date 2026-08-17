@@ -55,9 +55,10 @@ test('라이더 화면은 다음 작업 조회와 단일 완료 API로 순서대
   assert.match(source, /배달하세요/);
   assert.match(source, /profile\.status === 'BUSY'/);
   assert.match(source, /rider_text/);
+  assert.match(source, /reverseGeocode/);
+  assert.match(source, /주소 확인 중/);
   assert.doesNotMatch(source, /apiClient\.demo\.(riderPackages|pickupPackage|completePackage)/);
   assert.doesNotMatch(source, /apiClient\.(customers|merchants|riders|packages|explanations)/);
-  assert.doesNotMatch(source, /reverseGeocode/);
 });
 
 test('통합 시연은 시작 시 시연 데이터를 초기화한다', () => {

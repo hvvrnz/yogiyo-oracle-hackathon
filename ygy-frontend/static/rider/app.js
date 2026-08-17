@@ -2,6 +2,9 @@ const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let currentRider;
 let stopRiderViewPolling;
+let locationAddress;
+let locationAddressKey;
+let locationAddressRequestId = 0;
 let packageDetailRequestId = 0;
 let packageDetailTrigger;
 let offerSort = 'score';
@@ -63,6 +66,34 @@ const coordinateLabel = profile => {
   const lat = Number(profile?.lat);
   const lng = Number(profile?.lng);
   return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : null;
+};
+
+const coordinateKey = profile => {
+  const lat = Number(profile?.lat);
+  const lng = Number(profile?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(4)},${lng.toFixed(4)}` : null;
+};
+
+const resolveLocationAddress = profile => {
+  const nextKey = coordinateKey(profile);
+  if (nextKey === locationAddressKey) return;
+
+  locationAddressKey = nextKey;
+  locationAddress = undefined;
+  if (!nextKey) return;
+
+  const requestId = ++locationAddressRequestId;
+  Promise.resolve(Yogiyo.reverseGeocode?.(profile?.lat, profile?.lng))
+    .then(address => {
+      if (requestId !== locationAddressRequestId) return;
+      locationAddress = address || coordinateLabel(profile);
+      if (currentRider) renderRider(currentRider);
+    })
+    .catch(() => {
+      if (requestId !== locationAddressRequestId) return;
+      locationAddress = coordinateLabel(profile);
+      if (currentRider) renderRider(currentRider);
+    });
 };
 
 const routeSummary = route => {
@@ -258,8 +289,9 @@ function renderRider({ profile, offers, offersError, nextStop }) {
   const displayedOffers = sortedVisibleOffers;
   const declinedOfferCount = offers.length - visibleOffers.length;
   const name = profile?.name || riderId;
+  resolveLocationAddress(profile);
   const coordinate = coordinateLabel(profile);
-  const position = coordinate || '위치 정보 미제공';
+  const position = locationAddress || (coordinate ? '주소 확인 중' : '위치 정보 미제공');
 
   Yogiyo.el('riderName').textContent = name;
   Yogiyo.el('riderMeta').textContent = [profile?.region, profile?.status].filter(Boolean).join(' · ') || '라이더 정보를 확인 중';
