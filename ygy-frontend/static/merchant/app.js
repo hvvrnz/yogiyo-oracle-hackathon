@@ -101,7 +101,7 @@ const cookTimeControls = order => {
     return '<button class="ghost-button full" disabled>조리 시작 요청 완료 · 상태 갱신 중</button>';
   }
   if (order.status === 'NEW') {
-    return `<button class="primary-button full" data-cook-start="${order.order_id}" aria-label="주문 ${order.order_id} 조리 시작 및 조리시간 입력">조리 시작 · 조리시간 입력</button>`;
+    return `<button class="primary-button full" data-cook-start="${order.order_id}" aria-label="주문 ${order.order_id} 조리 시작">조리 시작</button>`;
   }
   if (hasOfferedPackage(order)) {
     return '<button class="ghost-button full" disabled>배차 제안됨 · 라이더 수락 대기</button>';
@@ -124,7 +124,7 @@ const cookTimeControls = order => {
 async function getStore(storeIdToFind) {
   if (!storeDirectory) {
     try {
-      storeDirectory = (await Yogiyo.apiClient.stores.list()).stores;
+      storeDirectory = (await Yogiyo.apiClient.demo.stores()).stores;
     } catch {
       storeDirectory = [];
     }
@@ -160,7 +160,7 @@ function renderMerchant(view, store) {
   else Yogiyo.renderLoadState('merchantLoadState', {
     tone: 'empty',
     title: '조회 가능한 주문이 없습니다.',
-    description: '이 매장에는 현재 표시할 주문이 없습니다. 다른 매장 ID를 입력하거나 다시 조회해 주세요.',
+    description: view?.message || '조리 대기 주문이 없습니다. 라이더 수락과 배달 상태는 각 화면에서 계속 갱신됩니다.',
     onRetry: () => loadMerchant(),
   });
   setContentVisible(true);
@@ -174,9 +174,7 @@ function renderMerchant(view, store) {
 
   Yogiyo.el('merchantOrders').querySelectorAll('[data-cook-start]').forEach(button => {
     button.addEventListener('click', event => {
-      const orderId = event.currentTarget.dataset.cookStart;
-      const value = window.prompt('예상 조리시간을 5분 단위로 입력해 주세요. (5~100분)', '15');
-      if (value !== null) startCooking(orderId, Number(value), event.currentTarget);
+      startCooking(event.currentTarget);
     });
   });
 
@@ -210,7 +208,8 @@ async function loadMerchant() {
 
 async function loadMerchantView() {
   try {
-    const nextToCook = await Yogiyo.apiClient.merchants.nextToCook();
+    const nextToCook = await Yogiyo.apiClient.demo.merchantNextToCook();
+    if (nextToCook?.message) return { store_id: storeId, orders: [], message: nextToCook.message };
     if (nextToCook.status !== 'NEW') locallyStartedOrderIds.delete(String(nextToCook.order_id));
     return {
       store_id: nextToCook.store_id ?? storeId,
@@ -222,23 +221,16 @@ async function loadMerchantView() {
   }
 }
 
-async function startCooking(orderId, cookMin, button) {
-  if (!Number.isInteger(cookMin) || cookMin < 5 || cookMin > 100 || cookMin % 5 !== 0) {
-    Yogiyo.toast('조리시간은 5~100분 사이의 5분 단위로 입력해 주세요.');
-    return;
-  }
+async function startCooking(button) {
   await Yogiyo.withPending(button, async () => {
     try {
-      const trigger = await Yogiyo.apiClient.merchants.demoTrigger({
-        primaryStoreId: currentMerchant?.store_id ?? storeId,
-        primaryOrderId: orderId,
-        ownerCookMin: cookMin,
-      });
-      locallyStartedOrderIds.add(String(orderId));
-      const startedCount = Number(trigger?.started_order_count);
-      Yogiyo.toast(Number.isFinite(startedCount)
-        ? `주문 ${orderId}을 ${cookMin}분으로 조리 시작 · 시연 매장 ${startedCount}건을 자동 시작했습니다.`
-        : `주문 ${orderId}을 ${cookMin}분으로 조리 시작 · 다른 시연 매장 주문을 자동 시작했습니다.`);
+      const trigger = await Yogiyo.apiClient.demo.merchantCookStart();
+      const started = Array.isArray(trigger?.triggered) ? trigger.triggered : [];
+      started.forEach(item => locallyStartedOrderIds.add(String(item.order_id)));
+      const storeIds = [...new Set(started.map(item => item.store_id).filter(Boolean))];
+      Yogiyo.toast(storeIds.length
+        ? `${storeIds.join(', ')} 매장 조리 시작됨 · ${started.length}개 주문이 동시에 조리 시작되었습니다.`
+        : '조리 시작 요청이 완료되었습니다.');
       await loadMerchant();
     } catch (error) {
       showMerchantFailure(error, { action: true });

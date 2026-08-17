@@ -65,44 +65,24 @@ window.addEventListener('message', event => {
   Yogiyo.toast('배차 수락 상태를 고객·사장님 화면에 즉시 반영했습니다.');
 });
 
-const demoOrderCandidate = orders => (orders || []).find(order => (
-  order.status === 'NEW' && !order.package_id
-));
-
 const loadDemoPanels = async () => {
   const requestId = ++demoSelectionRequestId;
-  const storeId = demoStoreId;
   const riderId = demoRiderId;
-  const storeName = `매장 ${storeId}`;
-
-  setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', `/customer?storeId=${encodeURIComponent(storeId)}`,
-    `고객 · ${storeName} 주문 확인 중`);
-  setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', `/merchant?storeId=${encodeURIComponent(storeId)}`,
-    `사장님 · ${storeName}`);
-  setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}`,
-    `라이더 · ${riderId} · 주문 연결 중`);
 
   try {
-    const orderId = storeId === '889'
-      ? String((await Yogiyo.apiClient.customers.getDemoActive())?.order_id || '')
-      : String(demoOrderCandidate((await Yogiyo.apiClient.merchants.get(storeId)).orders)?.order_id || '');
+    await Yogiyo.apiClient.demo.reset();
     if (requestId !== demoSelectionRequestId) return;
-    if (!/^\d+$/.test(orderId)) throw new Error('선택한 매장에 시연할 주문이 없습니다. 주문 데이터를 확인해 주세요.');
-    const activeOrderQuery = storeId === '889' ? '&demoActive=1' : '';
-    const customerUrl = `/customer?storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${activeOrderQuery}`;
-    const riderUrl = `/rider?riderId=${encodeURIComponent(riderId)}&storeId=${encodeURIComponent(storeId)}&orderId=${encodeURIComponent(orderId)}${activeOrderQuery}`;
-    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', customerUrl,
-      `고객 · 주문 ${orderId}`);
-    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', riderUrl,
-      `라이더 · ${riderId} · 주문 ${orderId}`);
-    const nextQuery = new URLSearchParams({ storeId, riderId, orderId });
-    history.replaceState(null, '', `${location.pathname}?${nextQuery.toString()}`);
+    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', '/customer', '고객 · 주문 90001');
+    setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', '/merchant', '사장님 · 매장 889');
+    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}`, `라이더 · ${riderId}`);
+    appendDemoEvent('DEMO_RESET', '시연 데이터를 초기화했습니다. 고객 주문 90001을 기준으로 시작합니다.');
   } catch (error) {
     if (requestId !== demoSelectionRequestId) return;
     Yogiyo.el('demoCustomerTitle').textContent = '고객 · 시연 주문 없음';
     Yogiyo.el('demoRiderTitle').textContent = `라이더 · ${riderId} · 주문 연결 실패`;
-    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', '/customer?orderId=0', '고객 · 시연할 새 주문 없음');
-    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}&orderId=0`, `라이더 · ${riderId} · 시연 주문 없음`);
+    setDemoPanel('demoCustomerFrame', 'demoCustomerLink', 'demoCustomerTitle', '/customer', '고객 · 시연 연결 실패');
+    setDemoPanel('demoMerchantFrame', 'demoMerchantLink', 'demoMerchantTitle', '/merchant', '사장님 · 시연 연결 실패');
+    setDemoPanel('demoRiderFrame', 'demoRiderLink', 'demoRiderTitle', `/rider?riderId=${encodeURIComponent(riderId)}`, `라이더 · ${riderId} · 시연 연결 실패`);
     Yogiyo.toast(error.message);
   }
 };
