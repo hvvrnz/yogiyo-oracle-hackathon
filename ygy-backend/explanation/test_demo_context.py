@@ -38,6 +38,7 @@ class DemoExplanationContextTest(unittest.TestCase):
         messages = build_messages(self.context)
         self.assertIn("merchant_text", messages[0]["content"])
         self.assertIn('각 줄은 반드시 "• "로 시작', messages[1]["content"])
+        self.assertIn("항목명과 숫자만 나열하지 마세요", messages[1]["content"])
         self.assertIn("consumer_context", messages[1]["content"])
         self.assertIn("rider_context", messages[1]["content"])
         self.assertNotIn("delivery_address", messages[1]["content"])
@@ -53,7 +54,8 @@ class DemoExplanationContextTest(unittest.TestCase):
         self.assertIn("20분", fallback["merchant_text"])
         self.assertTrue(all(line.startswith("• ") for line in fallback["rider_text"].splitlines()))
         self.assertNotIn("방문 순서", fallback["rider_text"])
-        self.assertIn("총 묶음 주문", fallback["consumer_text"])
+        self.assertIn("함께 배달돼요", fallback["consumer_text"])
+        self.assertIn("조리 기준은 20분", fallback["merchant_text"])
 
 
 if __name__ == "__main__":
