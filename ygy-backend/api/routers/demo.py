@@ -173,15 +173,16 @@ def demo_merchant_next():
     """
     사장님 화면 - 5초마다 호출.
     조리시작 전(step 0): 조리시간 입력 대기 화면
-    조리시작 후(step 1): COOKING 상태로 계속 보임 (사라지지 않음)
-    배차 확정 후(step 2+): 대기 주문 없음
+    조리시작 후~배차 확정 전(step 1~3): COOKING/배차대기 상태로 계속 보임
+    픽업 완료 이후(step 4+): 처리완료로 넘어감(별도 탭에서 다룰 예정)
     """
     step = demo_state["step"]
     if step == 0:
         return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000, "status": "NEW"}
-    if step == 1:
+    if step in (1, 2, 3):
+        status_map = {1: "COOKING", 2: "COOKING", 3: "MATCHED"}
         return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000,
-                "status": "COOKING", "owner_cook_min": _owner_cook_min["value"],
+                "status": status_map[step], "owner_cook_min": _owner_cook_min["value"],
                 "merchant_text": _get_demo_explanations("COOKING")["merchant_text"]}
     return {"message": "조리 대기 주문 없음", "merchant_text": _get_demo_explanations("MATCHED")["merchant_text"]}
 
@@ -347,6 +348,20 @@ def demo_customer_llm_data():
         "has_delay": True,
     }
 
+@router.get("/merchant/completed")
+def demo_merchant_completed():
+    """
+    처리완료 탭용. 조리 완료되고 배달 출발(픽업 이후)한 주문 목록.
+    """
+    step = demo_state["step"]
+    if step >= 3:  # 픽업 이상 진행됐으면 "처리완료"로 간주
+        return {"orders": [{
+            "order_id": 90001,
+            "menu_items": ORDER_A_MENU,
+            "amount": 12000,
+            "status": {3: "PICKED_UP", 4: "DELIVERED"}.get(step, "PICKED_UP"),
+        }]}
+    return {"orders": []}
 
 @router.get("/stores")
 def demo_stores():
