@@ -27,28 +27,120 @@ function orderListCard(order) {
   return `<button type="button" class="merchant-order-item${selected ? ' selected' : ''}" data-order-select="${order.order_id}"><span class="badge ${statusTone(order.status)}">${Yogiyo.escape(statusLabels[order.status] || order.status)}</span><strong>${Yogiyo.escape(menuSummary(order.menu_items))}</strong><span>주문 #${Yogiyo.escape(order.order_id)} · ${Yogiyo.money(order.amount)}</span></button>`;
 }
 
-function renderDetail(order) {
+function renderDetail(order, store) {
   const root = Yogiyo.el('merchantOrderDetail');
+
   if (!order) {
-    root.innerHTML = '<div class="state-card empty"><div class="state-icon">⌕</div><div><strong>주문을 선택해 주세요.</strong><p>좌측 주문 목록에서 상세 정보를 확인할 주문을 선택하세요.</p></div></div>';
+    root.innerHTML = `
+      <div class="state-card empty">
+        <div class="state-icon">⌕</div>
+        <div>
+          <strong>현재 조리할 주문이 없습니다.</strong>
+          <p>새 주문이 들어오면 이곳에 표시됩니다.</p>
+        </div>
+      </div>
+    `;
     return;
   }
+
   const isNew = order.status === 'NEW';
-  const isCompleted = completedStatuses.has(order.status);
-  const items = Array.isArray(order.menu_items) ? order.menu_items : [];
+  const items = Array.isArray(order.menu_items)
+    ? order.menu_items
+    : [];
+
   const actionButtons = isNew
-  ? `<div class="merchant-decision-actions">
-      <button
-        class="primary-button"
-        type="button"
-        data-order-accept="${order.order_id}">
-        수락하고 조리 시작
-      </button>
-    </div>`
-  : '';
-  const finishButton = '';
-  root.innerHTML = `<div class="merchant-detail-head"><div><span class="badge ${statusTone(order.status)}">${Yogiyo.escape(statusLabels[order.status] || order.status)}</span><h2>주문 #${Yogiyo.escape(order.order_id)}</h2><p>${Yogiyo.escape(order.store_name || '매장 주문')}</p></div><strong>${Yogiyo.money(order.amount)}</strong></div>${actionButtons}<div class="merchant-detail-scroll"><section class="card"><div class="section-title-row"><h2>배달지</h2></div><p class="merchant-address">${Yogiyo.escape(order.delivery_address || '배달지 주소 정보 없음')}</p></section><section class="card"><div class="section-title-row"><h2>주문 내역</h2><span>총 ${Yogiyo.money(order.amount)}</span></div>${items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<p class="subtext">메뉴 정보가 없습니다.</p>'}</section><section class="card"><div class="section-title-row"><h2>조리·배차 정보</h2></div><div class="row"><span class="label">예상 조리시간</span><span class="value">${order.owner_cook_min ? `${order.owner_cook_min}분` : '수락 후 입력'}</span></div><div class="row"><span class="label">AI 예측 조리시간</span><span class="value">${order.predicted_cook_min ? `${order.predicted_cook_min}분` : '정보 없음'}</span></div><div class="route-strategy-box"><strong>방문 순서</strong><span>${Yogiyo.escape(routeSummary(order.route_detail))}</span></div></section>${order.merchant_text ? `<section class="notice llm-guidance"><span>✦</span><div><strong>AI 조리 안내</strong><span>${Yogiyo.escape(order.merchant_text)}</span></div></section>` : ''}</div><div class="merchant-detail-footer">${finishButton}</div>`;
-  root.querySelector('[data-order-accept]')?.addEventListener('click', event => acceptOrder(Number(event.currentTarget.dataset.orderAccept), event.currentTarget));
+    ? `
+      <div class="merchant-decision-actions">
+        <button
+          class="primary-button"
+          type="button"
+          data-order-accept="${order.order_id}">
+          수락하고 조리 시작
+        </button>
+      </div>
+    `
+    : '';
+
+  root.innerHTML = `
+    <div class="merchant-detail-head">
+      <div>
+        <span class="badge ${statusTone(order.status)}">
+          ${Yogiyo.escape(statusLabels[order.status] || order.status)}
+        </span>
+        <h2>주문 #${Yogiyo.escape(order.order_id)}</h2>
+        <p>${Yogiyo.escape(store?.name || '매장 주문')}</p>
+      </div>
+      <strong>${Yogiyo.money(order.amount)}</strong>
+    </div>
+
+    ${actionButtons}
+
+    <div class="merchant-detail-scroll">
+      <section class="card">
+        <div class="section-title-row">
+          <h2>주문 내역</h2>
+          <span>총 ${Yogiyo.money(order.amount)}</span>
+        </div>
+
+        ${
+          items.map(item => `
+            <div class="row">
+              <span class="label">
+                ${Yogiyo.escape(item.menu)}
+              </span>
+              <span class="value">
+                ${item.qty}개 · ${Yogiyo.money(item.price)}
+              </span>
+            </div>
+          `).join('')
+          ||
+          '<p class="subtext">메뉴 정보가 없습니다.</p>'
+        }
+      </section>
+
+      <section class="card">
+        <div class="section-title-row">
+          <h2>조리 정보</h2>
+        </div>
+
+        <div class="row">
+          <span class="label">사장님 입력 조리시간</span>
+          <span class="value">
+            ${
+              order.owner_cook_min
+                ? `${order.owner_cook_min}분`
+                : '수락 후 입력'
+            }
+          </span>
+        </div>
+      </section>
+
+      ${
+        order.merchant_text
+          ? `
+            <section class="notice llm-guidance">
+              <span>✦</span>
+              <div>
+                <strong>AI 조리 안내</strong>
+                <span>
+                  ${Yogiyo.escape(order.merchant_text)}
+                </span>
+              </div>
+            </section>
+          `
+          : ''
+      }
+    </div>
+  `;
+
+  root
+    .querySelector('[data-order-accept]')
+    ?.addEventListener('click', event => {
+      acceptOrder(
+        Number(event.currentTarget.dataset.orderAccept),
+        event.currentTarget
+      );
+    });
 }
 
 function renderMerchant(view, store) {
@@ -73,7 +165,7 @@ function renderMerchant(view, store) {
   Yogiyo.el('merchantProcessingList').hidden = activeTab !== 'processing';
   Yogiyo.el('merchantCompletedList').hidden = activeTab !== 'completed';
   document.querySelectorAll('[data-order-select]').forEach(button => button.addEventListener('click', () => { selectedOrderId = Number(button.dataset.orderSelect); renderMerchant(currentMerchant, store); }));
-  renderDetail(orders.find(order => String(order.order_id) === String(selectedOrderId)));
+  renderDetail(orders.find(order => String(order.order_id) === String(selectedOrderId)),store);
   Yogiyo.clearLoadState('merchantLoadState');
 }
 
