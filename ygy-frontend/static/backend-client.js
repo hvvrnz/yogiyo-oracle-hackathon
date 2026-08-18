@@ -56,6 +56,16 @@
           orders: [normalizeOrder(data)]
         };
       },
+
+      merchantCompleted: async () => {
+        const data = await request('/api/demo/merchant/completed');
+
+        return {
+          ...data,
+          orders: asArray(data.orders).map(normalizeOrder),
+        };
+      },
+
       riderOffers: async () => {
         const data = await request('/api/demo/rider/offers');
         return { ...data, offers: asArray(data.offers).map(normalizePackage) };
