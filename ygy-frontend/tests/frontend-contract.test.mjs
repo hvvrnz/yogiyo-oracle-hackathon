@@ -13,6 +13,7 @@ test('프런트 API 클라이언트는 시연 API만 제공한다', () => {
     '/api/demo/merchant/cook-start',
     '/api/demo/rider/offers',
     '/api/demo/rider/profile',
+    '/api/demo/rider/packages',
     '/api/demo/rider/package/${encodeURIComponent(packageId)}/accept',
     '/api/demo/rider/next-stop',
     '/api/demo/rider/arrive',
@@ -47,18 +48,18 @@ test('사장님 화면은 조리 시작 응답의 동시 시작 매장을 안내
 
 test('라이더 화면은 다음 작업 조회와 단일 완료 API로 순서대로 운행한다', () => {
   const source = read('../static/rider/app.js');
-  for (const method of ['riderProfile', 'riderOffers', 'acceptPackage', 'riderNextStop', 'riderArrive']) {
+  for (const method of ['riderProfile', 'riderOffers', 'riderPackages', 'acceptPackage', 'riderNextStop', 'riderArrive']) {
     assert.match(source, new RegExp(`apiClient\\.demo\\.${method}`));
   }
   assert.match(source, /data-rider-arrive/);
   assert.match(source, /completeCurrentStop/);
-  assert.match(source, /픽업하세요/);
-  assert.match(source, /배달하세요/);
+  assert.match(source, /픽업 완료/);
+  assert.match(source, /배달 완료/);
   assert.match(source, /profile\.status === 'BUSY'/);
   assert.match(source, /rider_text/);
-  assert.match(source, /reverseGeocode/);
-  assert.match(source, /주소 확인 중/);
-  assert.doesNotMatch(source, /apiClient\.demo\.(riderPackages|pickupPackage|completePackage)/);
+  assert.match(source, /fromRouteDetail/);
+  assert.match(source, /riderMapData/);
+  assert.doesNotMatch(source, /apiClient\.demo\.(pickupPackage|completePackage)/);
   assert.doesNotMatch(source, /apiClient\.(customers|merchants|riders|packages|explanations)/);
 });
 
