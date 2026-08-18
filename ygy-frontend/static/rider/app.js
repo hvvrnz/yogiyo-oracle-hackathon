@@ -475,8 +475,18 @@ async function completeCurrentStop(button) {
         });
       }
       if (response.completed) {
-        const key = `${response.completed.order_id}-${response.completed.type}`;
-        visitedSteps.push(key);   // ← 이 줄 추가
+        const key =
+          stopKey(response.completed);
+
+        if (
+          key &&
+          !visitedSteps.includes(key)
+        ) {
+          visitedSteps = [
+            ...visitedSteps,
+            key
+          ];
+        }
       }
       Yogiyo.toast(
         `${response.completed?.label || '현재 작업'} ${
