@@ -67,7 +67,9 @@ const riderIdentity = order => {
 
 const riderSummary = order => order?.rider_id ? `배정 라이더: ${riderIdentity(order)}` : '라이더 배정 정보 없음';
 
-const merchantExplanationPlaceholder = order => {
+const merchantExplanationPlaceholder = (order, fallbackText) => {
+  const text = String(order?.merchant_text || fallbackText || '').trim();
+  if (text) return text;
   if (!hasPackage(order)) return '배차가 확정되면 조리·포장 우선순위 안내가 이곳에 표시됩니다.';
   if (hasOfferedPackage(order)) return '라이더 수락 전입니다. 수락 후 확정된 배차 기준으로 조리·포장 안내가 표시됩니다.';
   if (hasConfirmedAssignment(order)) return '확정된 배차 기준의 AI 조리·포장 안내를 준비 중입니다.';
@@ -191,7 +193,7 @@ function renderMerchant(view, store) {
       : counts.COOKING
       ? '조리 중 주문을 30초 단위로 클러스터링해 라이더에게 배차 제안을 생성합니다.'
       : '조리 시작 후 배차 제안이 생성되면 패키지와 라이더 정보가 표시됩니다.';
-  Yogiyo.el('merchantExplanationContent').innerHTML = `<span>✦</span><div><strong>AI 조리·포장 안내</strong><span>${Yogiyo.escape(merchantExplanationPlaceholder(activeOrder))}</span></div>`;
+  Yogiyo.el('merchantExplanationContent').innerHTML = `<span>✦</span><div><strong>AI 조리·포장 안내</strong><span class="explanation-copy">${Yogiyo.escape(merchantExplanationPlaceholder(activeOrder, view?.merchant_text))}</span></div>`;
   renderMerchantFutureSlot();
 }
 
@@ -210,7 +212,7 @@ async function loadMerchant() {
 async function loadMerchantView() {
   try {
     const nextToCook = await Yogiyo.apiClient.demo.merchantNextToCook();
-    if (nextToCook?.message) return { store_id: storeId, orders: [], message: nextToCook.message };
+    if (nextToCook?.message) return { store_id: storeId, orders: [], message: nextToCook.message, merchant_text: nextToCook.merchant_text };
     if (nextToCook.status !== 'NEW') locallyStartedOrderIds.delete(String(nextToCook.order_id));
     return {
       store_id: nextToCook.store_id ?? storeId,

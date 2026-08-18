@@ -51,7 +51,9 @@ function renderCustomerExplanation() {
     return;
   }
   section.hidden = false;
-  content.innerHTML = '<div class="notice llm-guidance"><span>✦</span><div><strong>배차 안내</strong><span>현재 시연 API에는 LLM 문구가 포함되지 않습니다. 확정된 배차 정보는 위 상태와 경로에서 확인할 수 있습니다.</span></div></div>';
+  const text = String(currentOrder?.consumer_text || '').trim();
+  const copy = text || '배차 안내를 준비 중입니다. 확정된 배차 정보는 위 상태와 경로에서 확인할 수 있습니다.';
+  content.innerHTML = `<div class="notice llm-guidance"><span>✦</span><div><strong>배차 안내</strong><span class="explanation-copy">${Yogiyo.escape(copy)}</span></div></div>`;
 }
 
 function customerStatusMeta(order) {
