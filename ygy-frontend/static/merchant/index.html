@@ -4,10 +4,61 @@
 <body>
   <div class="page-stage"><main class="mobile-shell merchant-shell merchant-dashboard" aria-label="사장님 주문 관리">
     <header class="app-header"><div class="header-title"><div class="brand-mark">샵</div><div><h1 id="merchantStoreName">매장 주문 관리</h1><p id="merchantStoreMeta">매장 정보를 확인 중</p></div></div><div id="connection" class="connection-pill"><i></i><span>연결 중</span></div></header>
-    <nav class="merchant-top-tabs" aria-label="주문 상태"><button class="merchant-top-tab active" type="button" aria-selected="true" disabled> 처리중 <b id="processingCount">0</b>건</button></nav>
+    
+    <nav class="merchant-top-tabs" aria-label="주문 상태">
+  <button
+    id="processingTab"
+    class="merchant-top-tab active"
+    type="button"
+    data-merchant-tab="processing"
+    aria-selected="true"
+  >
+    처리중 <b id="processingCount">0</b>건
+  </button>
+
+  <button
+    id="completedTab"
+    class="merchant-top-tab"
+    type="button"
+    data-merchant-tab="completed"
+    aria-selected="false"
+  >
+    처리 완료 <b id="completedCount">0</b>건
+  </button>
+</nav>
+
     <section id="merchantLoadState" class="merchant-load-state" aria-live="polite" hidden></section>
     <div id="merchantContent" class="merchant-workspace">
-      <aside class="merchant-order-panel"><section id="merchantProcessingList"><div class="merchant-order-group"><div class="merchant-group-title"><h2>신규 주문</h2><span id="newOrderCount">0건</span></div><div id="newOrderList"></div></div><div class="merchant-order-group"><div class="merchant-group-title"><h2>진행 주문</h2><span id="progressOrderCount">0건</span></div><div id="progressOrderList"></div></div></section></aside>
+      <aside class="merchant-order-panel">
+  <section id="merchantProcessingList">
+    <div class="merchant-order-group">
+      <div class="merchant-group-title">
+        <h2>신규 주문</h2>
+        <span id="newOrderCount">0건</span>
+      </div>
+      <div id="newOrderList"></div>
+    </div>
+
+    <div class="merchant-order-group">
+      <div class="merchant-group-title">
+        <h2>진행 주문</h2>
+        <span id="progressOrderCount">0건</span>
+      </div>
+      <div id="progressOrderList"></div>
+    </div>
+  </section>
+
+  <section id="merchantCompletedList" hidden>
+    <div class="merchant-order-group">
+      <div class="merchant-group-title">
+        <h2>처리 완료 주문</h2>
+        <span id="completedOrderCount">0건</span>
+      </div>
+
+      <div id="completedOrderList"></div>
+    </div>
+  </section>
+</aside>
       <section class="merchant-detail-panel"><div id="merchantOrderDetail" class="merchant-order-detail"><div class="state-card empty"><div class="state-icon">⌕</div><div><strong>주문을 선택해 주세요.</strong><p>좌측 주문 목록에서 상세 정보를 확인할 주문을 선택하세요.</p></div></div></div></section>
     </div>
     <!-- <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>▤</strong><span>주문</span></div><div class="nav-item"><strong>◷</strong><span>조리</span></div><div class="nav-item"><strong>⌁</strong><span>통계</span></div></nav> -->
