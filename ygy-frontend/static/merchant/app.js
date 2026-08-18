@@ -6,6 +6,13 @@ let activeMerchantTab = 'processing';
 let selectedOrderId;
 let storeDirectory;
 
+const DEFAULT_COOK_MIN = 20;
+const MIN_COOK_MIN = 5;
+const MAX_COOK_MIN = 40;
+const COOK_MIN_STEP = 5;
+
+const cookMinuteDrafts = new Map();
+
 const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
 const statusTone = status =>
   status === 'NEW'
@@ -76,12 +83,24 @@ function renderDetail(order, store, view={}) {
     ? order.menu_items
     : [];
 
+  const cookMinutes =
+    cookMinuteDrafts.get(String(order.order_id)) ??
+    DEFAULT_COOK_MIN;
+
   const actionButtons = isNew
   ? `
     <div class="merchant-decision-actions">
       <div class="cook-time-stepper">
         <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
-        <input type="number" data-cook-minutes="${order.order_id}" value="20" min="5" max="40" step="5" readonly />
+        <input
+          type="number"
+          data-cook-minutes="${order.order_id}"
+          value="${cookMinutes}"
+          min="${MIN_COOK_MIN}"
+          max="${MAX_COOK_MIN}"
+          step="${COOK_MIN_STEP}"
+          readonly
+        />
         <span>분</span>
         <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
       </div>
@@ -89,7 +108,7 @@ function renderDetail(order, store, view={}) {
         class="primary-button"
         type="button"
         data-order-accept="${order.order_id}">
-        수락하고 조리 시작
+        조리 시작
       </button>
     </div>
   `
@@ -178,19 +197,52 @@ function renderDetail(order, store, view={}) {
       );
     });
 
-  root.querySelector('[data-stepper-decrease]')?.addEventListener('click', event => {
-    const orderId = event.currentTarget.dataset.stepperDecrease;
-    const input = root.querySelector(`[data-cook-minutes="${orderId}"]`);
+  root
+  .querySelector('[data-stepper-decrease]')
+  ?.addEventListener('click', event => {
+    const orderId =
+      event.currentTarget.dataset.stepperDecrease;
+
+    const input =
+      root.querySelector(
+        `[data-cook-minutes="${orderId}"]`
+      );
+
+    if (!input) return;
+
     const current = Number(input.value);
-    if (current > 5) input.value = current - 5;
+    const next = Math.max(
+      MIN_COOK_MIN,
+      current - COOK_MIN_STEP
+    );
+
+    input.value = next;
+    cookMinuteDrafts.set(String(orderId), next);
   });
 
-  root.querySelector('[data-stepper-increase]')?.addEventListener('click', event => {
-    const orderId = event.currentTarget.dataset.stepperIncrease;
-    const input = root.querySelector(`[data-cook-minutes="${orderId}"]`);
+  root
+  .querySelector('[data-stepper-increase]')
+  ?.addEventListener('click', event => {
+    const orderId =
+      event.currentTarget.dataset.stepperIncrease;
+
+    const input =
+      root.querySelector(
+        `[data-cook-minutes="${orderId}"]`
+      );
+
+    if (!input) return;
+
     const current = Number(input.value);
-    if (current < 40) input.value = current + 5;
+    const next = Math.min(
+      MAX_COOK_MIN,
+      current + COOK_MIN_STEP
+    );
+
+    input.value = next;
+    cookMinuteDrafts.set(String(orderId), next);
   });
+  
 
 }
 
@@ -375,18 +427,41 @@ async function loadMerchant() {
 }
 
 async function acceptOrder(orderId, button) {
-  const stepperInput = document.querySelector(`[data-cook-minutes="${orderId}"]`);
-  const minutes = Number(stepperInput?.value || 20);
-  if (!Number.isInteger(minutes) || minutes < 5 || minutes > 40) {
-    Yogiyo.toast('조리시간은 5분에서 40분 사이여야 합니다.');
-    return;
-  }
+  
+  const stepperInput =
+  document.querySelector(
+    `[data-cook-minutes="${orderId}"]`
+  );
+
+const minutes = Number(
+  stepperInput?.value ??
+  cookMinuteDrafts.get(String(orderId)) ??
+  DEFAULT_COOK_MIN
+);
+
+if (
+  !Number.isInteger(minutes) ||
+  minutes < MIN_COOK_MIN ||
+  minutes > MAX_COOK_MIN ||
+  minutes % COOK_MIN_STEP !== 0
+) {
+  Yogiyo.toast(
+    '조리시간은 5분 단위로 5분에서 40분 사이에서 선택해 주세요.'
+  );
+  return;
+}
+
+
   await Yogiyo.withPending(button, async () => {
     try {
       await Yogiyo.apiClient.demo.merchantCookStart(minutes);
+
+      cookMinuteDrafts.delete(String(orderId));
+
       Yogiyo.toast(
-        `주문 #${orderId}을 수락하고 조리를 시작했습니다.`
+        `주문 #${orderId}의 조리를 시작했습니다.`
       );
+
       await loadMerchant();
     } catch (error) {
       Yogiyo.toast(error.message);
