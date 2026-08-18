@@ -17,6 +17,16 @@ SYSTEM_PROMPT = """
 }
 """.strip()
 
+MERCHANT_SYSTEM_PROMPT = """
+당신은 음식 배달 매장의 조리 운영을 돕는 한국어 안내 작성기입니다.
+제공된 데이터만 근거로 사장님에게 필요한 조리·포장 안내를 작성하세요.
+배차, ETA, 조리시간 또는 라이더 상태를 새로 계산하거나 추측하지 마세요.
+응답은 Markdown 없이 아래 JSON 객체만 반환해야 합니다.
+{
+  "merchant_text": "사장님용 안내"
+}
+""".strip()
+
 
 def _as_json(value, fallback):
     if isinstance(value, str):
@@ -186,6 +196,7 @@ def build_messages(context):
     """Build strict JSON messages for an OpenAI-compatible chat completion API."""
     context = context if isinstance(context, dict) else {}
     legacy_normalized = normalize_explanation_context(context)
+
     normalized = build_demo_explanation_context({
         "package": context.get("package") or context.get("rider_offer") or legacy_normalized["package"],
         "orders": context.get("orders") or legacy_normalized["orders"],
@@ -195,7 +206,13 @@ def build_messages(context):
         "next_stop": context.get("next_stop"),
         "explanation_stage": context.get("explanation_stage"),
     })
-    data = json.dumps(_role_scoped_context(normalized), ensure_ascii=False, separators=(",", ":"))
+
+    data = json.dumps(
+        _role_scoped_context(normalized),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
     user_prompt = """
 아래는 이미 확정된 배차 결과 데이터입니다.
 
@@ -204,19 +221,64 @@ def build_messages(context):
 작성 규칙:
 1. consumer_text와 rider_text는 1~3개의 짧은 문장으로 작성하고, 각 문장 앞에 글머리 기호(•)를 사용하세요.
 2. merchant_text는 글머리 기호나 항목 나열을 사용하지 말고, 사장님에게 직접 설명하는 자연스러운 한국어 서술형 문장 2~3개로 작성하세요.
-3. merchant_text는 단순히 숫자를 나열하지 말고, 제공된 데이터를 해석해 매장 운영을 돕는 친근한 안내처럼 작성하세요. "조리 기준: 20분", "라이더 도착: 6분" 같은 형식은 사용하지 마세요.
-4. explanation_stage가 COOKING이면 merchant_text는 owner_cook_min과 predicted_cook_min을 근거로 현재 조리 기준을 자연스럽게 설명하고, 아직 라이더가 수락하기 전이라는 점을 필요한 경우 함께 안내하세요. 데이터에 없는 혼잡도, 다른 매장 사례, 날씨, 교통 상황은 만들지 마세요.
-5. explanation_stage가 COOKING이면 rider_text는 묶음 건수·예상 수익·대기시간을 각각 짧은 문장으로 안내하세요. 예: "• 총 3건을 함께 배달하는 제안이에요.\n• 예상 수익은 12,700원이에요.\n• 예상 라이더 대기시간은 5.4분이에요." "• 묶음 건수: 3", "• 예상 수익: 12,700원" 같은 명사형 나열은 금지합니다.
-6. explanation_stage가 MATCHED이면 consumer_text는 (a) 총 묶음 주문 수, (b) 음식 대기시간과 총 소요시간을 근거로 한 묶음 이유, (c) delivery_order의 전체 주문 수 중 예상 배달 순서의 3개 항목으로 작성하세요. 고객의 배달지, 다른 주문·고객, 주문 번호, 라이더 ID, 매장명, 라이더 수익은 언급하지 마세요.
-7. explanation_stage가 MATCHED이면 merchant_text는 rider_arrival_min과 owner_cook_min을 자연스럽게 연결해서 설명하세요. 단순히 두 숫자를 각각 나열하지 말고, 사장님이 조리와 포장 시점을 판단하는 데 도움이 되는 문장으로 작성하세요. 단, "N분 안에 반드시 마쳐야 합니다"처럼 데이터보다 강한 마감이나 지시를 만들지 마세요.
-8. explanation_stage가 COOKING이고 아직 라이더 수락 전이라면 라이더의 도착 시점, 도착 예정 시간, 도착에 맞춘 포장 시점을 추측하거나 언급하지 마세요.
-9. merchant_text에는 다른 매장, 다른 주문, 픽업 장소, 배달 경로, 픽업·배달 순서, 라이더 개인정보를 언급하지 마세요. rider_text에는 경로, 픽업 장소, 배달지, 픽업·배달 순서, next_stop 정보를 언급하지 마세요. 이 정보는 화면의 별도 운행 영역에서 제공합니다.
-10. merchant_text의 말투는 친근하지만 가볍지 않은 매장 운영 도우미처럼 작성하세요. "현재 입력하신 조리시간은 20분이에요. 라이더는 약 6분 뒤 도착할 예정이라, 지금부터 조리를 진행하면서 도착 시점에 맞춰 포장을 준비하시면 좋아요."처럼 데이터 사이의 관계를 자연스럽게 설명하세요.
-11. merchant_text에서는 "조리와 포장을 동시에 진행하세요", "미리 포장하세요"처럼 제공된 데이터로 확인할 수 없는 조리·포장 방식이나 작업 순서를 임의로 지시하지 마세요. 조리시간과 라이더 상태 등 확인 가능한 사실만 근거로 안내하세요.
-12. 점수는 결과값일 뿐 후보 간 우위를 증명하지 않습니다. 다른 후보보다 좋았다는 표현을 쓰지 마세요.
-13. 설명에 필요한 근거가 부족하면 없는 사실을 추측하지 말고, 확인 가능한 범위만 짧고 자연스럽게 설명하세요.
+3. merchant_text는 단순히 숫자를 나열하지 말고, 제공된 데이터를 해석해 매장 운영을 돕는 친근한 안내처럼 작성하세요.
+4. explanation_stage가 COOKING이면 merchant_text는 owner_cook_min과 predicted_cook_min을 근거로 현재 조리 기준을 자연스럽게 설명하세요.
+5. explanation_stage가 COOKING이면 rider_text는 묶음 건수·예상 수익·대기시간을 각각 짧은 문장으로 안내하세요.
+6. explanation_stage가 MATCHED이면 consumer_text는 총 묶음 주문 수, 묶음 이유, 예상 배달 순서를 설명하세요.
+7. explanation_stage가 MATCHED이면 merchant_text는 rider_arrival_min과 owner_cook_min을 자연스럽게 연결해서 설명하세요.
+8. explanation_stage가 COOKING이고 아직 라이더 수락 전이라면 라이더 도착 시점을 추측하거나 언급하지 마세요.
+9. merchant_text에는 다른 매장, 다른 주문, 픽업 장소, 배달 경로, 픽업·배달 순서, 라이더 개인정보를 언급하지 마세요.
+10. merchant_text의 말투는 친근하지만 가볍지 않은 매장 운영 도우미처럼 작성하세요.
+11. merchant_text에서는 데이터에 없는 조리·포장 방식이나 작업 순서를 임의로 지시하지 마세요.
+12. 점수는 결과값일 뿐 후보 간 우위를 증명하지 않습니다.
+13. 설명에 필요한 근거가 부족하면 없는 사실을 추측하지 마세요.
 """.strip().format(data=data)
+
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
+def build_merchant_messages(context):
+    """Build merchant-only LLM messages for the demo."""
+    context = context if isinstance(context, dict) else {}
+    legacy_normalized = normalize_explanation_context(context)
+
+    normalized = build_demo_explanation_context({
+        "package": context.get("package") or context.get("rider_offer") or legacy_normalized["package"],
+        "orders": context.get("orders") or legacy_normalized["orders"],
+        "customer_order": context.get("customer_order"),
+        "merchant_order": context.get("merchant_order"),
+        "rider_profile": context.get("rider_profile"),
+        "next_stop": context.get("next_stop"),
+        "explanation_stage": context.get("explanation_stage"),
+    })
+
+    scoped = _role_scoped_context(normalized)
+
+    data = json.dumps({
+        "explanation_stage": scoped["explanation_stage"],
+        "merchant_context": scoped["merchant_context"],
+    }, ensure_ascii=False, separators=(",", ":"))
+
+    user_prompt = """
+아래는 이미 확정된 매장 주문 데이터입니다.
+
+{data}
+
+작성 규칙:
+1. merchant_text는 글머리 기호를 사용하지 않고 자연스러운 한국어 서술형 문장 2~3개로 작성하세요.
+2. 단순히 숫자를 나열하지 말고, 사장님이 현재 조리 상황을 이해할 수 있도록 데이터 사이의 관계를 자연스럽게 설명하세요.
+3. explanation_stage가 COOKING이면 owner_cook_min과 predicted_cook_min을 근거로 현재 조리 기준을 설명하세요. 아직 라이더 수락 전이라면 라이더 도착 시점을 추측하지 마세요.
+4. explanation_stage가 MATCHED이면 rider_arrival_min과 owner_cook_min을 근거로 조리·포장 시점을 이해하기 쉽게 설명하세요.
+5. 데이터에 없는 작업 방식이나 작업 순서를 임의로 지시하지 마세요.
+6. 다른 매장, 다른 주문, 배달 경로, 픽업·배달 순서, 라이더 개인정보는 언급하지 마세요.
+7. 데이터에 없는 혼잡도, 날씨, 교통, 할인, 보상, 확정 ETA를 만들지 마세요.
+8. 근거가 부족하면 추측하지 말고 확인 가능한 사실만 자연스럽게 안내하세요.
+""".strip().format(data=data)
+
+    return [
+        {"role": "system", "content": MERCHANT_SYSTEM_PROMPT},
         {"role": "user", "content": user_prompt},
     ]
