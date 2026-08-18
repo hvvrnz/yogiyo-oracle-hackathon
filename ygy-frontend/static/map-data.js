@@ -35,7 +35,7 @@
     const delivery = marker({
       id: `delivery:${order.order_id}`,
       kind: 'delivery',
-      label: '배달지',
+      label: '내 위치',
       lat: order.delivery_lat,
       lng: order.delivery_lng,
       sequence: 2,
@@ -81,7 +81,7 @@
     const route = (Array.isArray(routeDetail) ? routeDetail : []).map((step, index) => marker({
       id: `route:${step.order_id ?? index}:${step.type ?? 'stop'}:${step.sequence ?? index + 1}`,
       kind: String(step.type || '').toLowerCase() === 'pickup' ? 'store' : 'delivery',
-      label: step.label || `주문 ${step.order_id ?? '-'}`,
+      label: step.label || `${String(step.type || '').toLowerCase() === 'pickup' ? '픽업' : '배달'} ${step.sequence ?? index + 1} · 주문 ${step.order_id ?? '-'}`,
       lat: step.lat,
       lng: step.lng,
       sequence: step.sequence ?? index + 1,
@@ -156,7 +156,7 @@
       pin.setAttribute('aria-label', item.label);
       pin.title = item.label;
       const icon = document.createElement('span');
-      icon.textContent = item.kind === 'rider' ? '🏍' : item.kind === 'store' ? '가' : String(item.sequence || index + 1);
+      icon.textContent = item.kind === 'rider' ? '🏍' : item.kind === 'store' ? String(item.sequence || '가') : String(item.sequence || index + 1);
       pin.appendChild(icon);
       root.appendChild(pin);
     });

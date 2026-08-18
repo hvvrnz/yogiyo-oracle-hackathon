@@ -1,6 +1,9 @@
 const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let currentOrder;
 let stopPolling;
+let stopRiderPolling;
+let trackedRiderId;
+let currentRiderProfile;
 
 const cancelBlockedStatuses = new Set(['PICKED_UP', 'DELIVERED', 'COMPLETED', 'CANCELLED']);
 const assignmentConfirmedStatuses = new Set(['MATCHING', 'MATCHED', 'PICKED_UP', 'DELIVERED', 'COMPLETED']);
@@ -8,7 +11,10 @@ const hasPackage = order => order?.package_id != null && order?.package_id !== '
 const hasAssignedRider = order => order?.rider_id != null && order?.rider_id !== '';
 const hasConfirmedAssignment = order => hasPackage(order) && (assignmentConfirmedStatuses.has(order?.status) || hasAssignedRider(order));
 const hasOfferedPackage = order => order?.status === 'COOKING' && hasPackage(order) && !hasAssignedRider(order);
-const setContentVisible = visible => { Yogiyo.el('customerContent').hidden = !visible; };
+const setContentVisible = visible => {
+  const panel = Yogiyo.el('customerBottomPanel');
+  if (panel) panel.hidden = !visible;
+};
 const showCustomerFailure = (error, { action = false } = {}) => {
   setConnection(false);
   if (!currentOrder) setContentVisible(false);
@@ -77,6 +83,80 @@ function renderCustomerFutureSlot() {
   Yogiyo.el('customerFutureSlotContent').innerHTML = '<div class="future-slot-card"><div class="future-slot-head"><strong>음식 완성 시점에 맞춘 라이더 방문 예약</strong><span class="badge good">예상 대기 0분</span></div><div class="future-slot-grid"><span>음식 완료 예정 <b>18:27</b></span><span>라이더 도착 예정 <b>18:27</b></span></div><p>현재 운행 경로는 변경하지 않고, 다음 운행만 미리 예약한 시연용 상태입니다.</p></div>';
 }
 
+function customerMapData(order) {
+  const route = Array.isArray(order?.route_detail) ? order.route_detail : [];
+  const routeMap = route.length ? Yogiyo.mapData.fromRouteDetail(route) : Yogiyo.mapData.fromCustomerOrder(order);
+  const customerLocation = Yogiyo.mapData.create({
+    markers: [Yogiyo.mapData.marker({
+      id: `customer:${order.order_id}`,
+      kind: 'delivery',
+      label: '내 위치',
+      lat: order.delivery_lat,
+      lng: order.delivery_lng,
+    })],
+  });
+  const riderMap = hasAssignedRider(order) && currentRiderProfile
+    ? Yogiyo.mapData.fromRiderProfile(currentRiderProfile)
+    : Yogiyo.mapData.create();
+  return Yogiyo.mapData.combine(routeMap, customerLocation, riderMap);
+}
+
+function renderCustomerMap() {
+  if (!currentOrder) return;
+  Yogiyo.renderMap('customerMap', customerMapData(currentOrder));
+  const riderStep = Yogiyo.el('riderStep');
+  riderStep.textContent = hasAssignedRider(currentOrder)
+    ? currentRiderProfile
+      ? `담당 라이더 ${currentRiderProfile.name || currentRiderProfile.rider_id} 위치 표시 중`
+      : `담당 라이더 ${currentOrder.rider_id} 위치 확인 중`
+    : '담당 라이더 배정 전';
+}
+
+function syncRiderLocation(order) {
+  const riderId = hasAssignedRider(order) ? String(order.rider_id) : null;
+  if (riderId === trackedRiderId) return;
+  stopRiderPolling?.();
+  stopRiderPolling = undefined;
+  trackedRiderId = riderId;
+  currentRiderProfile = undefined;
+  if (!riderId) return;
+  stopRiderPolling = Yogiyo.poll(() => Yogiyo.apiClient.demo.riderProfile(), profile => {
+    if (trackedRiderId !== riderId) return;
+    currentRiderProfile = profile;
+    renderCustomerMap();
+  }, {
+    intervalMs: 5000,
+    onError: () => {
+      if (trackedRiderId === riderId) renderCustomerMap();
+    },
+  });
+}
+
+function bindCustomerSheet() {
+  const panel = Yogiyo.el('customerBottomPanel');
+  const handle = Yogiyo.el('customerSheetHandle');
+  if (!panel || !handle) return;
+  let startY = null;
+  const setExpanded = expanded => {
+    panel.classList.toggle('expanded', expanded);
+    handle.setAttribute('aria-expanded', String(expanded));
+    handle.querySelector('b').textContent = expanded ? '아래로 끌어 지도 보기' : '위로 끌어 주문 상세 보기';
+  };
+  handle.addEventListener('pointerdown', event => {
+    startY = event.clientY;
+    handle.setPointerCapture?.(event.pointerId);
+  });
+  handle.addEventListener('pointerup', event => {
+    if (startY == null) return;
+    const distance = event.clientY - startY;
+    if (Math.abs(distance) < 10) setExpanded(!panel.classList.contains('expanded'));
+    else if (distance < -30) setExpanded(true);
+    else if (distance > 30) setExpanded(false);
+    startY = null;
+  });
+  handle.addEventListener('pointercancel', () => { startY = null; });
+}
+
 function renderCustomer(order) {
   currentOrder = order;
   const meta = customerStatusMeta(order);
@@ -86,7 +166,6 @@ function renderCustomer(order) {
       : '라이더 수락 대기 중'
     : order.eta_min == null ? 'ETA 계산 중' : `약 ${Math.ceil(order.eta_min)}분`;
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
-  const map = Yogiyo.mapData.fromCustomerOrder(order);
 
   Yogiyo.el('orderId').textContent = `내 주문번호 #${order.order_id} · ${order.store_name}`;
   Yogiyo.el('etaWindow').textContent = etaLabel;
@@ -107,8 +186,8 @@ function renderCustomer(order) {
   Yogiyo.el('amount').textContent = Yogiyo.money(order.amount);
   Yogiyo.el('deliveryAddress').textContent = order.delivery_address || '배달지 주소 정보 없음';
   Yogiyo.el('itemsCard').innerHTML = items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<div class="subtext">메뉴 정보가 없습니다.</div>';
-  Yogiyo.renderMap('customerMap', map);
-  Yogiyo.el('riderStep').textContent = order.rider_id ? `담당 라이더 ${order.rider_id}` : '담당 라이더 배정 전';
+  syncRiderLocation(order);
+  renderCustomerMap();
   renderCustomerFutureSlot();
   renderCustomerExplanation();
 
@@ -145,4 +224,7 @@ stopPolling = Yogiyo.poll(() => Yogiyo.apiClient.demo.customerOrder(), order => 
 });
 window.addEventListener('beforeunload', () => {
   stopPolling?.();
+  stopRiderPolling?.();
 }, { once: true });
+
+bindCustomerSheet();
