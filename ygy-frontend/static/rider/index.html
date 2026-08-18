@@ -6,23 +6,226 @@
   <title>요기요 라이더 · 패키지 운행</title>
   <link rel="stylesheet" href="/static/common.css" />
 </head>
+
 <body>
   <div class="page-stage">
     <main class="mobile-shell rider-map-shell" aria-label="라이더 패키지 운행 화면">
-      <header class="app-header rider-map-header"><div class="header-title"><div class="brand-mark">R</div><div><h1 id="riderName">라이더 운행</h1><p id="riderMeta">라이더 정보 확인 중</p></div></div><div id="connection" class="connection-pill"><i></i><span>연결 중</span></div></header>
-      <section id="riderRunTab" class="rider-tab-panel rider-run-tab" aria-label="운행 지도">
-        <div class="map-canvas rider-map-canvas" id="riderMap"><svg class="route-svg" viewBox="0 0 100 100"></svg></div>
-        <!-- <div class="rider-map-legend"><span>🏍 내 위치</span><span>① 픽업·배달 순서</span></div> -->
-        <div class="rider-map-state"><span class="badge brand" id="packageState">패키지 조회 중</span><strong id="currentPackageSummary">운행 정보를 확인하고 있어요.</strong><span id="riderLocationCount">내 위치 조회 중</span></div>
-        <section id="riderLoadState" class="rider-load-state" aria-live="polite" hidden></section>
-        <section class="rider-bottom-panel" id="riderBottomPanel" aria-label="운행 상세 정보"><button class="rider-sheet-handle" id="riderSheetHandle" type="button" aria-controls="riderRunDetails" aria-expanded="false"><span></span><b>위로 끌어 운행 상세 보기</b></button><div class="rider-sheet-summary" id="riderRunSummary">현재 운행을 불러오는 중입니다.</div><div class="rider-sheet-content" id="riderRunDetails"></div></section>
+
+      <header class="app-header rider-map-header">
+        <div class="header-title">
+          <div class="brand-mark">R</div>
+          <div>
+            <h1 id="riderName">라이더 운행</h1>
+            <p id="riderMeta">라이더 정보 확인 중</p>
+          </div>
+        </div>
+
+        <div id="connection" class="connection-pill">
+          <i></i>
+          <span>연결 중</span>
+        </div>
+      </header>
+
+      <section
+        id="riderRunTab"
+        class="rider-tab-panel rider-run-tab"
+        aria-label="운행 지도"
+      >
+        <div class="map-canvas rider-map-canvas" id="riderMap">
+          <svg class="route-svg" viewBox="0 0 100 100"></svg>
+        </div>
+
+        <!--
+        <div class="rider-map-legend">
+          <span>🏍 내 위치</span>
+          <span>① 픽업·배달 순서</span>
+        </div>
+        -->
+
+        <div class="rider-map-state">
+          <span class="badge brand" id="packageState">패키지 조회 중</span>
+          <strong id="currentPackageSummary">운행 정보를 확인하고 있어요.</strong>
+          <span id="riderLocationCount">내 위치 조회 중</span>
+        </div>
+
+        <section
+          id="riderLoadState"
+          class="rider-load-state"
+          aria-live="polite"
+          hidden
+        ></section>
+
+        <section
+          class="rider-bottom-panel"
+          id="riderBottomPanel"
+          aria-label="운행 상세 정보"
+        >
+          <button
+            class="rider-sheet-handle"
+            id="riderSheetHandle"
+            type="button"
+            aria-controls="riderRunDetails"
+            aria-expanded="false"
+          >
+            <span></span>
+            <b>위로 끌어 운행 상세 보기</b>
+          </button>
+
+          <div class="rider-sheet-summary" id="riderRunSummary">
+            현재 운행을 불러오는 중입니다.
+          </div>
+
+          <div
+            class="rider-sheet-content"
+            id="riderRunDetails"
+          ></div>
+        </section>
       </section>
-      <section id="riderDispatchTab" class="rider-tab-panel rider-dispatch-tab" aria-label="배차 탭" hidden><div class="mobile-scroll rider-dispatch-scroll"><section class="section"><div class="section-title-row"><h2>현재 운행</h2><span>수락 후 진행</span></div><div id="currentRun"><div class="card skeleton"></div></div></section><section class="section"><div class="section-title-row"><h2>배차 제안</h2><div class="offer-title-actions"><span id="offerCountDetail">0건</span><select id="offerSortSelect" class="offer-sort" aria-label="배차 제안 정렬"><option value="score">매칭 점수순</option><option value="revenue">예상 수익순</option></select></div></div><p class="subtext" style="margin:-5px 2px 10px">AI 안내와 예상 수익·방문 순서를 확인한 뒤 수락하세요.</p><div id="riderOffers"><div class="card skeleton"></div></div></section></div></section>
-      <nav class="rider-top-tabs" aria-label="라이더 화면 탭"><button class="rider-top-tab active" type="button" data-rider-tab="run" aria-selected="true">운행</button><button class="rider-top-tab" type="button" data-rider-tab="dispatch" aria-selected="false">배차 <span id="offerCount">0</span></button></nav>
-      <div id="packageDetailBackdrop" class="sheet-backdrop" aria-hidden="true"></div><aside id="packageDetailSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="packageDetailTitle" aria-describedby="packageDetailSummary" aria-hidden="true"><div class="sheet-handle" aria-hidden="true"></div><div class="row"><h2 id="packageDetailTitle" class="sheet-title">패키지 상세</h2><button id="packageDetailCloseButton" class="icon-button" type="button" aria-label="패키지 상세 닫기">×</button></div><p id="packageDetailSummary" class="sheet-summary">상세 배차 정보를 선택해 주세요.</p><div id="packageDetailContent" aria-live="polite"></div></aside>
-      <!-- <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>⚡</strong><span>운행</span></div><div class="nav-item"><strong>⌖</strong><span>위치</span></div><div class="nav-item"><strong>₩</strong><span>수익</span></div></nav> --><div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <section
+        id="riderDispatchTab"
+        class="rider-tab-panel rider-dispatch-tab"
+        aria-label="배차 탭"
+        hidden
+      >
+        <div class="mobile-scroll rider-dispatch-scroll">
+
+          <section class="section">
+            <div class="section-title-row">
+              <h2>현재 운행</h2>
+              <span>수락 후 진행</span>
+            </div>
+
+            <div id="currentRun">
+              <div class="card skeleton"></div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title-row">
+              <h2>배차 제안</h2>
+
+              <div class="offer-title-actions">
+                <span id="offerCountDetail">0건</span>
+
+                <select
+                  id="offerSortSelect"
+                  class="offer-sort"
+                  aria-label="배차 제안 정렬"
+                >
+                  <option value="score">매칭 점수순</option>
+                  <option value="revenue">예상 수익순</option>
+                </select>
+              </div>
+            </div>
+
+            <p class="subtext" style="margin:-5px 2px 10px">
+              AI 안내와 예상 수익·방문 순서를 확인한 뒤 수락하세요.
+            </p>
+
+            <div id="riderOffers">
+              <div class="card skeleton"></div>
+            </div>
+          </section>
+
+        </div>
+      </section>
+
+      <nav class="rider-top-tabs" aria-label="라이더 화면 탭">
+        <button
+          class="rider-top-tab active"
+          type="button"
+          data-rider-tab="run"
+          aria-selected="true"
+        >
+          운행
+        </button>
+
+        <button
+          class="rider-top-tab"
+          type="button"
+          data-rider-tab="dispatch"
+          aria-selected="false"
+        >
+          배차 <span id="offerCount">0</span>
+        </button>
+      </nav>
+
+      <div
+        id="packageDetailBackdrop"
+        class="sheet-backdrop"
+        aria-hidden="true"
+      ></div>
+
+      <aside
+        id="packageDetailSheet"
+        class="bottom-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="packageDetailTitle"
+        aria-describedby="packageDetailSummary"
+        aria-hidden="true"
+      >
+        <div class="sheet-handle" aria-hidden="true"></div>
+
+        <div class="row">
+          <h2 id="packageDetailTitle" class="sheet-title">
+            패키지 상세
+          </h2>
+
+          <button
+            id="packageDetailCloseButton"
+            class="icon-button"
+            type="button"
+            aria-label="패키지 상세 닫기"
+          >
+            ×
+          </button>
+        </div>
+
+        <p id="packageDetailSummary" class="sheet-summary">
+          상세 배차 정보를 선택해 주세요.
+        </p>
+
+        <div
+          id="packageDetailContent"
+          aria-live="polite"
+        ></div>
+      </aside>
+
+      <!--
+      <nav class="bottom-nav">
+        <a class="nav-item" href="/">
+          <strong>⌂</strong>
+          <span>홈</span>
+        </a>
+        <div class="nav-item active">
+          <strong>⚡</strong>
+          <span>운행</span>
+        </div>
+        <div class="nav-item">
+          <strong>⌖</strong>
+          <span>위치</span>
+        </div>
+        <div class="nav-item">
+          <strong>₩</strong>
+          <span>수익</span>
+        </div>
+      </nav>
+      -->
+
+      <div
+        id="toast"
+        class="toast"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></div>
+
     </main>
   </div>
-  <script src="/static/common.js"></script><script src="/static/rider/app.js"></script>
+
+  <script src="/static/common.js"></script>
+  <script src="/static/rider/app.js"></script>
 </body>
 </html>
