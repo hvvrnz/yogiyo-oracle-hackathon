@@ -15,9 +15,10 @@
       </header>
       <section class="customer-map-stage" aria-label="주문 배송 지도">
         <div class="map-canvas customer-map-canvas" id="customerMap"><svg class="route-svg" viewBox="0 0 100 100"></svg></div>
-        <div class="customer-map-legend" aria-live="polite"><span>⌖ 내 위치</span><span>가 픽업 매장</span><span>① 방문 순서</span><span>🏍 라이더</span></div>
+        <!-- <div class="customer-map-legend" aria-live="polite"><span>⌖ 내 위치</span><span>가 픽업 매장</span><span>① 방문 순서</span><span>🏍 라이더</span></div> -->
         <div class="customer-map-state"><span class="badge brand" id="statusBadge"><span class="dot"></span>상태 확인 중</span><strong id="etaWindow">ETA 계산 중</strong><span id="riderStep">담당 라이더 배정 전</span></div>
       </section>
+      
       <section id="customerLoadState" class="customer-load-state" aria-live="polite" hidden></section>
       <section class="customer-bottom-panel" id="customerBottomPanel" aria-label="주문 상세 정보">
         <button class="customer-sheet-handle" id="customerSheetHandle" type="button" aria-controls="customerSheetContent" aria-expanded="false"><span></span><b>위로 끌어 주문 상세 보기</b></button>
