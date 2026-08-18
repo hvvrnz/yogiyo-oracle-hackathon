@@ -285,10 +285,28 @@ async function acceptOffer(pkg, button) {
 async function completeCurrentStop(button) {
   await Yogiyo.withPending(button, async () => {
     try {
-      const response = await Yogiyo.apiClient.demo.riderArrive();
-      Yogiyo.toast(`${response.completed?.label || '현재 작업'} ${response.completed?.type === 'pickup' ? '픽업' : '배달'} 완료`);
+      const response =
+        await Yogiyo.apiClient.demo.riderArrive();
+
+      if (acceptedPackage) {
+        saveAcceptedPackage({
+          ...acceptedPackage,
+          status: response.package_status
+        });
+      }
+
+      Yogiyo.toast(
+        `${response.completed?.label || '현재 작업'} ${
+          response.completed?.type === 'pickup'
+            ? '픽업'
+            : '배달'
+        } 완료`
+      );
+
       await loadRider();
-    } catch (error) { Yogiyo.toast(error.message); }
+    } catch (error) {
+      Yogiyo.toast(error.message);
+    }
   });
 }
 
