@@ -198,13 +198,21 @@ function renderMerchant(processingView, completedView, store) {
   currentMerchant = processingView || { orders: [] };
   currentCompleted = completedView || { orders: [] };
 
-  const processingOrders = Array.isArray(currentMerchant.orders)
+  const rawProcessingOrders = Array.isArray(currentMerchant.orders)
     ? currentMerchant.orders
     : [];
 
   const completedOrders = Array.isArray(currentCompleted.orders)
     ? currentCompleted.orders
     : [];
+
+  const completedOrderIds = new Set(
+    completedOrders.map(order => String(order.order_id))
+  );
+
+  const processingOrders = rawProcessingOrders.filter(
+    order => !completedOrderIds.has(String(order.order_id))
+  );
 
   const activeOrders =
     activeMerchantTab === 'completed'
@@ -322,7 +330,15 @@ function renderMerchant(processingView, completedView, store) {
           empty_description:
             '라이더가 픽업한 주문이 이곳에 표시됩니다.',
         }
-      : currentMerchant;
+      : {
+          ...currentMerchant,
+          message:
+            processingOrders.length === 0
+              ? '현재 처리중인 주문이 없습니다.'
+              : currentMerchant.message,
+          empty_description:
+            '새 주문이 들어오면 이곳에 표시됩니다.',
+        };
 
   renderDetail(
     selectedOrder,
