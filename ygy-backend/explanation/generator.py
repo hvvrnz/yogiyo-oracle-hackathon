@@ -216,7 +216,7 @@ def demo_explanation_fallback(context):
     if bundle_size:
         rider_lines.append("• 총 %s건을 함께 배달하는 제안이에요." % bundle_size)
     if revenue is not None:
-        rider_lines.append("• 예상 수익은 %s원이에요." % revenue)
+        rider_lines.append("• 예상 수익은 {:,}원이에요.".format(int(revenue)))
     courier_wait_time = score_detail.get("courier_wait_time")
     if courier_wait_time is not None:
         rider_lines.append("• 예상 라이더 대기시간은 %s분이에요." % courier_wait_time)
