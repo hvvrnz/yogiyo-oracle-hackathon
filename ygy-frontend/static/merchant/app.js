@@ -1,10 +1,8 @@
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
 let currentMerchant;
 let selectedOrderId;
-let activeTab = 'processing';
 let storeDirectory;
 
-const completedStatuses = new Set(['COMPLETED', 'DELIVERED', 'CANCELLED', 'REJECTED']);
 const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
 const statusTone = status => status === 'NEW' ? 'info' : completedStatuses.has(status) ? 'good' : status === 'COOKING' ? 'warn' : 'brand';
 const setConnection = online => { const node = Yogiyo.el('connection'); node.classList.toggle('online', online); node.classList.toggle('offline', !online); node.querySelector('span').textContent = online ? '영업중' : '연결 확인 필요'; };
@@ -146,24 +144,17 @@ function renderDetail(order, store) {
 function renderMerchant(view, store) {
   currentMerchant = view;
   const orders = Array.isArray(view.orders) ? view.orders : [];
-  const processing = orders.filter(order => !completedStatuses.has(order.status));
-  const completed = orders.filter(order => completedStatuses.has(order.status));
   const newOrders = processing.filter(order => order.status === 'NEW');
   const progressOrders = processing.filter(order => order.status !== 'NEW');
-  const visibleOrders = activeTab === 'processing' ? processing : completed;
   if (!visibleOrders.some(order => String(order.order_id) === String(selectedOrderId))) selectedOrderId = visibleOrders[0]?.order_id;
   Yogiyo.el('merchantStoreName').textContent = store?.name || `매장 ${storeId}`;
   Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || '주문 처리 현황';
   Yogiyo.el('processingCount').textContent = processing.length;
-  Yogiyo.el('completedCount').textContent = completed.length;
   Yogiyo.el('newOrderCount').textContent = `${newOrders.length}건`;
   Yogiyo.el('progressOrderCount').textContent = `${progressOrders.length}건`;
-  Yogiyo.el('completedOrderListCount').textContent = `${completed.length}건`;
   Yogiyo.el('newOrderList').innerHTML = newOrders.map(orderListCard).join('') || '<p class="merchant-empty-copy">신규 주문이 없습니다.</p>';
   Yogiyo.el('progressOrderList').innerHTML = progressOrders.map(orderListCard).join('') || '<p class="merchant-empty-copy">진행 중인 주문이 없습니다.</p>';
-  Yogiyo.el('completedOrderList').innerHTML = completed.map(orderListCard).join('') || '<p class="merchant-empty-copy">완료 주문이 없습니다.</p>';
   Yogiyo.el('merchantProcessingList').hidden = activeTab !== 'processing';
-  Yogiyo.el('merchantCompletedList').hidden = activeTab !== 'completed';
   document.querySelectorAll('[data-order-select]').forEach(button => button.addEventListener('click', () => { selectedOrderId = Number(button.dataset.orderSelect); renderMerchant(currentMerchant, store); }));
   renderDetail(orders.find(order => String(order.order_id) === String(selectedOrderId)),store);
   Yogiyo.clearLoadState('merchantLoadState');
@@ -204,5 +195,4 @@ async function acceptOrder(orderId, button) {
   });
 }
 
-document.querySelectorAll('[data-merchant-tab]').forEach(button => button.addEventListener('click', () => { activeTab = button.dataset.merchantTab; document.querySelectorAll('[data-merchant-tab]').forEach(tab => { const active = tab === button; tab.classList.toggle('active', active); tab.setAttribute('aria-selected', String(active)); }); if (currentMerchant) getStore().then(store => renderMerchant(currentMerchant, store)); }));
 Yogiyo.poll(() => Yogiyo.apiClient.demo.merchantOrders(), async view => { renderMerchant(view, await getStore()); setConnection(true); }, { intervalMs: 5000, onError: showFailure });
