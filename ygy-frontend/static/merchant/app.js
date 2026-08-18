@@ -4,10 +4,16 @@ let selectedOrderId;
 let storeDirectory;
 
 const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
-const statusTone = status => status === 'NEW' ? 'info' : completedStatuses.has(status) ? 'good' : status === 'COOKING' ? 'warn' : 'brand';
+const statusTone = status =>
+  status === 'NEW'
+    ? 'info'
+    : status === 'COOKING'
+      ? 'warn'
+      : ['COMPLETED', 'DELIVERED'].includes(status)
+        ? 'good'
+        : 'brand';
 const setConnection = online => { const node = Yogiyo.el('connection'); node.classList.toggle('online', online); node.classList.toggle('offline', !online); node.querySelector('span').textContent = online ? '영업중' : '연결 확인 필요'; };
 const menuSummary = items => (Array.isArray(items) ? items : []).map(item => `${item.menu}${item.qty > 1 ? ` ${item.qty}개` : ''}`).join(' · ') || '메뉴 정보 없음';
-const routeSummary = route => (Array.isArray(route) ? route : []).slice().sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0)).map(step => `#${step.order_id} ${step.type === 'pickup' ? '픽업' : '배달'}`).join(' → ') || '배차 전';
 
 async function getStore() {
   if (storeDirectory) return storeDirectory.find(store => String(store.store_id) === String(storeId));
