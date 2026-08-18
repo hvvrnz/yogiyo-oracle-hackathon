@@ -226,7 +226,7 @@ function runDetail(pkg, nextStop) {
 
 function runStatusCard(pkg) {
   if (!pkg) return '<div class="run-status-card empty"><strong>현재 운행 중인 패키지가 없습니다.</strong><span>배차 제안을 수락하면 운행 정보가 표시됩니다.</span></div>';
-  return `<div class="run-status-card"><div><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><span>${Yogiyo.escape(routeSummary(pkg))}</span><small>예상 수익 ${Yogiyo.money(pkg.package_revenue)}</small></div>`;
+  return `<div class="run-status-card"><div><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><div>${routeSummary(pkg)}</div><small>예상 수익 ${Yogiyo.money(pkg.package_revenue)}</small></div>`;
 }
 
 function offerCard(pkg) {
@@ -358,7 +358,7 @@ const visibleOffers = offers
   Yogiyo.el('currentPackageSummary').textContent = nextStop?.type ? `${nextStop.type === 'pickup' ? '다음 픽업' : '다음 배달'} · ${nextStop.label}` : activePackage ? `패키지 #${activePackage.package_id} 운행 중` : '배차 탭에서 제안을 확인하세요.';
   Yogiyo.el('riderLocationCount').textContent = profile.lat != null ? '내 위치 · 5초 갱신' : '내 위치 정보 없음';
   Yogiyo.renderMap('riderMap', riderMapData(profile, activePackage));
-  Yogiyo.el('riderRunSummary').innerHTML = activePackage ? `<div><span>${Yogiyo.escape(packageStatus(activePackage.status))}</span><strong>${Yogiyo.escape(routeSummary(activePackage))}</strong></div><strong>${Yogiyo.money(activePackage.package_revenue)}</strong>` : '<div><span>운행 대기</span><strong>배차 탭에서 새 제안을 확인하세요.</strong></div>';
+  Yogiyo.el('riderRunSummary').innerHTML = activePackage ? `<div><span>${Yogiyo.escape(packageStatus(activePackage.status))}</span><strong>패키지 #${Yogiyo.escape(activePackage.package_id)}</strong></div><strong>${Yogiyo.money(activePackage.package_revenue)}</strong>` : '<div><span>운행 대기</span><strong>배차 탭에서 새 제안을 확인하세요.</strong></div>';
   Yogiyo.el('riderRunDetails').innerHTML = runDetail(activePackage, nextStop);
   Yogiyo.el('riderRunDetails').querySelectorAll('[data-stop-order-id]:not([disabled])').forEach(
     btn => btn.addEventListener('click', event => completeCurrentStop(event.currentTarget))
