@@ -84,16 +84,25 @@ def _extract_json(content):
         raise LLMGenerationError("배차 설명 생성 결과를 해석하지 못했습니다.")
 
 
-def _validated_text(result, field, maximum_length):
+def _validated_text(result, field, maximum_length, use_bullets=True):
     value = result.get(field) if isinstance(result, dict) else None
     if not isinstance(value, str):
         raise LLMGenerationError("배차 설명 생성 결과에 필요한 문구가 없습니다.")
+
     lines = [line.strip() for line in value.splitlines() if line.strip()]
     if not lines:
         raise LLMGenerationError("배차 설명 문구가 허용 형식을 벗어났습니다.")
-    text = "\n".join("• " + line.lstrip("•-* ").strip() for line in lines)
+
+    cleaned_lines = [line.lstrip("•-* ").strip() for line in lines]
+
+    if use_bullets:
+        text = "\n".join("• " + line for line in cleaned_lines)
+    else:
+        text = " ".join(cleaned_lines)
+
     if len(lines) > 3 or len(text) > maximum_length or "\x00" in text:
         raise LLMGenerationError("배차 설명 문구가 허용 형식을 벗어났습니다.")
+
     return text
 
 
@@ -114,7 +123,7 @@ def generate_package_explanation(context):
     result = _extract_json(content)
     return {
         "consumer_text": _validated_text(result, "consumer_text", 220),
-        "merchant_text": _validated_text(result, "merchant_text", 300),
+        "merchant_text": _validated_text(result, "merchant_text", 300, use_bullets=False),
         "rider_text": _validated_text(result, "rider_text", 500),
     }
 
@@ -138,9 +147,9 @@ def demo_explanation_fallback(context):
     score_detail = package.get("score_detail") or {}
     owner_cook_min = merchant.get("owner_cook_min")
     package_ready = package.get("package_id") is not None
-    merchant_text = "• 조리·포장 안내를 준비하고 있어요."
+    merchant_text = "조리·포장 안내를 준비하고 있어요."
     if owner_cook_min is not None:
-        merchant_text = "• 조리 기준은 %s분이에요.\n• 포장은 조리 완료에 맞춰 준비해 주세요." % owner_cook_min
+        merchant_text = "현재 조리 기준은 %s분이에요. 조리 완료 시점에 맞춰 포장을 준비해 주세요." % owner_cook_min
     bundle_size = package.get("bundle_size")
     total_time = score_detail.get("total_time")
     food_sitting_time = score_detail.get("food_sitting_time")
@@ -173,7 +182,7 @@ def demo_explanation_fallback(context):
     if courier_wait_time is not None:
         rider_lines.append("• 예상 라이더 대기시간은 %s분이에요." % courier_wait_time)
     if stage == "COOKING":
-        merchant_text += "\n• 라이더 수락 전이라 포장 완료 시점은 아직 정해지지 않았어요."
+        merchant_text += " 아직 라이더가 수락하기 전이라 도착 시점은 확정되지 않았어요."
     elif stage == "MATCHED":
         rider_arrival = None
         merchant_order_id = merchant.get("order_id")
@@ -183,10 +192,10 @@ def demo_explanation_fallback(context):
                 break
         merchant_lines = []
         if rider_arrival is not None:
-            merchant_lines.append("• 라이더가 약 %s분 뒤 도착할 예정이에요." % rider_arrival)
+            merchant_lines.append("라이더가 약 %s분 뒤 도착할 예정이에요." % rider_arrival)
         if owner_cook_min is not None:
-            merchant_lines.append("• 설정한 %s분 조리시간을 기준으로 포장을 준비해 주세요." % owner_cook_min)
-        merchant_text = "\n".join(merchant_lines) or merchant_text
+            merchant_lines.append("설정한 %s분 조리시간을 기준으로 도착 시점에 맞춰 포장을 준비해 주세요." % owner_cook_min)
+        merchant_text = " ".join(merchant_lines) or merchant_text
 
     return {
         "consumer_text": "\n".join(consumer_lines),
