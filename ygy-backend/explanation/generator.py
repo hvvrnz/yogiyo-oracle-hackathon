@@ -6,7 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from explanation.demo_context import build_demo_explanation_context
-from explanation.prompt_templates import build_messages
+from explanation.prompt_templates import build_messages, build_merchant_messages
 
 
 class LLMConfigurationError(Exception):
@@ -127,15 +127,47 @@ def generate_package_explanation(context):
         "rider_text": _validated_text(result, "rider_text", 500),
     }
 
+def generate_merchant_explanation(context):
+    """Generate only merchant text for the demo."""
+    settings = _load_settings()
+
+    payload = {
+        "model": settings["model"],
+        "messages": build_merchant_messages(context),
+        "temperature": 0.2,
+        "response_format": {"type": "json_object"},
+    }
+
+    response = _post_json(
+        settings["url"],
+        payload,
+        settings["api_key"],
+        settings["timeout"],
+    )
+
+    try:
+        content = response["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise LLMGenerationError("사장님 안내 생성 결과 형식이 올바르지 않습니다.")
+
+    result = _extract_json(content)
+
+    return _validated_text(
+        result,
+        "merchant_text",
+        300,
+        use_bullets=False,
+    )
+
 
 def generate_demo_explanations(context):
-    """Use deterministic copy for customer/rider and LLM copy for merchant in the demo."""
+    """Use deterministic copy for customer/rider and LLM copy only for merchant."""
     fallback = demo_explanation_fallback(context)
-    generated = generate_package_explanation(context)
+    merchant_text = generate_merchant_explanation(context)
 
     return {
         "consumer_text": fallback["consumer_text"],
-        "merchant_text": generated["merchant_text"],
+        "merchant_text": merchant_text,
         "rider_text": fallback["rider_text"],
     }
 
