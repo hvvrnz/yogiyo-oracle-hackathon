@@ -45,9 +45,10 @@
         body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }),
       }),
       merchantOrders: async () => {
-        const data = await request('/api/demo/merchant/orders');
-        return { ...data, orders: asArray(data.orders).map(normalizeOrder) };
-      },
+      const data = await request('/api/demo/merchant/next-to-cook');
+      if (data?.order_id == null) return { orders: [] };
+      return { orders: [normalizeOrder(data)] };
+    },
       rejectMerchantOrder: orderId => request(`/api/demo/merchant/orders/${encodeURIComponent(orderId)}/reject`, { method: 'POST' }),
       completeMerchantOrder: orderId => request(`/api/demo/merchant/orders/${encodeURIComponent(orderId)}/complete`, { method: 'POST' }),
       riderOffers: async () => {
