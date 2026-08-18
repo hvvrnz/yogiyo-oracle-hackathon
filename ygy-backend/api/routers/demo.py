@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException
+from vector_search.handler.congestion import build_congestion_notice
+from datetime import datetime
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/demo", tags=["demo"])
@@ -287,6 +289,62 @@ def demo_arrive_stop():
         "completed": current_stop,
         "next": STOP_SEQUENCE[new_idx] if new_idx < 6 else None,
         "package_status": {2: "MATCHING", 3: "PICKED_UP", 4: "COMPLETED"}.get(demo_state["step"], "IN_PROGRESS"),
+    }
+
+@router.get("/merchant/llm-data")
+def demo_merchant_llm_data():
+    """
+    사장님 화면용 LLM 프롬프트 재료.
+    상황: 비 오는 강남역 퇴근시간대, 매장 혼잡도 + 교통 지연 정보 종합.
+    """
+    return {
+        "case": "BUSIER_THAN_USUAL",
+        "store_name": STORE_A["name"],
+        "owner_input_cook_min": _owner_cook_min["value"],
+        "baseline_cook_min": 24.0,
+        "current_time_slot_avg_min": 32.0,
+        "sample_count": 15,
+        "increase_pct": 33,
+        "traffic_area": "테헤란로(강남파이낸스타워 인근)",
+        "weather_condition": "비",
+        "traffic_delay_min": 8,
+    }
+
+
+@router.get("/rider/llm-data")
+def demo_rider_llm_data():
+    """
+    라이더 화면용 LLM 프롬프트 재료.
+    수익(가장 중요) + 교통/날씨 지연 정보.
+    """
+    return {
+        "hourly_revenue": HOURLY_REVENUE,
+        "bundle_size": 3,
+        "traffic_area": "테헤란로(강남파이낸스타워 인근)",
+        "weather_condition": "비",
+        "traffic_delay_min": 8,
+    }
+
+
+@router.get("/customer/llm-data")
+def demo_customer_llm_data():
+    """
+    소비자 화면용 LLM 프롬프트 재료.
+    has_delay가 false면 프론트에서 템플릿으로, true면 LLM으로 처리.
+    """
+    food_sitting_min, bag_min = None, None
+    for entry in SCORE_DETAIL["timeline"]:
+        if entry["order_id"] == 90001 and entry["type"] == "dropoff":
+            food_sitting_min = entry["food_sitting_min"]
+            bag_min = entry["bag_min"]
+
+    return {
+        "food_sitting_min": food_sitting_min,
+        "bag_min": bag_min,
+        "traffic_delay_min": 8,
+        "traffic_area": "테헤란로 인근",
+        "weather_condition": "비",
+        "has_delay": True,
     }
 
 
