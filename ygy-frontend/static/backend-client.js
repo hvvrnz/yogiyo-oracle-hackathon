@@ -56,8 +56,6 @@
           orders: [normalizeOrder(data)]
         };
       },
-      rejectMerchantOrder: orderId => request(`/api/demo/merchant/orders/${encodeURIComponent(orderId)}/reject`, { method: 'POST' }),
-      completeMerchantOrder: orderId => request(`/api/demo/merchant/orders/${encodeURIComponent(orderId)}/complete`, { method: 'POST' }),
       riderOffers: async () => {
         const data = await request('/api/demo/rider/offers');
         return { ...data, offers: asArray(data.offers).map(normalizePackage) };
