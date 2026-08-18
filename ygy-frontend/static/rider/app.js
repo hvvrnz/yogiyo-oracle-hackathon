@@ -287,7 +287,7 @@ function openPackageDetail(pkg) {
   `${pkg.bundle_size ?? '-'}건 묶음 · ${
     packageStatus(pkg.status || 'OFFERED')
   }`;
-  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card"><div class="section-title-row"><h2>AI 추천 방문 순서</h2></div>${routeSchedule(pkg)}</div><div class="card"><div class="notice llm-guidance"><span>✦</span><div><strong>AI 운행 안내</strong><span>${Yogiyo.escape(pkg.rider_text || '배차 정보를 확인해 주세요.')}</span></div></div></div>`;
+  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card"><div class="section-title-row"><h2>AI 추천 방문 순서</h2></div>${routeSchedule(pkg, null, {interactive: false})}</div><div class="card"><div class="notice llm-guidance"><span>✦</span><div><strong>AI 운행 안내</strong><span>${Yogiyo.escape(pkg.rider_text || '배차 정보를 확인해 주세요.')}</span></div></div></div>`;
   Yogiyo.el('packageDetailBackdrop').classList.add('open');
   Yogiyo.el('packageDetailSheet').classList.add('open');
   Yogiyo.el('packageDetailSheet').setAttribute('aria-hidden', 'false');
