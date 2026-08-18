@@ -71,6 +71,41 @@ const stopKey = step => {
 
   return `${step.order_id}-${String(step.type || '').toLowerCase()}`;
 };
+function syncVisitedSteps(pkg, nextStop) {
+  const steps = routeSteps(pkg);
+
+  if (!steps.length) {
+    visitedSteps = [];
+    return;
+  }
+
+  if (nextStop?.message === '모든 경로 완료') {
+    visitedSteps = steps
+      .map(stopKey)
+      .filter(Boolean);
+
+    return;
+  }
+
+  if (!nextStop?.type) {
+    return;
+  }
+
+  const nextKey = stopKey(nextStop);
+
+  const nextIndex = steps.findIndex(
+    step => stopKey(step) === nextKey
+  );
+
+  if (nextIndex < 0) {
+    return;
+  }
+
+  visitedSteps = steps
+    .slice(0, nextIndex)
+    .map(stopKey)
+    .filter(Boolean);
+}
 const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
 ).join('') || '방문 순서 정보 없음';
