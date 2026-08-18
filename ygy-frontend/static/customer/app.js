@@ -223,40 +223,8 @@ function customerStatusMeta(order) {
 
 
 function customerMapData(order) {
-  const routeDetail =
-    Array.isArray(order?.route_detail)
-      ? order.route_detail
-      : [];
-
-  /*
-   * route_detail이 존재하더라도 실제 좌표가 없을 수 있으므로
-   * map-data에서 정상 좌표로 변환된 방문지가 2개 이상일 때만
-   * 전체 배차 경로를 사용합니다.
-   */
-  const detailedRoute =
-    Yogiyo.mapData.fromRouteDetail(
-      routeDetail
-    );
-
-  const routeMap =
-    detailedRoute.route.length >= 2
-      ? detailedRoute
-      : Yogiyo.mapData.fromCustomerOrder(
-          order
-        );
-
-  const riderMap =
-    hasAssignedRider(order) &&
-    currentRiderProfile
-      ? Yogiyo.mapData.fromRiderProfile(
-          currentRiderProfile
-        )
-      : Yogiyo.mapData.create();
-
-  return Yogiyo.mapData.combine(
-    routeMap,
-    riderMap
-  );
+  if (!order) return Yogiyo.mapData.create();
+  return Yogiyo.mapData.fromCustomerOrder(order);
 }
 
 

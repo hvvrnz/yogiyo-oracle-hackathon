@@ -194,7 +194,7 @@
           lng:
             order.store_lng,
 
-          sequence: 1,
+          // sequence: 1,
         });
 
       const delivery =
@@ -216,7 +216,7 @@
           lng:
             order.delivery_lng,
 
-          sequence: 2,
+          // sequence: 2,
         });
 
       return createMapData({
@@ -225,10 +225,7 @@
           delivery,
         ],
 
-        route: [
-          pickup,
-          delivery,
-        ],
+        route: [],
       });
     };
 
@@ -368,7 +365,7 @@
 
 
   const fromRouteDetail =
-    routeDetail => {
+     (routeDetail, visitedKeys = []) => {
       const route =
         (
           Array.isArray(
@@ -389,6 +386,7 @@
             const isPickup =
               type ===
               'pickup';
+            const key = `${step.order_id}-${type}`;
 
             return marker({
               id:
@@ -435,9 +433,9 @@
               meta: {
                 orderId:
                   step.order_id,
-
                 type:
                   step.type,
+                visited: visitedKeys.includes(key),
               },
             });
           }

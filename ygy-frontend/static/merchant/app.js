@@ -71,17 +71,23 @@ function renderDetail(order, store, view={}) {
     : [];
 
   const actionButtons = isNew
-    ? `
-      <div class="merchant-decision-actions">
-        <button
-          class="primary-button"
-          type="button"
-          data-order-accept="${order.order_id}">
-          수락하고 조리 시작
-        </button>
+  ? `
+    <div class="merchant-decision-actions">
+      <div class="cook-time-stepper">
+        <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
+        <input type="number" data-cook-minutes="${order.order_id}" value="20" min="5" max="40" step="5" readonly />
+        <span>분</span>
+        <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
       </div>
-    `
-    : '';
+      <button
+        class="primary-button"
+        type="button"
+        data-order-accept="${order.order_id}">
+        수락하고 조리 시작
+      </button>
+    </div>
+  `
+  : '';
 
   root.innerHTML = `
     <div class="merchant-detail-head">
@@ -163,6 +169,21 @@ function renderDetail(order, store, view={}) {
         event.currentTarget
       );
     });
+
+  root.querySelector('[data-stepper-decrease]')?.addEventListener('click', event => {
+    const orderId = event.currentTarget.dataset.stepperDecrease;
+    const input = root.querySelector(`[data-cook-minutes="${orderId}"]`);
+    const current = Number(input.value);
+    if (current > 5) input.value = current - 5;
+  });
+
+  root.querySelector('[data-stepper-increase]')?.addEventListener('click', event => {
+    const orderId = event.currentTarget.dataset.stepperIncrease;
+    const input = root.querySelector(`[data-cook-minutes="${orderId}"]`);
+    const current = Number(input.value);
+    if (current < 40) input.value = current + 5;
+  });
+
 }
 
 function renderMerchant(view, store) {
@@ -247,28 +268,18 @@ async function loadMerchant() {
 }
 
 async function acceptOrder(orderId, button) {
-  const value = window.prompt(
-    '예상 조리시간을 분 단위로 입력해 주세요.',
-    '27'
-  );
-
-  if (value === null) return;
-
-  const minutes = Number(value);
-
-  if (!Number.isInteger(minutes) || minutes <= 0) {
-    Yogiyo.toast('조리시간을 올바른 정수로 입력해 주세요.');
+  const stepperInput = document.querySelector(`[data-cook-minutes="${orderId}"]`);
+  const minutes = Number(stepperInput?.value || 20);
+  if (!Number.isInteger(minutes) || minutes < 5 || minutes > 40) {
+    Yogiyo.toast('조리시간은 5분에서 40분 사이여야 합니다.');
     return;
   }
-
   await Yogiyo.withPending(button, async () => {
     try {
       await Yogiyo.apiClient.demo.merchantCookStart(minutes);
-
       Yogiyo.toast(
         `주문 #${orderId}을 수락하고 조리를 시작했습니다.`
       );
-
       await loadMerchant();
     } catch (error) {
       Yogiyo.toast(error.message);
