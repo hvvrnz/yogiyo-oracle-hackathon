@@ -66,6 +66,11 @@ const packageStatus = status => packageStatusLabels[status] || status || '상태
 const routeSteps = pkg => (Array.isArray(pkg?.route_detail) ? pkg.route_detail : [])
   .map((step, index) => ({ ...step, sequence: Number(step.sequence ?? index + 1) }))
   .sort((left, right) => left.sequence - right.sequence);
+const stopKey = step => {
+  if (!step) return null;
+
+  return `${step.order_id}-${String(step.type || '').toLowerCase()}`;
+};
 const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
 ).join('') || '방문 순서 정보 없음';
