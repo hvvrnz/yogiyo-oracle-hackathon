@@ -37,8 +37,15 @@ function renderDetail(order) {
   const isCompleted = completedStatuses.has(order.status);
   const items = Array.isArray(order.menu_items) ? order.menu_items : [];
   const actionButtons = isNew
-    ? `<div class="merchant-decision-actions"><button class="ghost-button" type="button" data-order-reject="${order.order_id}">거절</button><button class="primary-button" type="button" data-order-accept="${order.order_id}">수락하고 조리 시작</button></div>`
-    : '';
+  ? `<div class="merchant-decision-actions">
+      <button
+        class="primary-button"
+        type="button"
+        data-order-accept="${order.order_id}">
+        수락하고 조리 시작
+      </button>
+    </div>`
+  : '';
   const finishButton = !isNew && !isCompleted
     ? `<button class="primary-button full merchant-complete-button" type="button" data-order-complete="${order.order_id}">조리 완료</button>`
     : isCompleted ? '<button class="ghost-button full" disabled>처리 완료된 주문입니다</button>' : '';
