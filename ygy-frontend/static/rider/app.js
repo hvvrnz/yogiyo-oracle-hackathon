@@ -308,24 +308,25 @@ async function loadRider() {
 async function acceptOffer(pkg, button) {
   await Yogiyo.withPending(button, async () => {
     try {
-      const response =
-        await Yogiyo.apiClient.demo.acceptPackage(
-          pkg.package_id
-        );
+      const packageId = pkg.package_id;
+
+      await Yogiyo.apiClient.demo.acceptPackage(
+        packageId
+      );
 
       saveAcceptedPackage({
         ...pkg,
-        status: response.status || 'MATCHING'
+        status: 'MATCHING'
       });
 
       Yogiyo.toast(
-        `패키지 #${response.package_id} 배차를 수락했습니다.`
+        `패키지 #${packageId} 배차를 수락했습니다.`
       );
 
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'ygy:package-accepted',
-          packageId: response.package_id,
+          packageId,
           riderId,
           orderIds: pkg.order_ids || []
         }, window.location.origin);
@@ -338,7 +339,6 @@ async function acceptOffer(pkg, button) {
     }
   });
 }
-
 async function completeCurrentStop(button) {
   await Yogiyo.withPending(button, async () => {
     try {
