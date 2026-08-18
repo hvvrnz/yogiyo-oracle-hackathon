@@ -63,7 +63,6 @@ function syncAcceptedPackageStatus(pkg, nextStop) {
 
 const packageStatusLabels = Object.freeze({ OFFERED: '수락 가능', MATCHING: '픽업 진행 중', PICKED_UP: '배달 진행 중', COMPLETED: '배달 완료' });
 const packageStatus = status => packageStatusLabels[status] || status || '상태 정보 없음';
-const isDropoff = step => ['delivery', 'dropoff'].includes(step?.type);
 const routeSteps = pkg => (Array.isArray(pkg?.route_detail) ? pkg.route_detail : [])
   .map((step, index) => ({ ...step, sequence: Number(step.sequence ?? index + 1) }))
   .sort((left, right) => left.sequence - right.sequence);
@@ -91,12 +90,7 @@ function riderMapData(profile, pkg) {
   return Yogiyo.mapData.combine(routeMap, riderMap);
 }
 
-function cookingSchedule(pkg) {
-  const timeline = Array.isArray(pkg?.score_detail?.timeline) ? pkg.score_detail.timeline : [];
-  const pickups = timeline.filter(step => step.type === 'pickup');
-  if (!pickups.length) return '<p class="subtext">매장 조리시간 정보가 없습니다.</p>';
-  return `<div class="rider-stop-list">${pickups.map((step, index) => `<div class="rider-stop-row"><b>${index + 1}</b><div><strong>주문 #${Yogiyo.escape(step.order_id ?? '-')} 픽업</strong><span>조리 ${Number.isFinite(Number(step.owner_cook_min)) ? `${step.owner_cook_min}분` : '정보 없음'} · 도착 예상 ${Number.isFinite(Number(step.arrival_time_min)) ? `${Number(step.arrival_time_min).toFixed(1)}분` : '정보 없음'}</span></div></div>`).join('')}</div>`;
-}
+
 
 function routeSchedule(pkg) {
   const steps = routeSteps(pkg);
