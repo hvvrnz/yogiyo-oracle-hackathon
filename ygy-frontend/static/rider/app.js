@@ -198,7 +198,21 @@ function renderRider(view) {
   currentRider = view;
   const { profile, offers = [], offersError, nextStop, packages = [] } = view;
   const activePackage = packages[0];
-  const visibleOffers = offers.filter(pkg => !declinedPackageIds.has(String(pkg.package_id))).sort((left, right) => offerSort === 'revenue' ? Number(right.package_revenue) - Number(left.package_revenue) : Number(right.score) - Number(left.score));
+const visibleOffers = offers
+  .slice()
+  .sort((left, right) => {
+    if (offerSort === 'revenue') {
+      return (
+        Number(right.package_revenue || 0) -
+        Number(left.package_revenue || 0)
+      );
+    }
+
+    return (
+      Number(left.score ?? Infinity) -
+      Number(right.score ?? Infinity)
+    );
+  });
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
   Yogiyo.el('packageState').textContent = activePackage ? packageStatus(activePackage.status) : visibleOffers.length ? `배차 제안 ${visibleOffers.length}건` : '진행 중인 배차 없음';
