@@ -3,7 +3,63 @@ const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let currentRider;
 let stopRiderViewPolling;
 let offerSort = 'score';
-const declinedPackageIds = new Set();
+
+const acceptedPackageKey = 'ygy-demo-accepted-package';
+
+function restoreAcceptedPackage() {
+  try {
+    const value =
+      sessionStorage.getItem(acceptedPackageKey);
+
+    return value
+      ? JSON.parse(value)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+let acceptedPackage = restoreAcceptedPackage();
+
+function saveAcceptedPackage(pkg) {
+  acceptedPackage = pkg;
+
+  if (pkg) {
+    sessionStorage.setItem(
+      acceptedPackageKey,
+      JSON.stringify(pkg)
+    );
+  } else {
+    sessionStorage.removeItem(acceptedPackageKey);
+  }
+}
+
+function syncAcceptedPackageStatus(pkg, nextStop) {
+  if (!pkg) return null;
+
+  if (nextStop?.type === 'pickup') {
+    return {
+      ...pkg,
+      status: 'MATCHING'
+    };
+  }
+
+  if (nextStop?.type === 'dropoff') {
+    return {
+      ...pkg,
+      status: 'PICKED_UP'
+    };
+  }
+
+  if (nextStop?.message === '모든 경로 완료') {
+    return {
+      ...pkg,
+      status: 'COMPLETED'
+    };
+  }
+
+  return pkg;
+}
 
 const packageStatusLabels = Object.freeze({ OFFERED: '수락 가능', MATCHING: '픽업 진행 중', PICKED_UP: '배달 진행 중', COMPLETED: '배달 완료' });
 const packageStatus = status => packageStatusLabels[status] || status || '상태 정보 없음';
@@ -124,13 +180,46 @@ function renderRider(view) {
 }
 
 async function fetchRiderView() {
-  const profile = await Yogiyo.apiClient.demo.riderProfile();
-  const [offersResult, packagesResult, nextStop] = await Promise.all([
-    Yogiyo.apiClient.demo.riderOffers().catch(error => ({ offers: [], error })),
-    profile.status === 'BUSY' ? Yogiyo.apiClient.demo.riderPackages().catch(() => ({ packages: [] })) : Promise.resolve({ packages: [] }),
-    profile.status === 'BUSY' ? Yogiyo.apiClient.demo.riderNextStop().catch(() => null) : Promise.resolve(null),
-  ]);
-  return { profile, offers: offersResult.offers || [], offersError: offersResult.error, packages: packagesResult.packages || [], nextStop };
+  const profile =
+    await Yogiyo.apiClient.demo.riderProfile();
+
+  const offersResult =
+    await Yogiyo.apiClient.demo.riderOffers()
+      .catch(error => ({
+        offers: [],
+        error
+      }));
+
+  let nextStop = null;
+
+  if (profile.status === 'BUSY') {
+    nextStop =
+      await Yogiyo.apiClient.demo.riderNextStop()
+        .catch(() => null);
+  } else {
+    // /api/demo/reset 이후 이전 시연의 프론트 상태 제거
+    saveAcceptedPackage(null);
+  }
+
+  acceptedPackage =
+    syncAcceptedPackageStatus(
+      acceptedPackage,
+      nextStop
+    );
+
+  if (acceptedPackage) {
+    saveAcceptedPackage(acceptedPackage);
+  }
+
+  return {
+    profile,
+    offers: offersResult.offers || [],
+    offersError: offersResult.error,
+    packages: acceptedPackage
+      ? [acceptedPackage]
+      : [],
+    nextStop
+  };
 }
 
 async function loadRider() {
