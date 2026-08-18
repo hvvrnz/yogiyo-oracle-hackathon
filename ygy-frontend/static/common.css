@@ -478,3 +478,55 @@ html.embedded .merchant-shell {
   aspect-ratio: auto;
   border-radius: 0;
 }
+
+.offer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.offer-revenue-highlight {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ff2f6e;
+}
+.offer-route-row {
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.cook-time-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 4px;
+  width: fit-content;
+}
+.cook-time-stepper .stepper-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: #ff2f6e;
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cook-time-stepper .stepper-button:hover {
+  background: #e6285f;
+}
+.cook-time-stepper input {
+  width: 40px;
+  text-align: center;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+.cook-time-stepper span {
+  font-size: 14px;
+  color: #666;
+  margin-right: 4px;
+}

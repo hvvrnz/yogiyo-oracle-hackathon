@@ -56,17 +56,11 @@
           orders: [normalizeOrder(data)]
         };
       },
-      rejectMerchantOrder: orderId => request(`/api/demo/merchant/orders/${encodeURIComponent(orderId)}/reject`, { method: 'POST' }),
-      completeMerchantOrder: orderId => request(`/api/demo/merchant/orders/${encodeURIComponent(orderId)}/complete`, { method: 'POST' }),
       riderOffers: async () => {
         const data = await request('/api/demo/rider/offers');
         return { ...data, offers: asArray(data.offers).map(normalizePackage) };
       },
       riderProfile: async () => normalizeRider(await request('/api/demo/rider/profile')),
-      riderPackages: async () => {
-        const data = await request('/api/demo/rider/packages');
-        return { ...data, packages: asArray(data.packages).map(normalizePackage) };
-      },
       acceptPackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/accept`, { method: 'PUT' }),
       riderNextStop: () => request('/api/demo/rider/next-stop'),
       riderArrive: () => request('/api/demo/rider/arrive', { method: 'POST' }),
