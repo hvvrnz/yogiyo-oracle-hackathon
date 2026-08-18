@@ -143,15 +143,36 @@ function closePackageDetail() {
 
 function bindOffers(offers) {
   const root = Yogiyo.el('riderOffers');
-  root.querySelectorAll('[data-offer-accept]').forEach(button => button.addEventListener('click', () => acceptOffer(Number(button.dataset.offerAccept), button)));
-  root.querySelectorAll('[data-offer-decline]').forEach(button => button.addEventListener('click', () => {
-    declinedPackageIds.add(String(button.dataset.offerDecline));
-    renderRider(currentRider);
-  }));
-  root.querySelectorAll('[data-offer-detail]').forEach(button => button.addEventListener('click', () => {
-    const pkg = offers.find(item => String(item.package_id) === String(button.dataset.offerDetail));
-    if (pkg) openPackageDetail(pkg);
-  }));
+
+  root
+    .querySelectorAll('[data-offer-accept]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        const pkg = offers.find(
+          item =>
+            String(item.package_id) ===
+            String(button.dataset.offerAccept)
+        );
+
+        if (pkg) {
+          acceptOffer(pkg, button);
+        }
+      });
+    });
+
+  root
+    .querySelectorAll('[data-offer-detail]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        const pkg = offers.find(
+          item =>
+            String(item.package_id) ===
+            String(button.dataset.offerDetail)
+        );
+
+        if (pkg) openPackageDetail(pkg);
+      });
+    });
 }
 
 function renderRider(view) {
@@ -227,14 +248,37 @@ async function loadRider() {
   catch (error) { showRiderFailure(error); Yogiyo.toast(error.message); }
 }
 
-async function acceptOffer(packageId, button) {
+async function acceptOffer(pkg, button) {
   await Yogiyo.withPending(button, async () => {
     try {
-      const response = await Yogiyo.apiClient.demo.acceptPackage(packageId);
-      Yogiyo.toast(`패키지 #${response.package_id} 배차를 수락했습니다.`);
-      if (window.parent !== window) window.parent.postMessage({ type: 'ygy:package-accepted', packageId: response.package_id, riderId }, window.location.origin);
+      const response =
+        await Yogiyo.apiClient.demo.acceptPackage(
+          pkg.package_id
+        );
+
+      saveAcceptedPackage({
+        ...pkg,
+        status: response.status || 'MATCHING'
+      });
+
+      Yogiyo.toast(
+        `패키지 #${response.package_id} 배차를 수락했습니다.`
+      );
+
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'ygy:package-accepted',
+          packageId: response.package_id,
+          riderId,
+          orderIds: pkg.order_ids || []
+        }, window.location.origin);
+      }
+
       await loadRider();
-    } catch (error) { Yogiyo.toast(error.message); await loadRider(); }
+    } catch (error) {
+      Yogiyo.toast(error.message);
+      await loadRider();
+    }
   });
 }
 
