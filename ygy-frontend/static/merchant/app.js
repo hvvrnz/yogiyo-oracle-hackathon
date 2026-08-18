@@ -49,7 +49,6 @@ function renderDetail(order) {
   const finishButton = '';
   root.innerHTML = `<div class="merchant-detail-head"><div><span class="badge ${statusTone(order.status)}">${Yogiyo.escape(statusLabels[order.status] || order.status)}</span><h2>주문 #${Yogiyo.escape(order.order_id)}</h2><p>${Yogiyo.escape(order.store_name || '매장 주문')}</p></div><strong>${Yogiyo.money(order.amount)}</strong></div>${actionButtons}<div class="merchant-detail-scroll"><section class="card"><div class="section-title-row"><h2>배달지</h2></div><p class="merchant-address">${Yogiyo.escape(order.delivery_address || '배달지 주소 정보 없음')}</p></section><section class="card"><div class="section-title-row"><h2>주문 내역</h2><span>총 ${Yogiyo.money(order.amount)}</span></div>${items.map(item => `<div class="row"><span class="label">${Yogiyo.escape(item.menu)}</span><span class="value">${item.qty}개 · ${Yogiyo.money(item.price)}</span></div>`).join('') || '<p class="subtext">메뉴 정보가 없습니다.</p>'}</section><section class="card"><div class="section-title-row"><h2>조리·배차 정보</h2></div><div class="row"><span class="label">예상 조리시간</span><span class="value">${order.owner_cook_min ? `${order.owner_cook_min}분` : '수락 후 입력'}</span></div><div class="row"><span class="label">AI 예측 조리시간</span><span class="value">${order.predicted_cook_min ? `${order.predicted_cook_min}분` : '정보 없음'}</span></div><div class="route-strategy-box"><strong>방문 순서</strong><span>${Yogiyo.escape(routeSummary(order.route_detail))}</span></div></section>${order.merchant_text ? `<section class="notice llm-guidance"><span>✦</span><div><strong>AI 조리 안내</strong><span>${Yogiyo.escape(order.merchant_text)}</span></div></section>` : ''}</div><div class="merchant-detail-footer">${finishButton}</div>`;
   root.querySelector('[data-order-accept]')?.addEventListener('click', event => acceptOrder(Number(event.currentTarget.dataset.orderAccept), event.currentTarget));
-  root.querySelector('[data-order-complete]')?.addEventListener('click', event => completeOrder(Number(event.currentTarget.dataset.orderComplete), event.currentTarget));
 }
 
 function renderMerchant(view, store) {
@@ -89,10 +88,6 @@ async function acceptOrder(orderId, button) {
   const minutes = Number(value);
   if (!Number.isInteger(minutes) || minutes < 5 || minutes > 100 || minutes % 5 !== 0) { Yogiyo.toast('조리시간은 5~100분 사이의 5분 단위로 입력해 주세요.'); return; }
   await Yogiyo.withPending(button, async () => { try { await Yogiyo.apiClient.demo.merchantCookStart(minutes); Yogiyo.toast(`주문 #${orderId}을 수락하고 조리를 시작했습니다.`); await loadMerchant(); } catch (error) { Yogiyo.toast(error.message); } });
-}
-
-async function completeOrder(orderId, button) {
-  await Yogiyo.withPending(button, async () => { try { await Yogiyo.apiClient.demo.completeMerchantOrder(orderId); activeTab = 'completed'; selectedOrderId = orderId; Yogiyo.toast(`주문 #${orderId} 조리가 완료되었습니다.`); await loadMerchant(); } catch (error) { Yogiyo.toast(error.message); } });
 }
 
 document.querySelectorAll('[data-merchant-tab]').forEach(button => button.addEventListener('click', () => { activeTab = button.dataset.merchantTab; document.querySelectorAll('[data-merchant-tab]').forEach(tab => { const active = tab === button; tab.classList.toggle('active', active); tab.setAttribute('aria-selected', String(active)); }); if (currentMerchant) getStore().then(store => renderMerchant(currentMerchant, store)); }));
