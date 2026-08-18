@@ -133,20 +133,88 @@ function riderMapData(profile, pkg) {
 }
 
 
-
-function routeSchedule(pkg) {
+function routeSchedule(
+  pkg,
+  nextStop,
+  { interactive = true } = {}
+) {
   const steps = routeSteps(pkg);
-  if (!steps.length) return '<p class="subtext">방문 순서 정보가 없습니다.</p>';
-  return `<div class="rider-stop-list">${steps.map((step, index) => `
-  <div class="rider-stop-row ${step.type === 'pickup' ? 'pickup' : 'dropoff'}">
-    <b>${step.sequence}</b>
-    <div>
-      <strong>${step.type === 'pickup' ? '픽업' : '배달'}</strong>
-      <span>${Yogiyo.escape(step.label || (step.type === 'pickup' ? '매장 위치' : '배달지 위치'))}</span>
+
+  if (!steps.length) {
+    return '<p class="subtext">방문 순서 정보가 없습니다.</p>';
+  }
+
+  const nextKey = stopKey(nextStop);
+
+  return `
+    <div class="rider-stop-list">
+      ${steps.map(step => {
+        const key = stopKey(step);
+
+        const visited =
+          visitedSteps.includes(key);
+
+        const current =
+          Boolean(nextKey) &&
+          key === nextKey;
+
+        const isPickup =
+          step.type === 'pickup';
+
+        const typeLabel =
+          isPickup
+            ? '픽업'
+            : '배달';
+
+        const actionLabel =
+          isPickup
+            ? '픽업 완료'
+            : '배달 완료';
+
+        const fallbackLabel =
+          isPickup
+            ? '매장 위치'
+            : '배달지 위치';
+
+        return `
+          <div
+            class="rider-stop-row
+              ${isPickup ? 'pickup' : 'dropoff'}
+              ${visited ? 'visited' : ''}
+              ${current ? 'current' : ''}"
+          >
+            <b>${step.sequence}</b>
+
+            <div class="rider-stop-copy">
+              <strong>${typeLabel}</strong>
+              <span>
+                ${Yogiyo.escape(
+                  step.label ||
+                  fallbackLabel
+                )}
+              </span>
+            </div>
+
+            ${
+              interactive
+                ? `
+                  <button
+                    type="button"
+                    class="stop-complete-button"
+                    data-stop-order-id="${step.order_id}"
+                    data-stop-type="${step.type}"
+                    ${current && !visited ? '' : 'disabled'}
+                  >
+                    ${actionLabel}
+                  </button>
+                `
+                : ''
+            }
+          </div>
+        `;
+      }).join('')}
     </div>
-    <button type="button" class="stop-complete-button" data-stop-order-id="${step.order_id}" data-stop-type="${step.type}" ${index === 0 ? '' : 'disabled'}>완료</button>
-  </div>
-`).join('')}</div>`;
+  `;
 }
 
 function runDetail(pkg, nextStop) {
