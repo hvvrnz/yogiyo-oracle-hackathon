@@ -129,8 +129,15 @@ def generate_package_explanation(context):
 
 
 def generate_demo_explanations(context):
-    """Generate role-scoped copy from final demo API state."""
-    return generate_package_explanation(context)
+    """Use deterministic copy for customer/rider and LLM copy for merchant in the demo."""
+    fallback = demo_explanation_fallback(context)
+    generated = generate_package_explanation(context)
+
+    return {
+        "consumer_text": fallback["consumer_text"],
+        "merchant_text": generated["merchant_text"],
+        "rider_text": fallback["rider_text"],
+    }
 
 
 def demo_explanation_fallback(context):
