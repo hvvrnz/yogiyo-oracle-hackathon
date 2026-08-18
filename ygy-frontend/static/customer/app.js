@@ -142,11 +142,12 @@ function bindCustomerSheet() {
     handle.setAttribute('aria-expanded', String(expanded));
     handle.querySelector('b').textContent = expanded ? '아래로 끌어 지도 보기' : '위로 끌어 주문 상세 보기';
   };
-  handle.addEventListener('pointerdown', event => {
+  panel.addEventListener('pointerdown', event => {
+    if (event.target.closest('button, a, input, select, textarea') && event.target !== handle && !handle.contains(event.target)) return;
     startY = event.clientY;
-    handle.setPointerCapture?.(event.pointerId);
+    panel.setPointerCapture?.(event.pointerId);
   });
-  handle.addEventListener('pointerup', event => {
+  panel.addEventListener('pointerup', event => {
     if (startY == null) return;
     const distance = event.clientY - startY;
     if (Math.abs(distance) < 10) setExpanded(!panel.classList.contains('expanded'));
@@ -154,7 +155,7 @@ function bindCustomerSheet() {
     else if (distance > 30) setExpanded(false);
     startY = null;
   });
-  handle.addEventListener('pointercancel', () => { startY = null; });
+  panel.addEventListener('pointercancel', () => { startY = null; });
 }
 
 function renderCustomer(order) {
