@@ -1,5 +1,4 @@
 const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
-const futureSlotDemo = Yogiyo.qs('futureSlot') === 'demo';
 let currentRider;
 let stopRiderViewPolling;
 let offerSort = 'score';
@@ -108,10 +107,6 @@ function runDetail(pkg, nextStop) {
 function runStatusCard(pkg) {
   if (!pkg) return '<div class="run-status-card empty"><strong>현재 운행 중인 패키지가 없습니다.</strong><span>배차 제안을 수락하면 운행 정보가 표시됩니다.</span></div>';
   return `<div class="run-status-card"><div><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><span>${Yogiyo.escape(routeSummary(pkg))}</span><small>예상 수익 ${Yogiyo.money(pkg.package_revenue)}</small></div>`;
-}
-
-function futureSlotCard() {
-  return futureSlotDemo ? '<div class="future-slot-card"><div class="future-slot-head"><strong>다음 운행 예약 제안</strong><span class="badge brand">Future Slot</span></div><div class="future-slot-grid"><span>현재 운행 종료 <b>18:23</b></span><span>매장 도착 예정 <b>18:27</b></span><span>음식 완료 예정 <b>18:27</b></span><span>예상 대기 <b>0분</b></span></div><p>현재 운행 경로를 바꾸지 않고 다음 운행만 예약합니다.</p></div>' : '<div class="run-status-card empty"><strong>다음 운행 예약이 없습니다.</strong><span>예약 가능한 배차가 생기면 이곳에 표시됩니다.</span></div>';
 }
 
 function offerCard(pkg) {
@@ -253,7 +248,6 @@ const visibleOffers = offers
   Yogiyo.el('riderRunDetails').innerHTML = runDetail(activePackage, nextStop);
   Yogiyo.el('riderRunDetails').querySelector('[data-rider-arrive]')?.addEventListener('click', event => completeCurrentStop(event.currentTarget));
   Yogiyo.el('currentRun').innerHTML = runStatusCard(activePackage);
-  Yogiyo.el('nextRunReservation').innerHTML = futureSlotCard();
   Yogiyo.el('offerCount').textContent = visibleOffers.length;
   Yogiyo.el('offerCountDetail').textContent = `${visibleOffers.length}건`;
   if (offersError) Yogiyo.el('riderOffers').innerHTML = '<div class="state-card error"><div class="state-icon">!</div><div><strong>배차 제안을 불러오지 못했습니다.</strong><p>잠시 후 다시 확인해 주세요.</p></div></div>';
