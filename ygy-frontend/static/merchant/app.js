@@ -93,10 +93,6 @@ async function acceptOrder(orderId, button) {
   await Yogiyo.withPending(button, async () => { try { await Yogiyo.apiClient.demo.merchantCookStart(minutes); Yogiyo.toast(`주문 #${orderId}을 수락하고 조리를 시작했습니다.`); await loadMerchant(); } catch (error) { Yogiyo.toast(error.message); } });
 }
 
-async function rejectOrder(orderId, button) {
-  await Yogiyo.withPending(button, async () => { try { await Yogiyo.apiClient.demo.rejectMerchantOrder(orderId); selectedOrderId = undefined; Yogiyo.toast(`주문 #${orderId}을 거절했습니다.`); await loadMerchant(); } catch (error) { Yogiyo.toast(error.message); } });
-}
-
 async function completeOrder(orderId, button) {
   await Yogiyo.withPending(button, async () => { try { await Yogiyo.apiClient.demo.completeMerchantOrder(orderId); activeTab = 'completed'; selectedOrderId = orderId; Yogiyo.toast(`주문 #${orderId} 조리가 완료되었습니다.`); await loadMerchant(); } catch (error) { Yogiyo.toast(error.message); } });
 }
