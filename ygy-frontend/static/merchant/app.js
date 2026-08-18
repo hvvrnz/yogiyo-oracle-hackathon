@@ -83,11 +83,33 @@ async function loadMerchant() {
 }
 
 async function acceptOrder(orderId, button) {
-  const value = window.prompt('예상 조리시간을 5분 단위로 입력해 주세요. (5~100분)', '20');
+  const value = window.prompt(
+    '예상 조리시간을 분 단위로 입력해 주세요.',
+    '27'
+  );
+
   if (value === null) return;
+
   const minutes = Number(value);
-  if (!Number.isInteger(minutes) || minutes < 5 || minutes > 100 || minutes % 5 !== 0) { Yogiyo.toast('조리시간은 5~100분 사이의 5분 단위로 입력해 주세요.'); return; }
-  await Yogiyo.withPending(button, async () => { try { await Yogiyo.apiClient.demo.merchantCookStart(minutes); Yogiyo.toast(`주문 #${orderId}을 수락하고 조리를 시작했습니다.`); await loadMerchant(); } catch (error) { Yogiyo.toast(error.message); } });
+
+  if (!Number.isInteger(minutes) || minutes <= 0) {
+    Yogiyo.toast('조리시간을 올바른 정수로 입력해 주세요.');
+    return;
+  }
+
+  await Yogiyo.withPending(button, async () => {
+    try {
+      await Yogiyo.apiClient.demo.merchantCookStart(minutes);
+
+      Yogiyo.toast(
+        `주문 #${orderId}을 수락하고 조리를 시작했습니다.`
+      );
+
+      await loadMerchant();
+    } catch (error) {
+      Yogiyo.toast(error.message);
+    }
+  });
 }
 
 document.querySelectorAll('[data-merchant-tab]').forEach(button => button.addEventListener('click', () => { activeTab = button.dataset.merchantTab; document.querySelectorAll('[data-merchant-tab]').forEach(tab => { const active = tab === button; tab.classList.toggle('active', active); tab.setAttribute('aria-selected', String(active)); }); if (currentMerchant) getStore().then(store => renderMerchant(currentMerchant, store)); }));
