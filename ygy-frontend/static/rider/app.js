@@ -392,7 +392,8 @@ async function fetchRiderView() {
         .catch(() => null);
   } else {
     // /api/demo/reset 이후 이전 시연의 프론트 상태 제거
-    saveAcceptedPackage(null);
+      visitedSteps = [];
+      saveAcceptedPackage(null);
   }
 
   acceptedPackage =
@@ -402,7 +403,14 @@ async function fetchRiderView() {
     );
 
   if (acceptedPackage) {
-    saveAcceptedPackage(acceptedPackage);
+    syncVisitedSteps(
+      acceptedPackage,
+      nextStop
+    );
+
+    saveAcceptedPackage(
+      acceptedPackage
+    );
   }
 
   return {
