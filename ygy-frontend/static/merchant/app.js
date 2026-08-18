@@ -31,21 +31,39 @@ function orderListCard(order) {
   return `<button type="button" class="merchant-order-item${selected ? ' selected' : ''}" data-order-select="${order.order_id}"><span class="badge ${statusTone(order.status)}">${Yogiyo.escape(statusLabels[order.status] || order.status)}</span><strong>${Yogiyo.escape(menuSummary(order.menu_items))}</strong><span>주문 #${Yogiyo.escape(order.order_id)} · ${Yogiyo.money(order.amount)}</span></button>`;
 }
 
-function renderDetail(order, store) {
+function renderDetail(order, store, view={}) {
   const root = Yogiyo.el('merchantOrderDetail');
 
   if (!order) {
-    root.innerHTML = `
-      <div class="state-card empty">
-        <div class="state-icon">⌕</div>
-        <div>
-          <strong>현재 조리할 주문이 없습니다.</strong>
-          <p>새 주문이 들어오면 이곳에 표시됩니다.</p>
-        </div>
+  root.innerHTML = `
+    <div class="state-card empty">
+      <div class="state-icon">✓</div>
+      <div>
+        <strong>
+          ${Yogiyo.escape(
+            view.message || '현재 조리할 주문이 없습니다.'
+          )}
+        </strong>
+
+        ${
+          view.merchant_text
+            ? `
+              <p>
+                ${Yogiyo.escape(view.merchant_text)}
+              </p>
+            `
+            : `
+              <p>
+                새 주문이 들어오면 이곳에 표시됩니다.
+              </p>
+            `
+        }
       </div>
-    `;
-    return;
-  }
+    </div>
+  `;
+
+  return;
+}
 
   const isNew = order.status === 'NEW';
   const items = Array.isArray(order.menu_items)
@@ -149,20 +167,77 @@ function renderDetail(order, store) {
 
 function renderMerchant(view, store) {
   currentMerchant = view;
-  const orders = Array.isArray(view.orders) ? view.orders : [];
-  const newOrders = processing.filter(order => order.status === 'NEW');
-  const progressOrders = processing.filter(order => order.status !== 'NEW');
-  if (!visibleOrders.some(order => String(order.order_id) === String(selectedOrderId))) selectedOrderId = visibleOrders[0]?.order_id;
-  Yogiyo.el('merchantStoreName').textContent = store?.name || `매장 ${storeId}`;
-  Yogiyo.el('merchantStoreMeta').textContent = [store?.category, store?.region].filter(Boolean).join(' · ') || '주문 처리 현황';
-  Yogiyo.el('processingCount').textContent = processing.length;
-  Yogiyo.el('newOrderCount').textContent = `${newOrders.length}건`;
-  Yogiyo.el('progressOrderCount').textContent = `${progressOrders.length}건`;
-  Yogiyo.el('newOrderList').innerHTML = newOrders.map(orderListCard).join('') || '<p class="merchant-empty-copy">신규 주문이 없습니다.</p>';
-  Yogiyo.el('progressOrderList').innerHTML = progressOrders.map(orderListCard).join('') || '<p class="merchant-empty-copy">진행 중인 주문이 없습니다.</p>';
-  Yogiyo.el('merchantProcessingList').hidden = activeTab !== 'processing';
-  document.querySelectorAll('[data-order-select]').forEach(button => button.addEventListener('click', () => { selectedOrderId = Number(button.dataset.orderSelect); renderMerchant(currentMerchant, store); }));
-  renderDetail(orders.find(order => String(order.order_id) === String(selectedOrderId)),store);
+
+  const orders = Array.isArray(view.orders)
+    ? view.orders
+    : [];
+
+  const newOrders = orders.filter(
+    order => order.status === 'NEW'
+  );
+
+  const progressOrders = orders.filter(
+    order => order.status !== 'NEW'
+  );
+
+  if (
+    !orders.some(
+      order =>
+        String(order.order_id) ===
+        String(selectedOrderId)
+    )
+  ) {
+    selectedOrderId = orders[0]?.order_id;
+  }
+
+  Yogiyo.el('merchantStoreName').textContent =
+    store?.name || `매장 ${storeId}`;
+
+  Yogiyo.el('merchantStoreMeta').textContent =
+    [store?.category, store?.region]
+      .filter(Boolean)
+      .join(' · ') || '주문 처리 현황';
+
+  Yogiyo.el('processingCount').textContent =
+    orders.length;
+
+  Yogiyo.el('newOrderCount').textContent =
+    `${newOrders.length}건`;
+
+  Yogiyo.el('progressOrderCount').textContent =
+    `${progressOrders.length}건`;
+
+  Yogiyo.el('newOrderList').innerHTML =
+    newOrders.map(orderListCard).join('') ||
+    '<p class="merchant-empty-copy">신규 주문이 없습니다.</p>';
+
+  Yogiyo.el('progressOrderList').innerHTML =
+    progressOrders.map(orderListCard).join('') ||
+    '<p class="merchant-empty-copy">진행 중인 주문이 없습니다.</p>';
+
+  document
+    .querySelectorAll('[data-order-select]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        selectedOrderId =
+          Number(button.dataset.orderSelect);
+
+        renderMerchant(currentMerchant, store);
+      });
+    });
+
+  const selectedOrder = orders.find(
+    order =>
+      String(order.order_id) ===
+      String(selectedOrderId)
+  );
+
+  renderDetail(
+    selectedOrder,
+    store,
+    view
+  );
+
   Yogiyo.clearLoadState('merchantLoadState');
 }
 
