@@ -34,7 +34,7 @@ const setDemoPanel = (frameId, linkId, titleId, url, title) => {
   Yogiyo.el(titleId).textContent = title;
 };
 
-const refreshDemoFrame = frameId => {
+const refreshDemoFrame = frameId =rt> {
   const frame = Yogiyo.el(frameId);
   try {
     frame.contentWindow.location.reload();

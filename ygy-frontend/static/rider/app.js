@@ -123,7 +123,26 @@ function futureSlotCard() {
 function offerCard(pkg) {
   const text = String(pkg.rider_text || '').trim() || '수익과 추천 방문 순서를 확인한 뒤 수락해 주세요.';
   const score = Number.isFinite(Number(pkg.score)) ? Number(pkg.score).toFixed(2) : '-';
-  return `<article class="offer-row"><div class="offer-main"><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span>매칭 ${score} · 예상 수익 ${Yogiyo.money(pkg.package_revenue)}</span><small>${Yogiyo.escape(routeSummary(pkg))}</small></div><div class="llm-guidance offer-ai-guidance"><strong>AI 수락 판단</strong><span class="explanation-copy">${Yogiyo.escape(text)}</span></div><div class="offer-actions"><button class="ghost-button" type="button" data-offer-detail="${pkg.package_id}">상세</button><button class="ghost-button" type="button" data-offer-decline="${pkg.package_id}">거절</button><button class="primary-button" type="button" data-offer-accept="${pkg.package_id}">수락</button></div></article>`;
+  return `
+  <article class="offer-row">
+    ...
+    <div class="offer-actions">
+      <button
+        class="ghost-button"
+        type="button"
+        data-offer-detail="${pkg.package_id}">
+        상세
+      </button>
+
+      <button
+        class="primary-button"
+        type="button"
+        data-offer-accept="${pkg.package_id}">
+        수락
+      </button>
+    </div>
+  </article>
+`;
 }
 
 function openPackageDetail(pkg) {
