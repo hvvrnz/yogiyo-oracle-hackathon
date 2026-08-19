@@ -8,6 +8,7 @@ let previousNextStopKey = null;
 let suppressNextStopChangeToast = false;
 
 const acceptedPackageKey = 'ygy-demo-accepted-package';
+const completedPackagesKey = 'ygy-demo-completed-packages';
 
 function restoreAcceptedPackage() {
   try {
@@ -35,6 +36,40 @@ function saveAcceptedPackage(pkg) {
   } else {
     sessionStorage.removeItem(acceptedPackageKey);
   }
+}
+
+function restoreCompletedPackages() {
+  try {
+    const value = sessionStorage.getItem(completedPackagesKey);
+    const items = value ? JSON.parse(value) : [];
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+}
+
+let completedPackages = restoreCompletedPackages();
+
+function saveCompletedPackage(pkg) {
+  if (!pkg) return;
+
+  const completed = {
+    ...pkg,
+    status: 'COMPLETED',
+    completed_at: new Date().toISOString()
+  };
+
+  completedPackages = [
+    completed,
+    ...completedPackages.filter(
+      item => String(item.package_id) !== String(completed.package_id)
+    )
+  ].slice(0, 100);
+
+  sessionStorage.setItem(
+    completedPackagesKey,
+    JSON.stringify(completedPackages)
+  );
 }
 
 function syncAcceptedPackageStatus(pkg, nextStop) {
@@ -277,13 +312,118 @@ function offerCard(pkg) {
   `;
 }
 
+function completedPackageRow(pkg) {
+  const route = routeSummary(pkg);
+
+  return `
+    <article class="completed-dispatch-row">
+      <div class="completed-dispatch-main">
+        <strong>
+          <span class="badge good">완료</span>
+          패키지 #${Yogiyo.escape(pkg.package_id)}
+        </strong>
+
+        <span>
+          ${Yogiyo.escape(pkg.bundle_size ?? '-')}건
+          · ${Yogiyo.money(pkg.package_revenue)}
+        </span>
+
+        <small>
+          ${Yogiyo.escape(route)}
+        </small>
+      </div>
+
+      <button
+        type="button"
+        class="ghost-button completed-dispatch-detail"
+        data-completed-detail="${pkg.package_id}">
+        상세
+      </button>
+    </article>
+  `;
+}
+
+function renderCompletedPackages() {
+  const root = Yogiyo.el('riderCompletedHistory');
+
+  Yogiyo.el('completedDispatchCount').textContent =
+    `${completedPackages.length}건`;
+
+  if (!completedPackages.length) {
+    root.innerHTML = `
+      <div class="state-card empty">
+        <div class="state-icon">✓</div>
+        <div>
+          <strong>완료한 배차가 없습니다.</strong>
+          <p>배달을 완료하면 이곳에서 최근 배차를 확인할 수 있습니다.</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="completed-dispatch-list">
+      ${completedPackages.map(completedPackageRow).join('')}
+    </div>
+  `;
+
+  root
+    .querySelectorAll('[data-completed-detail]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        const pkg = completedPackages.find(
+          item =>
+            String(item.package_id) ===
+            String(button.dataset.completedDetail)
+        );
+
+        if (pkg) openPackageDetail(pkg);
+      });
+    });
+}
+
 function openPackageDetail(pkg) {
   Yogiyo.el('packageDetailTitle').textContent = `패키지 #${pkg.package_id} 상세`;
   Yogiyo.el('packageDetailSummary').textContent =
   `${pkg.bundle_size ?? '-'}건 묶음 · ${
     packageStatus(pkg.status || 'OFFERED')
   }`;
-  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card"><div class="section-title-row"><h2>AI 추천 방문 순서</h2></div>${routeSchedule(pkg, null, {interactive: false})}</div><div class="card"><div class="notice llm-guidance"><span>✦</span><div><strong>AI 운행 안내</strong><span>${Yogiyo.escape(pkg.rider_text || '배차 정보를 확인해 주세요.')}</span></div></div></div>`;
+  Yogiyo.el('packageDetailContent').innerHTML = `
+    <div class="card">
+      <div class="row">
+        <span class="label">상태</span>
+        <span class="value">${Yogiyo.escape(packageStatus(pkg.status || 'OFFERED'))}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">묶음 주문</span>
+        <span class="value">${Yogiyo.escape(pkg.bundle_size ?? '-')}건</span>
+      </div>
+
+      <div class="row">
+        <span class="label">예상 수익</span>
+        <span class="value">${Yogiyo.money(pkg.package_revenue)}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title-row">
+        <h2>방문 순서</h2>
+      </div>
+      ${routeSchedule(pkg)}
+    </div>
+
+    <div class="card">
+      <div class="notice llm-guidance">
+        <span>✦</span>
+        <div>
+          <strong>AI 운행 안내</strong>
+          <span>${Yogiyo.escape(pkg.rider_text || '배차 정보를 확인해 주세요.')}</span>
+        </div>
+      </div>
+    </div>
+  `;
   Yogiyo.el('packageDetailBackdrop').classList.add('open');
   Yogiyo.el('packageDetailSheet').classList.add('open');
   Yogiyo.el('packageDetailSheet').setAttribute('aria-hidden', 'false');
@@ -371,6 +511,7 @@ function renderRider(view) {
   else if (activePackage) Yogiyo.el('riderOffers').innerHTML = '<div class="state-card empty"><div class="state-icon">🛵</div><div><strong>현재 운행을 먼저 완료해 주세요.</strong><p>완료 후 새 배차 제안을 수락할 수 있습니다.</p></div></div>';
   else if (!visibleOffers.length) Yogiyo.el('riderOffers').innerHTML = '<div class="state-card empty"><div class="state-icon">⌕</div><div><strong>배차 제안이 없습니다.</strong><p>조리가 시작되면 AI 배차 제안이 표시됩니다.</p></div></div>';
   else { Yogiyo.el('riderOffers').innerHTML = `<div class="offer-list">${visibleOffers.map(offerCard).join('')}</div>`; bindOffers(visibleOffers); }
+  renderCompletedPackages();
   Yogiyo.clearLoadState('riderLoadState');
 }
 
@@ -456,6 +597,14 @@ async function acceptOffer(pkg, button) {
         packageId
       );
       visitedSteps = [];
+      completedPackages = completedPackages.filter(
+        item => String(item.package_id) !== String(pkg.package_id)
+      );
+
+      sessionStorage.setItem(
+        completedPackagesKey,
+        JSON.stringify(completedPackages)
+      );
       saveAcceptedPackage({
         ...pkg,
         status: 'MATCHING'
@@ -490,10 +639,16 @@ async function completeCurrentStop(button) {
       suppressNextStopChangeToast = true;
 
       if (acceptedPackage) {
-        saveAcceptedPackage({
+        const updatedPackage = {
           ...acceptedPackage,
           status: response.package_status
-        });
+        };
+
+        if (response.package_status === 'COMPLETED') {
+          saveCompletedPackage(updatedPackage);
+        }
+
+        saveAcceptedPackage(updatedPackage);
       }
       if (response.completed) {
         const key =
