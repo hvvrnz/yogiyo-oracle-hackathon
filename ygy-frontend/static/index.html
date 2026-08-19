@@ -13,28 +13,40 @@
   <main class="landing">
     <section class="top">
       <div class="intro">
-        <div class="kicker" id="landingKicker">요기요 X 오라클 해커톤 · 실제 API 통합 시연</div>
-        <h1>AI 조리·배달 동기화 및 동적 배칭 추천 시스템</h1>
-        <p id="landingDescription">고객 주문 조회·취소, 사장님 조리시간 변경, 라이더 패키지 운행 처리를 제공된 FastAPI와 Oracle DB 데이터로 확인합니다.</p>
-        <div class="chip-row" id="landingChips"><span class="chip">Oracle DB 연동</span><span class="chip">실제 테스트 ID</span><span class="chip">5초 위치 폴링</span><span class="chip">좌표 기반 임시 지도</span></div>
+        <div class="kicker" id="landingKicker">요기요 X 오라클 해커톤 · 7조 낭만젊음사랑</div>
+        <h1>AI 조리·배달 동기화 및<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;동적 배칭 추천 시스템</h1>
+        <p class="tagline">기다리지 않는 음식, 헤매지 않는 라이더</p>
+        <p id="landingDescription">조리시간이 긴 주문일수록 배차가 어려워지는 문제, 완전탐색 기반 배차 알고리즘과 \n Oracle Generative AI의 조리시간 예측으로 함께 해결합니다.</p>
+        <div class="chip-row" id="landingChips"><span class="chip">완전탐색 배차</span><span class="chip">Oracle Generative AI</span><span class="chip">Vector Search</span><span class="chip">5초 실시간 폴링</span><span class="chip">카카오맵 연동</span></div>
       </div>
       <aside class="mini-panel">
-        <h2 id="landingDataTitle">연동 데이터 구성</h2>
-        <div id="landingDataLines"><div class="data-line"><strong>Oracle DB</strong><span>실제 주문·패키지·라이더 데이터를 조회</span></div><div class="data-line"><strong>Redis</strong><span>라이더 현재 위치를 5초 주기로 갱신</span></div><div class="data-line"><strong>좌표 데이터 계층</strong><span>카카오맵 교체 전 SVG 임시 렌더러에 연결</span></div><div class="data-line"><strong>FastAPI</strong><span>역할별 조회와 상태 변경 API를 제공</span></div></div>
+        <h2 id="landingDataTitle">시스템 구성</h2>
+        <div id="landingDataLines">
+          <div class="data-line"><strong>Oracle DB (Vector Search)</strong><span>Cohere Embedding 기반 조리시간 예측 데이터</span></div>
+          <div class="data-line"><strong>Sequencing Engine</strong><span>완전탐색 기반 픽업·배달 순서 계산</span></div>
+          <div class="data-line"><strong>FastAPI</strong><span>역할별 조회와 상태 변경 API를 제공</span></div>
+          <div class="data-line"><strong>카카오맵</strong><span>실시간 라이더 위치 및 배달 경로 시각화</span></div>
+        </div>
       </aside>
     </section>
 
     <section class="role-grid">
-      <article class="role"><div class="role-icon">🍱</div><h3>고객 화면</h3><p>매장 번호로 주문 한 건을 임의로 골라 상태·좌표·주문 취소를 확인합니다.</p><a href="/customer?storeId=889">고객 화면 열기 <span>→</span></a></article>
-      <article class="role"><div class="role-icon">🏪</div><h3>사장님 화면</h3><p>강남 889점 주문을 조회하고 조리 시작 시간을 입력합니다.</p><a href="/merchant?storeId=889">사장님 화면 열기 <span>→</span></a></article>
-      <article class="role"><div class="role-icon">🛵</div><h3>라이더 화면</h3><p>배차 제안을 조회·수락하고 패키지 운행을 처리합니다.</p><a href="/rider?riderId=rider_12">라이더 화면 열기 <span>→</span></a></article>
-      <article class="role"><div class="role-icon">🎛️</div><h3>통합 시연</h3><p>실제 DB의 역할별 조회 화면을 한곳에서 확인합니다.</p><a href="/demo">통합 시연 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🍱</div><h3>고객 화면</h3><p>내 주문 상태와 배달 위치를 <br/> 실시간으로 확인합니다.</p><a href="/customer">고객 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🏪</div><h3>사장님 화면</h3><p>조리시간을 입력하고, <br/>AI가 분석한 조리시간 안내를 확인합니다.</p><a href="/merchant">사장님 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🛵</div><h3>라이더 화면</h3><p>배차 제안을 확인·수락하고 <br/>픽업/배달을 처리합니다.</p><a href="/rider">라이더 화면 열기 <span>→</span></a></article>
+      <article class="role"><div class="role-icon">🎛️</div><h3>통합 시연</h3><p>세 역할의 화면을 한곳에서 확인합니다.</p><a href="/demo">통합 시연 열기 <span>→</span></a></article>
     </section>
 
     <section class="architecture">
-      <h2 id="landingArchitectureTitle">하나의 서버, 세 역할, 하나의 상태</h2>
-      <div class="flow" id="landingFlow"><div class="flow-node"><strong>고객·사장님·라이더</strong>실제 테스트 ID로 REST 조회</div><div class="arrow">→</div><div class="flow-node"><strong>FastAPI</strong>주문·조리시간·패키지 상태 변경</div><div class="arrow">→</div><div class="flow-node"><strong>Redis / Oracle</strong>위치·영구 데이터 저장</div></div>
-      <p class="foot" id="landingFoot">실제 API 데이터 계층을 유지한 채 카카오맵과 LLM 기능을 추가할 수 있도록 구성했습니다.</p>
+      <h2 id="landingArchitectureTitle">예측하고, 계산하고, 연결한다</h2>
+      <div class="flow" id="landingFlow">
+        <div class="flow-node"><strong>고객·사장님·라이더</strong>역할별 REST API로 조회</div>
+        <div class="arrow">→</div>
+        <div class="flow-node"><strong>FastAPI</strong>조리시간·배차·픽업/배달 상태 관리</div>
+        <div class="arrow">→</div>
+        <div class="flow-node"><strong>Oracle DB (Vector Search)</strong>조리시간 예측을 위한 실제 임베딩 데이터 저장·검색</div>
+      </div>
+      <p class="foot" id="landingFoot">Oracle Generative AI로 생성한 실제 벡터 데이터를 기반으로 신규 매장의 조리시간을 예측하고, 배차 알고리즘과 연동하는 구조로 구성했습니다.</p>
     </section>
   </main>
 </body>
