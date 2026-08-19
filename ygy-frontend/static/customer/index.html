@@ -2,65 +2,307 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>요기요 AI 실속배달 · 주문 조회</title>
-  <link rel="stylesheet" href="/static/common.css" />
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  />
+  <title>
+    요기요 AI 실속배달 · 주문 조회
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="/static/common.css"
+  />
 </head>
+
 <body>
   <div class="page-stage">
-    <main class="mobile-shell" aria-label="고객 주문 조회">
-      <header class="app-header">
-        <div class="header-title"><div class="brand-mark">요</div><div><h1>주문 조회</h1><p id="orderId">주문 정보를 불러오는 중</p></div></div>
-        <div id="connection" class="connection-pill"><i></i><span>연결 중</span></div>
-      </header>
-      <div class="mobile-scroll" id="scrollRoot">
-        <section id="customerLoadState" class="section" aria-live="polite" hidden></section>
-        <div id="customerContent">
-          <section class="section">
-            <div class="hero-card">
-              <div class="hero-eyebrow"><span>📦</span><span>주문 배송 현황</span></div>
-              <h2 class="hero-title" id="etaWindow">ETA 계산 중</h2>
-              <p class="hero-copy" id="currentMessage">주문 상태를 확인하고 있어요.</p>
-              <div class="hero-meta"><span class="hero-chip" id="deliveryOrder">상태 확인 중</span><span class="hero-chip" id="etaUpdated">주문 API 기준</span><span class="hero-chip" id="packageId">배차 번호 배정 전</span></div>
-            </div>
-          </section>
-          <section class="section">
-            <div class="card">
-              <div class="row"><div><span class="badge brand" id="statusBadge"><span class="dot"></span>상태 확인 중</span><div class="order-menu" id="storeName">매장명</div><div class="order-id" id="orderNumber">내 주문번호</div><div class="order-id" id="menuSummary">메뉴 정보</div></div><strong id="remainingMin">-</strong></div>
-              <div class="progress-track" id="progressTrack"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-              <div class="progress-labels"><span>접수</span><span>조리</span><span>픽업</span><span>도착</span></div>
-            </div>
-          </section>
-          <section id="customerFutureSlotSection" class="section" hidden>
-            <div class="section-title-row"><h2>다음 배달 예약</h2><span class="badge brand">Future Slot</span></div>
-            <div id="customerFutureSlotContent"></div>
-          </section>
-          <section id="customerExplanationSection" class="section" aria-live="polite" hidden>
-            <div class="section-title-row"><h2>배달 안내</h2><span>LLM 배차 설명</span></div>
-            <div id="customerExplanationContent" class="card"></div>
-          </section>
-          <section class="section">
-            <button id="createOrderButton" class="danger-button full">주문 취소</button>
-            <p class="subtext" style="margin:9px 2px 0">픽업 완료 또는 배달 완료 상태의 주문은 취소할 수 없습니다.</p>
-          </section>
-          <section class="section">
-            <div class="section-title-row"><h2>주문 위치</h2><span id="riderStep">라이더 위치 조회 중</span></div>
-            <div class="card map-card">
-              <div class="map-head"><span class="badge info">주문 좌표</span><span class="subtext">매장·배달지</span></div>
-              <div class="map-canvas" id="customerMap"><svg class="route-svg" viewBox="0 0 100 100"></svg><div class="map-legend">검정: 매장 · 분홍: 배달지</div></div>
-            </div>
-            <p class="subtext" style="margin:9px 2px 0">매장과 배달지 좌표를 주문 API 기준으로 표시합니다.</p>
-          </section>
-          <section class="section">
-            <div class="section-title-row"><h2>주문 정보</h2><span id="amount">0원</span></div>
-            <div class="card"><div class="row"><span class="label">배달지</span><span class="value" id="deliveryAddress">주소 정보 없음</span></div><div id="itemsCard"></div></div>
-          </section>
+    <main
+      class="mobile-shell customer-map-shell"
+      aria-label="고객 주문 조회"
+    >
+
+      <header
+        class="app-header customer-map-header"
+      >
+        <div class="header-title">
+          <div class="brand-mark">
+            요
+          </div>
+
+          <div>
+            <h1>주문 조회</h1>
+
+            <p id="orderId">
+              주문 정보를 불러오는 중
+            </p>
+          </div>
         </div>
-      </div>
-      <nav class="bottom-nav"><a class="nav-item" href="/"><strong>⌂</strong><span>홈</span></a><div class="nav-item active"><strong>▣</strong><span>주문</span></div><div class="nav-item"><strong>♡</strong><span>찜</span></div><div class="nav-item"><strong>☻</strong><span>마이</span></div></nav>
-      <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+        <div
+          id="connection"
+          class="connection-pill"
+        >
+          <i></i>
+          <span>연결 중</span>
+        </div>
+      </header>
+
+
+      <section
+        class="customer-map-stage"
+        aria-label="주문 배송 지도"
+      >
+        <div
+          class="map-canvas customer-map-canvas"
+          id="customerMap"
+        >
+          <svg
+            class="route-svg"
+            viewBox="0 0 100 100"
+          ></svg>
+        </div>
+
+        <div class="customer-map-state">
+          <span
+            class="badge brand"
+            id="statusBadge"
+          >
+            <span class="dot"></span>
+            상태 확인 중
+          </span>
+
+          <strong id="etaWindow">
+            ETA 계산 중
+          </strong>
+
+          <span id="riderStep">
+            담당 라이더 배정 전
+          </span>
+        </div>
+      </section>
+
+
+      <section
+        id="customerLoadState"
+        class="customer-load-state"
+        aria-live="polite"
+        hidden
+      ></section>
+
+
+      <section
+        class="customer-bottom-panel"
+        id="customerBottomPanel"
+        aria-label="주문 상세 정보"
+      >
+
+        <button
+          class="customer-sheet-handle"
+          id="customerSheetHandle"
+          type="button"
+          aria-controls="customerSheetContent"
+          aria-expanded="false"
+        >
+          <span></span>
+
+          <b>
+            위로 끌어 주문 상세 보기
+          </b>
+        </button>
+
+
+        <div class="customer-sheet-summary">
+          <div>
+            <span id="deliveryOrder">
+              상태 확인 중
+            </span>
+
+            <strong id="currentMessage">
+              주문 상태를 확인하고 있어요.
+            </strong>
+          </div>
+
+          <strong id="remainingMin">
+            -
+          </strong>
+        </div>
+
+
+        <div
+          class="customer-sheet-content"
+          id="customerSheetContent"
+        >
+
+          <section
+            class="customer-detail-section"
+          >
+            <div
+              class="section-title-row"
+            >
+              <h2>
+                주문 배송 현황
+              </h2>
+
+              <span id="packageId">
+                배차 번호 배정 전
+              </span>
+            </div>
+
+            <div class="card">
+              <div class="row">
+                <div>
+                  <div
+                    class="order-menu"
+                    id="storeName"
+                  >
+                    매장명
+                  </div>
+
+                  <div
+                    class="order-id"
+                    id="orderNumber"
+                  >
+                    내 주문번호
+                  </div>
+
+                  <div
+                    class="order-id"
+                    id="menuSummary"
+                  >
+                    메뉴 정보
+                  </div>
+                </div>
+
+                <strong id="etaUpdated">
+                  주문 API 기준
+                </strong>
+              </div>
+
+              <div
+                class="progress-track"
+                id="progressTrack"
+              >
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+
+              <div class="progress-labels">
+                <span>접수</span>
+                <span>조리</span>
+                <span>픽업</span>
+                <span>도착</span>
+              </div>
+            </div>
+          </section>
+
+
+          <section
+            id="customerExplanationSection"
+            class="customer-detail-section"
+            aria-live="polite"
+            hidden
+          >
+            <div
+              class="section-title-row"
+            >
+              <h2>
+                배달 안내
+              </h2>
+
+              <span>
+                LLM 배차 설명
+              </span>
+            </div>
+
+            <div
+              id="customerExplanationContent"
+              class="card"
+            ></div>
+          </section>
+
+
+          <section
+            class="customer-detail-section"
+          >
+            <div
+              class="section-title-row"
+            >
+              <h2>
+                주문 정보
+              </h2>
+
+              <span id="amount">
+                0원
+              </span>
+            </div>
+
+            <div class="card">
+              <div class="row">
+                <span class="label">
+                  배달지
+                </span>
+
+                <span
+                  class="value"
+                  id="deliveryAddress"
+                >
+                  주소 정보 없음
+                </span>
+              </div>
+
+              <div id="itemsCard"></div>
+            </div>
+          </section>
+
+        </div>
+      </section>
+
+
+      <nav class="bottom-nav">
+        <a
+          class="nav-item"
+          href="/"
+        >
+          <strong>⌂</strong>
+          <span>홈</span>
+        </a>
+
+        <div class="nav-item active">
+          <strong>▣</strong>
+          <span>주문</span>
+        </div>
+
+        <div class="nav-item">
+          <strong>♡</strong>
+          <span>찜</span>
+        </div>
+
+        <div class="nav-item">
+          <strong>☻</strong>
+          <span>마이</span>
+        </div>
+      </nav>
+
+
+      <div
+        id="toast"
+        class="toast"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></div>
+
     </main>
   </div>
+
+
   <script src="/static/common.js"></script>
   <script src="/static/customer/app.js"></script>
 </body>

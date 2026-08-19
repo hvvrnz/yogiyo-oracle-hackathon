@@ -44,6 +44,32 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }),
       }),
+      merchantCookComplete: () =>
+        request('/api/demo/merchant/cook-complete', {
+          method: 'POST',
+      }),
+      merchantOrders: async () => {
+        const data = await request('/api/demo/merchant/next-to-cook');
+
+        if (data?.order_id == null) {
+          return { ...data, orders: [] };
+        }
+
+        return {
+          ...data,
+          orders: [normalizeOrder(data)]
+        };
+      },
+
+      merchantCompleted: async () => {
+        const data = await request('/api/demo/merchant/completed');
+
+        return {
+          ...data,
+          orders: asArray(data.orders).map(normalizeOrder),
+        };
+      },
+
       riderOffers: async () => {
         const data = await request('/api/demo/rider/offers');
         return { ...data, offers: asArray(data.offers).map(normalizePackage) };

@@ -106,7 +106,7 @@ ygy-backend/
   담당이지만, DB 저장/조회는 `api/routers/explanation.py`를 통해서만
   한다(DB/SQL 직접 접근 금지).
 
-## 주요 엔드포인트
+## 주요 엔드포인트 
 
 | Method | Path | 설명 |
 |--------|------|------|
@@ -125,9 +125,7 @@ ygy-backend/
 | POST | `/api/explanation` | LLM 생성 설명 저장 |
 | GET | `/api/explanation/{package_id}` | 저장된 설명 조회 |
 
-전체 API 명세는 아래 Notion 문서 참고
 
-[ℹ️ API 명세](https://app.notion.com/p/API-3bcc9e9064bf80e8a1bdf2d967666287?pvs=12) 
 
 ## 인프라
 
@@ -178,5 +176,41 @@ python stream_processor/orders/producer.py
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-다음 작업 (별도 브랜치)
- 조리시간 예측 고도화: correction_factor를 지금의 카테고리별 고정값 (common/config menu_data.py)에서, Oracle AI Vector Search(vector_cases 테이블) 기반 유사 사례 검색으로 전환
+
+## AI(조리시간 예측) 구현
+
+### 구현 완료
+
+- Oracle Generative AI(Cohere Embed)로 실제 임베딩 생성
+
+- vector_cases 테이블에 실제 벡터 데이터 시딩
+
+- 신규매장 조리시간 예측 4단계 fallback 검색:
+  1) 같은 지역+같은 브랜드
+  2) 다른 지역+같은 브랜드
+  3) 같은 지역+같은 카테고리(다른 브랜드 or 개인매장) - 시연 case
+  4) 카테고리 전체(지역 무관)
+
+- 사장님 화면(merchant_text)에 LLM 적용 — case/fallback 단계에  따라 매번 다른 설명이 필요해 LLM이 실제로 필요한 지점
+- 지역보다 같은 브랜드를 fallback 우선순위로 잡은 이유:
+  - 같은 지역, 다른 브랜드
+    → 위치는 같지만, 조리법·메뉴 구성·주방 동선이 완전히 다름
+    → "조리시간"이라는 값 자체를 예측하는 데는 참고가 약함
+
+  - 다른 지역, 같은 브랜드(예: 신림의 요기요햄버거)
+      → 위치는 다르지만, 조리법·메뉴·매뉴얼이 똑같음
+      → "이 브랜드는 원래 이 메뉴에 시간이 이만큼 걸린다"는 본질적인 정보가 더 정확하게 반영됨
+
+### 설계 원칙 — AI 사용 지점
+- 배차(라이더 매칭): 물리적 거리 기준 → 완전탐색 알고리즘
+- 조리시간 예측(사장님): 조리 프로세스 유사성 기준 → 
+  벡터 검색(브랜드/카테고리)
+- 라이더 안내(교통/날씨): 실시간 사실 전달 → API 호출 + 템플릿 
+  (판단이 필요 없어 LLM 불필요)
+- 소비자 안내: 사장님/라이더 대응 결과를 요약 전달 → 템플릿
+  (마찬가지로 판단이 필요 없어 LLM 불필요)
+- → LLM은 "여러 경우의 수를 종합해서 설명해야 하는 지점"에만 선택적으로 적용, 나머지는 실시간 API 또는 템플릿으로 처리
+
+### TO DO
+- cron 기반 자동 데이터 갱신 (현재는 1회 시딩)
+- 라이더 교통정보 / 실제 기상청 API 연동 (현재는 상수)

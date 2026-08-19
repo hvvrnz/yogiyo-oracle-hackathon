@@ -3,14 +3,9 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/demo", tags=["demo"])
 
-<<<<<<< Updated upstream
-demo_state = {"step": 0}
-route_progress = {"current_index": 0}
+demo_explanations = {}
 
-# ── 매장 3개 (889/894/815 강남 - 815는 30분짜리 긴 조리시간 매장) ──
-=======
 # ── 매장 3개 ──
->>>>>>> Stashed changes
 STORE_A = {"store_id": 889, "name": "요기요햄버거 강남점🍔", "category": "버거", "region": "강남", "lat": 37.505486, "lng": 127.02069, "avg_delivery_eta_min": 35}
 STORE_B = {"store_id": 894, "name": "정통도시락 강남점🍱", "category": "도시락", "region": "강남", "lat": 37.507781, "lng": 127.02166, "avg_delivery_eta_min": 25}
 STORE_C = {"store_id": 815, "name": "매운갈비찜 강남점🍲", "category": "찜류", "region": "강남", "lat": 37.506200, "lng": 127.02300, "avg_delivery_eta_min": 45}
@@ -38,8 +33,7 @@ ORIGINAL_STOP_SEQUENCE = [
     {"sequence": 6, "order_id": 90003, "type": "dropoff", "label": DELIVERY_C["address"], "lat": DELIVERY_C["lat"], "lng": DELIVERY_C["lng"]},
 ]
 
-STOP_SEQUENCE = [dict(s) for s in ORIGINAL_STOP_SEQUENCE]  
-
+STOP_SEQUENCE = [dict(s) for s in ORIGINAL_STOP_SEQUENCE]
 
 SCORE_DETAIL = {
     "food_sitting_time": 2.1, "courier_wait_time": 5.4, "bag_time": 11.2, "total_time": 33.8,
@@ -62,16 +56,6 @@ SCORE_DETAIL = {
 PACKAGE_SCORE = 41
 PACKAGE_REVENUE = 12700
 HOURLY_REVENUE = 22500
-
-MERCHANT_TEXT_BY_STAGE = {
-    "COOKING": "요기요햄버거🍔 강남점은 아직 데이터가 부족한 신규 매장이에요. \n - 금요일 저녁 6시 평균 조리시간은 29.5분 정도예요. \n (강남 지역 내 비슷한 버거 매장(버거퀸)들의 최근 10건 기록확인) \n \n 🌧 테헤란로(강남파이낸스타워 인근)는 비로 인해 라이더 도착이 평소보다 8분 정도 지연될 수 있어요. \n\n 이 값을 참고해서 조리시간을 입력하시면, 라이더 배차도 수월하고 고객님도 더 신선한 음식을 받아보실 수 있어요.",
-    "MATCHED": "라이더가 배정되어 픽업을 준비하고 있어요.",
-}
-
-RIDER_TEXT = "🌧 테헤란로(강남파이낸스타워 인근)는 비로 인해 평소보다 8분 정도 지연이 예상돼요. 무리하지 않으셔도 괜찮도록 매장에 미리 전달해뒀으니, 안전하게 이동하세요."
-
-CONSUMER_TEXT_NORMAL = "음식이 완성되자마자 바로 픽업돼서 방치 시간이 없었고, 신선하게 전달드렸어요."
-CONSUMER_TEXT_DELAY = "🌧 테헤란로(강남파이낸스타워 인근) 강우로 라이더 이동이 8분 정도 늦어질 수 있어요. 사장님께도 이 상황을 전달해서 그에 맞춰 조리 타이밍을 조정하고 있으니, 안심하고 기다려주세요."
 
 
 class DemoState:
@@ -136,36 +120,66 @@ def _package_summary():
         "score": PACKAGE_SCORE, "package_revenue": PACKAGE_REVENUE, "hourly_revenue": HOURLY_REVENUE,
         "bundle_size": 3, "order_ids": [90001, 90002, 90003],
         "route_detail": _route_with_visited(),
-        "rider_text": RIDER_TEXT,
     }
 
 
-<<<<<<< Updated upstream
-def _customer_response():
-    step = demo_state["step"]
-    status_map = {0: "NEW", 1: "COOKING", 2: "MATCHED", 3: "PICKED_UP", 4: "DELIVERED"}
-    return {
+def _demo_orders():
+    return [
+        {"order_id": 90001, "store_name": STORE_A["name"], "status": "COOKING", "owner_cook_min": state.owner_cook_min, "predicted_cook_min": 20},
+        {"order_id": 90002, "store_name": STORE_B["name"], "status": "COOKING", "owner_cook_min": 15, "predicted_cook_min": 15},
+        {"order_id": 90003, "store_name": STORE_C["name"], "status": "COOKING", "owner_cook_min": 30, "predicted_cook_min": 30},
+    ]
+
+
+def _demo_explanation_context(explanation_stage):
+    customer_order = {
         "order_id": 90001, "store_name": STORE_A["name"],
-        "store_lat": STORE_A["lat"], "store_lng": STORE_A["lng"],
-        "delivery_lat": DELIVERY_A["lat"], "delivery_lng": DELIVERY_A["lng"],
-        "delivery_address": DELIVERY_A["address"],
-        "menu_items": ORDER_A_MENU, "amount": 12000, "delivery_fee": 3000,
-        "status": status_map[step],
-        "package_id": PACKAGE_ID if step >= 1 else None,
-        "rider_id": RIDER_ID if step >= 2 else None,
-        "route_detail": ROUTE_DETAIL if step >= 2 else None,
-        "score_detail": SCORE_DETAIL if step >= 2 else None,
-        "eta_min": SCORE_DETAIL["total_time"] if step >= 2 else None,
-=======
+        "delivery_address": DELIVERY_A["address"], "status": "MATCHED",
+        "package_id": PACKAGE_ID, "rider_id": RIDER_ID,
+        "route_detail": STOP_SEQUENCE, "score_detail": SCORE_DETAIL,
+        "eta_min": SCORE_DETAIL["total_time"],
+    }
+    return {
+        "explanation_stage": explanation_stage,
+        "package": dict(_package_summary(), score_detail=SCORE_DETAIL, status="OFFERED"),
+        "orders": _demo_orders(),
+        "customer_order": customer_order,
+        "merchant_order": _demo_orders()[0],
+        "rider_profile": {"rider_id": RIDER_ID, "status": "AVAILABLE"},
+    }
+
+
+def _get_demo_explanations(explanation_stage):
+    """Generate once per demo package and keep demo state usable on LLM errors."""
+    cache_key = (PACKAGE_ID, explanation_stage)
+    cached = demo_explanations.get(cache_key)
+    if cached:
+        return cached
+
+    from explanation.generator import (
+        LLMConfigurationError,
+        LLMGenerationError,
+        demo_explanation_fallback,
+        generate_demo_explanations,
+    )
+
+    context = _demo_explanation_context(explanation_stage)
+    try:
+        generated = generate_demo_explanations(context)
+    except (LLMConfigurationError, LLMGenerationError):
+        generated = demo_explanation_fallback(context)
+    demo_explanations[cache_key] = generated
+    return generated
+
+
 def _customer_response(order_id=90001, store=STORE_A, menu=ORDER_A_MENU, amount=12000, delivery=DELIVERY_A):
     status = state.order_status(order_id)
-    delay = True
 
     consumer_text = None
     if status == "DELIVERED":
         consumer_text = "배달이 완료됐어요. 신선하게 받아보셨길 바라요!"
     elif status in ("MATCHED", "PICKED_UP"):
-        consumer_text = CONSUMER_TEXT_DELAY if delay else CONSUMER_TEXT_NORMAL
+        consumer_text = _get_demo_explanations("MATCHED")["consumer_text"]
 
     food_sitting_min, bag_min = None, None
     if status in ("MATCHED", "PICKED_UP", "DELIVERED"):
@@ -187,7 +201,6 @@ def _customer_response(order_id=90001, store=STORE_A, menu=ORDER_A_MENU, amount=
         "score_detail": None,
         "eta_min": None if status == "DELIVERED" else (SCORE_DETAIL["total_time"] if status in ("MATCHED", "PICKED_UP") else None),
         "consumer_text": consumer_text,
->>>>>>> Stashed changes
     }
 
 
@@ -198,31 +211,16 @@ def demo_customer_order():
 
 @router.get("/merchant/next-to-cook")
 def demo_merchant_next():
-<<<<<<< Updated upstream
-    """
-    사장님 화면 - 5초마다 호출.
-    조리시작 전(step 0): 조리시간 입력 대기 화면
-    조리시작 후(step 1): COOKING 상태로 계속 보임 (사라지지 않음)
-    배차 확정 후(step 2+): 대기 주문 없음
-    """
-    step = demo_state["step"]
-    if step == 0:
-        return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000, "status": "NEW"}
-    if step == 1:
-        return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000,
-                "status": "COOKING", "owner_cook_min": _owner_cook_min["value"]}
-    return {"message": "조리 대기 주문 없음"}
-=======
     if state.merchant_stage == "NEW":
         return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000, "status": "NEW"}
     if state.merchant_stage == "COOKING":
         return {
             "order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000,
             "status": "COOKING", "owner_cook_min": state.owner_cook_min,
-            "merchant_text": MERCHANT_TEXT_BY_STAGE["COOKING"],
+            "merchant_text": _get_demo_explanations("COOKING")["merchant_text"],
         }
     if state.merchant_stage == "COOKED" and 90001 not in state.delivered_order_ids:
-        status = state.order_status(90001)  # MATCHED 또는 PICKED_UP
+        status = state.order_status(90001)
         return {"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000, "status": status}
     return {"message": "조리 대기 주문 없음"}
 
@@ -233,25 +231,17 @@ def demo_merchant_completed():
         return {"orders": [{"order_id": 90001, "menu_items": ORDER_A_MENU, "amount": 12000, "status": "DELIVERED"}]}
     return {"orders": []}
 
+
 class CookTimeInput(BaseModel):
     owner_cook_min: int = 20
->>>>>>> Stashed changes
 
 
 @router.post("/merchant/cook-start")
 def demo_cook_start(body: CookTimeInput):
-<<<<<<< Updated upstream
-    """
-    사장님이 조리시간 입력하고 조리시작 버튼 클릭.
-    889는 사장님이 입력한 값 그대로, 894/815는 강남 매장 자동 트리거.
-    """
-    _owner_cook_min["value"] = body.owner_cook_min
-    demo_state["step"] = 1
-=======
     state.owner_cook_min = body.owner_cook_min
     state.merchant_stage = "COOKING"
     state.package_stage = "OFFERED"
->>>>>>> Stashed changes
+    _get_demo_explanations("COOKING")
     return {
         "triggered": [
             {"order_id": 90001, "store_id": STORE_A["store_id"], "owner_cook_min": body.owner_cook_min, "triggered_by": "user"},
@@ -263,18 +253,12 @@ def demo_cook_start(body: CookTimeInput):
 
 @router.post("/merchant/cook-complete")
 def demo_cook_complete():
-    """
-    실제 조리완료 시점. 경로는 재탐색하지 않고(패키지 확정 후에는 
-    ETA·라이더 신뢰를 지키기 위해 경로를 그대로 유지), 대신
-    예상 조리시간과 실제 조리시간의 차이를 사장님께 피드백으로 안내.
-    이 실제값은 vector_cases에 쌓여 다음 예측을 더 정확하게 만드는 데 쓰임.
-    """
     if state.merchant_stage != "COOKING":
         raise HTTPException(status_code=400, detail="조리 중인 주문이 없습니다.")
 
     state.merchant_stage = "COOKED"
 
-    actual_min = 14  # 데모용 고정값 (실제로는 조리시작~완료 시각 차이로 계산)
+    actual_min = 14
     predicted_min = state.owner_cook_min
     diff = predicted_min - actual_min
 
@@ -293,7 +277,9 @@ def demo_cook_complete():
 def demo_rider_offers():
     if state.package_stage != "OFFERED":
         return {"rider_id": RIDER_ID, "offers": []}
-    return {"rider_id": RIDER_ID, "offers": [_package_summary()]}
+    offer = _package_summary()
+    offer["rider_text"] = _get_demo_explanations("COOKING")["rider_text"]
+    return {"rider_id": RIDER_ID, "offers": [offer]}
 
 
 @router.get("/rider/profile")
@@ -310,6 +296,7 @@ def demo_rider_packages():
     pkg = _package_summary()
     pkg["status"] = state.package_stage
     pkg["score_detail"] = SCORE_DETAIL
+    pkg["rider_text"] = _get_demo_explanations("MATCHED")["rider_text"]
     return {"rider_id": RIDER_ID, "current_lat": RIDER_LAT, "current_lng": RIDER_LNG, "packages": [pkg]}
 
 
@@ -319,11 +306,8 @@ def demo_accept(package_id: int):
         raise HTTPException(status_code=404, detail="존재하지 않는 패키지입니다.")
     if state.package_stage != "OFFERED":
         raise HTTPException(status_code=409, detail="이미 다른 라이더가 수락했거나 존재하지 않는 패키지입니다.")
-<<<<<<< Updated upstream
-    demo_state["step"] = 2
-=======
     state.package_stage = "MATCHING"
->>>>>>> Stashed changes
+    _get_demo_explanations("MATCHED")
     return {"package_id": PACKAGE_ID, "rider_id": RIDER_ID, "status": "MATCHING"}
 
 
@@ -346,7 +330,6 @@ def demo_arrive_stop():
     if not stop:
         raise HTTPException(status_code=400, detail="이미 모든 경로를 완료했습니다.")
 
-    # 90001의 픽업 단계인데, 아직 조리완료(COOKED) 전이면 막기
     if stop["order_id"] == 90001 and stop["type"] == "pickup" and state.merchant_stage != "COOKED":
         raise HTTPException(status_code=409, detail="아직 조리가 완료되지 않았습니다.")
 
@@ -374,13 +357,8 @@ def demo_stores():
 
 @router.post("/reset")
 def demo_reset_scenario():
-<<<<<<< Updated upstream
-    demo_state["step"] = 0
-    route_progress["current_index"] = 0
-    _owner_cook_min["value"] = 20
-=======
     global STOP_SEQUENCE
     state.reset()
-    STOP_SEQUENCE = [dict(s) for s in ORIGINAL_STOP_SEQUENCE]  # 원본으로 복구
->>>>>>> Stashed changes
+    STOP_SEQUENCE = [dict(s) for s in ORIGINAL_STOP_SEQUENCE]
+    demo_explanations.clear()
     return {"step": 0}
