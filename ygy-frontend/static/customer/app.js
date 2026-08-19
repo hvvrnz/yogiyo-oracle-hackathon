@@ -400,19 +400,11 @@ function renderCustomer(order) {
   const assignmentConfirmed =
     hasConfirmedAssignment(order);
 
-  const etaLabel =
-    !assignmentConfirmed &&
-    ['NEW', 'COOKING'].includes(
-      order.status
-    )
-      ? order.status === 'NEW'
-        ? '매장 확인 대기 중'
-        : '라이더 수락 대기 중'
-      : order.eta_min == null
-        ? 'ETA 계산 중'
-        : `약 ${Math.ceil(
-            order.eta_min
-          )}분`;
+  const etaLabel = ['DELIVERED', 'COMPLETED'].includes(order.status)
+  ? '배달 완료'
+  : !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
+    ? order.status === 'COOKING' ? '배차 준비 중' : 'ETA 계산 중'
+    : order.eta_min == null ? 'ETA 확인 중' : `약 ${Math.ceil(order.eta_min)}분`;
 
   const items =
     Array.isArray(order.menu_items)
