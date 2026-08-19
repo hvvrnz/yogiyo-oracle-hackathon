@@ -482,6 +482,8 @@ html.embedded .mobile-shell {
   box-shadow: var(--shadow);
 }
 
+html.embedded .customer-map-shell, html.embedded .rider-map-shell { width:100%; height:100dvh; max-width:none; max-height:none; aspect-ratio:auto; border-radius:0; box-shadow:none; }
+
 html.embedded .merchant-shell {
   width: 100vw;
   height: 100dvh;
