@@ -161,63 +161,29 @@
   };
 
 
-  const fitMapOnce = (
-    state,
-    data
-  ) => {
-    const signature =
-      routeSignature(
-        data.route
-      );
+const fitMapOnce = (state, data) => {
+  const routeStopMarkers = data.markers.filter(item => ['pickup', 'dropoff', 'delivery'].includes(String(item.meta?.type || '').toLowerCase()));
+  const points = data.route.length ? data.route : routeStopMarkers.length ? routeStopMarkers : data.markers;
 
-    if (
-      state.hasFitted &&
-      state.routeSignature ===
-        signature
-    ) {
-      return;
-    }
+  if (!points.length) return;
+  if (state.layer.clientWidth <= 0 || state.layer.clientHeight <= 0) return;
 
-    const points = [
-      ...data.route,
-      ...data.markers,
-    ];
+  const signature = routeSignature(points);
 
-    if (!points.length) {
-      return;
-    }
+  if (state.hasFitted && state.routeSignature === signature) return;
 
-    if (points.length === 1) {
-      state.map.setCenter(
-        positionOf(points[0])
-      );
+  if (points.length === 1) {
+    state.map.setCenter(positionOf(points[0]));
+    state.map.setLevel(4);
+  } else {
+    const bounds = new window.kakao.maps.LatLngBounds();
+    points.forEach(point => bounds.extend(positionOf(point)));
+    state.map.setBounds(bounds, 120, 36, 130, 36);
+  }
 
-      state.map.setLevel(4);
-    } else {
-      const bounds =
-        new window.kakao.maps
-          .LatLngBounds();
-
-      points.forEach(
-        point =>
-          bounds.extend(
-            positionOf(point)
-          )
-      );
-
-      state.map.setBounds(
-        bounds,
-        32,
-        32,
-        32,
-        32
-      );
-    }
-
-    state.hasFitted = true;
-    state.routeSignature =
-      signature;
-  };
+  state.hasFitted = true;
+  state.routeSignature = signature;
+};
 
 
   const ensureState = (
