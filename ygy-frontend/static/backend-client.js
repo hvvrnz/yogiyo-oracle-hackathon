@@ -44,6 +44,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }),
       }),
+      merchantCookComplete: () =>
+        request('/api/demo/merchant/cook-complete', {
+          method: 'POST',
+      }),
       merchantOrders: async () => {
         const data = await request('/api/demo/merchant/next-to-cook');
 
