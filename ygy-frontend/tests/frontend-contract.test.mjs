@@ -30,6 +30,7 @@ test(
       '/api/demo/merchant/cook-start',
 
       '/api/demo/rider/offers',
+      '/api/demo/merchant/cook-complete',
       '/api/demo/rider/profile',
 
       '/api/demo/rider/package/${encodeURIComponent(packageId)}/accept',
@@ -139,11 +140,6 @@ test(
 
     assert.match(
       source,
-      /fromRouteDetail/
-    );
-
-    assert.match(
-      source,
       /fromCustomerOrder/
     );
 
@@ -187,7 +183,7 @@ test(
 
 
 test(
-  '사장님 화면은 최종 조리 시작 API 흐름만 처리한다',
+  '사장님 화면은 조리 시작 및 조리 완료 API 흐름을 처리한다',
   () => {
     const source =
       read(
@@ -199,6 +195,7 @@ test(
       const method of [
         'merchantOrders',
         'merchantCookStart',
+        'merchantCookComplete',
       ]
     ) {
       assert.match(
@@ -210,10 +207,14 @@ test(
       );
     }
 
+    assert.match(
+      source,
+      /조리 시작/
+    );
 
     assert.match(
       source,
-      /수락하고 조리 시작/
+      /조리 완료/
     );
 
     assert.match(
@@ -308,12 +309,6 @@ test(
       /futureSlot/i
     );
 
-
-    assert.match(
-      source,
-      /data-rider-arrive/
-    );
-
     assert.match(
       source,
       /completeCurrentStop/
@@ -337,11 +332,6 @@ test(
     assert.match(
       source,
       /rider_text/
-    );
-
-    assert.match(
-      source,
-      /fromRouteDetail/
     );
 
     assert.match(
@@ -433,11 +423,6 @@ test(
     assert.match(
       source,
       /fromCustomerOrder/
-    );
-
-    assert.match(
-      source,
-      /fromRouteDetail/
     );
 
     assert.match(

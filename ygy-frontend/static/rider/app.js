@@ -1,10 +1,14 @@
 const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let currentRider;
 let stopRiderViewPolling;
-let offerSort = 'score';
 let visitedSteps = []; 
+let offerSort = 'revenue-desc';
+
+let previousNextStopKey = null;
+let suppressNextStopChangeToast = false;
 
 const acceptedPackageKey = 'ygy-demo-accepted-package';
+const completedPackagesKey = 'ygy-demo-completed-packages';
 
 function restoreAcceptedPackage() {
   try {
@@ -32,6 +36,40 @@ function saveAcceptedPackage(pkg) {
   } else {
     sessionStorage.removeItem(acceptedPackageKey);
   }
+}
+
+function restoreCompletedPackages() {
+  try {
+    const value = sessionStorage.getItem(completedPackagesKey);
+    const items = value ? JSON.parse(value) : [];
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+}
+
+let completedPackages = restoreCompletedPackages();
+
+function saveCompletedPackage(pkg) {
+  if (!pkg) return;
+
+  const completed = {
+    ...pkg,
+    status: 'COMPLETED',
+    completed_at: new Date().toISOString()
+  };
+
+  completedPackages = [
+    completed,
+    ...completedPackages.filter(
+      item => String(item.package_id) !== String(completed.package_id)
+    )
+  ].slice(0, 100);
+
+  sessionStorage.setItem(
+    completedPackagesKey,
+    JSON.stringify(completedPackages)
+  );
 }
 
 function syncAcceptedPackageStatus(pkg, nextStop) {
@@ -226,30 +264,23 @@ function runDetail(pkg, nextStop) {
 
 function runStatusCard(pkg) {
   if (!pkg) return '<div class="run-status-card empty"><strong>현재 운행 중인 패키지가 없습니다.</strong><span>배차 제안을 수락하면 운행 정보가 표시됩니다.</span></div>';
-  return `<div class="run-status-card"><div><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><div>${routeSummary(pkg)}</div><small>예상 수익 ${Yogiyo.money(pkg.package_revenue)}</small></div>`;
+  return `<div class="run-status-card"><div><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><div class="run-route-list">${routeSummary(pkg)}</div><small>예상 수익 ${Yogiyo.money(pkg.package_revenue)}</small></div>`;
 }
 
 function offerCard(pkg) {
   const text =
     String(pkg.rider_text || '').trim() ||
     '수익과 추천 방문 순서를 확인한 뒤 수락해 주세요.';
-  const score =
-    Number.isFinite(Number(pkg.score))
-      ? Number(pkg.score).toFixed(2)
-      : '-';
+
   return `
     <article class="offer-row">
       <div class="offer-header">
         <strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong>
-        <span class="offer-revenue-highlight">시간당 ${Yogiyo.money(pkg.hourly_revenue)}</span>
+        <span class="offer-revenue-highlight">예상 수익 ${Yogiyo.money(pkg.package_revenue)}</span>
       </div>
       <div class="offer-main">
         <span>
           ${Yogiyo.escape(pkg.bundle_size ?? '-')}건 묶음
-          · AI 경로 점수 ${Yogiyo.escape(score)}
-        </span>
-        <span>
-          예상 수익 ${Yogiyo.money(pkg.package_revenue)}
         </span>
         <div class="offer-route-list">
           ${routeSummary(pkg)}
@@ -281,13 +312,118 @@ function offerCard(pkg) {
   `;
 }
 
+function completedPackageRow(pkg) {
+  const route = routeSummary(pkg);
+
+  return `
+    <article class="completed-dispatch-row">
+      <div class="completed-dispatch-main">
+        <strong>
+          <span class="badge good">완료</span>
+          패키지 #${Yogiyo.escape(pkg.package_id)}
+        </strong>
+
+        <span>
+          ${Yogiyo.escape(pkg.bundle_size ?? '-')}건
+          · ${Yogiyo.money(pkg.package_revenue)}
+        </span>
+
+        <small>
+          ${Yogiyo.escape(route)}
+        </small>
+      </div>
+
+      <button
+        type="button"
+        class="ghost-button completed-dispatch-detail"
+        data-completed-detail="${pkg.package_id}">
+        상세
+      </button>
+    </article>
+  `;
+}
+
+function renderCompletedPackages() {
+  const root = Yogiyo.el('riderCompletedHistory');
+
+  Yogiyo.el('completedDispatchCount').textContent =
+    `${completedPackages.length}건`;
+
+  if (!completedPackages.length) {
+    root.innerHTML = `
+      <div class="state-card empty">
+        <div class="state-icon">✓</div>
+        <div>
+          <strong>완료한 배차가 없습니다.</strong>
+          <p>배달을 완료하면 이곳에서 최근 배차를 확인할 수 있습니다.</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="completed-dispatch-list">
+      ${completedPackages.map(completedPackageRow).join('')}
+    </div>
+  `;
+
+  root
+    .querySelectorAll('[data-completed-detail]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        const pkg = completedPackages.find(
+          item =>
+            String(item.package_id) ===
+            String(button.dataset.completedDetail)
+        );
+
+        if (pkg) openPackageDetail(pkg);
+      });
+    });
+}
+
 function openPackageDetail(pkg) {
   Yogiyo.el('packageDetailTitle').textContent = `패키지 #${pkg.package_id} 상세`;
   Yogiyo.el('packageDetailSummary').textContent =
   `${pkg.bundle_size ?? '-'}건 묶음 · ${
     packageStatus(pkg.status || 'OFFERED')
   }`;
-  Yogiyo.el('packageDetailContent').innerHTML = `<div class="card"><div class="section-title-row"><h2>AI 추천 방문 순서</h2></div>${routeSchedule(pkg, null, {interactive: false})}</div><div class="card"><div class="notice llm-guidance"><span>✦</span><div><strong>AI 운행 안내</strong><span>${Yogiyo.escape(pkg.rider_text || '배차 정보를 확인해 주세요.')}</span></div></div></div>`;
+  Yogiyo.el('packageDetailContent').innerHTML = `
+    <div class="card">
+      <div class="row">
+        <span class="label">상태</span>
+        <span class="value">${Yogiyo.escape(packageStatus(pkg.status || 'OFFERED'))}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">묶음 주문</span>
+        <span class="value">${Yogiyo.escape(pkg.bundle_size ?? '-')}건</span>
+      </div>
+
+      <div class="row">
+        <span class="label">예상 수익</span>
+        <span class="value">${Yogiyo.money(pkg.package_revenue)}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title-row">
+        <h2>방문 순서</h2>
+      </div>
+      ${routeSchedule(pkg)}
+    </div>
+
+    <div class="card">
+      <div class="notice llm-guidance">
+        <span>✦</span>
+        <div>
+          <strong>AI 운행 안내</strong>
+          <span>${Yogiyo.escape(pkg.rider_text || '배차 정보를 확인해 주세요.')}</span>
+        </div>
+      </div>
+    </div>
+  `;
   Yogiyo.el('packageDetailBackdrop').classList.add('open');
   Yogiyo.el('packageDetailSheet').classList.add('open');
   Yogiyo.el('packageDetailSheet').setAttribute('aria-hidden', 'false');
@@ -337,25 +473,30 @@ function renderRider(view) {
   currentRider = view;
   const { profile, offers = [], offersError, nextStop, packages = [] } = view;
   const activePackage = packages[0];
-const visibleOffers = offers
-  .slice()
-  .sort((left, right) => {
-    if (offerSort === 'revenue') {
-      return (
-        Number(right.package_revenue || 0) -
-        Number(left.package_revenue || 0)
-      );
-    }
+  const visibleOffers = offers
+    .slice()
+    .sort((left, right) => {
+      const leftRevenue = Number(left.package_revenue || 0);
+      const rightRevenue = Number(right.package_revenue || 0);
 
-    return (
-      Number(left.score ?? Infinity) -
-      Number(right.score ?? Infinity)
-    );
+      return offerSort === 'revenue-asc'
+        ? leftRevenue - rightRevenue
+        : rightRevenue - leftRevenue;
   });
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
   Yogiyo.el('packageState').textContent = activePackage ? packageStatus(activePackage.status) : visibleOffers.length ? `배차 제안 ${visibleOffers.length}건` : '진행 중인 배차 없음';
   Yogiyo.el('currentPackageSummary').textContent = nextStop?.type ? `${nextStop.type === 'pickup' ? '다음 픽업' : '다음 배달'} · ${nextStop.label}` : activePackage ? `패키지 #${activePackage.package_id} 운행 중` : '배차 탭에서 제안을 확인하세요.';
+  const mapActionButton = Yogiyo.el('riderMapActionButton');
+  if (nextStop?.type) {
+    mapActionButton.hidden = false;
+    mapActionButton.textContent =
+      nextStop.type === 'pickup'
+        ? '픽업 완료'
+        : '배달 완료';
+  } else {
+    mapActionButton.hidden = true;
+  }
   Yogiyo.el('riderLocationCount').textContent = profile.lat != null ? '내 위치 · 5초 갱신' : '내 위치 정보 없음';
   Yogiyo.renderMap('riderMap', riderMapData(profile, activePackage));
   Yogiyo.el('riderRunSummary').innerHTML = activePackage ? `<div><span>${Yogiyo.escape(packageStatus(activePackage.status))}</span><strong>패키지 #${Yogiyo.escape(activePackage.package_id)}</strong></div><strong>${Yogiyo.money(activePackage.package_revenue)}</strong>` : '<div><span>운행 대기</span><strong>배차 탭에서 새 제안을 확인하세요.</strong></div>';
@@ -370,6 +511,7 @@ const visibleOffers = offers
   else if (activePackage) Yogiyo.el('riderOffers').innerHTML = '<div class="state-card empty"><div class="state-icon">🛵</div><div><strong>현재 운행을 먼저 완료해 주세요.</strong><p>완료 후 새 배차 제안을 수락할 수 있습니다.</p></div></div>';
   else if (!visibleOffers.length) Yogiyo.el('riderOffers').innerHTML = '<div class="state-card empty"><div class="state-icon">⌕</div><div><strong>배차 제안이 없습니다.</strong><p>조리가 시작되면 AI 배차 제안이 표시됩니다.</p></div></div>';
   else { Yogiyo.el('riderOffers').innerHTML = `<div class="offer-list">${visibleOffers.map(offerCard).join('')}</div>`; bindOffers(visibleOffers); }
+  renderCompletedPackages();
   Yogiyo.clearLoadState('riderLoadState');
 }
 
@@ -387,13 +529,30 @@ async function fetchRiderView() {
   let nextStop = null;
 
   if (profile.status === 'BUSY') {
-    nextStop =
-      await Yogiyo.apiClient.demo.riderNextStop()
-        .catch(() => null);
+  nextStop =
+    await Yogiyo.apiClient.demo.riderNextStop()
+      .catch(() => null);
+
+  const currentNextStopKey = stopKey(nextStop);
+
+  if (
+    previousNextStopKey &&
+    currentNextStopKey &&
+    previousNextStopKey !== currentNextStopKey
+  ) {
+    if (!suppressNextStopChangeToast) {
+      Yogiyo.toast('경로가 변경되었습니다.');
+    }
+  }
+
+    previousNextStopKey = currentNextStopKey;
+    suppressNextStopChangeToast = false;
   } else {
     // /api/demo/reset 이후 이전 시연의 프론트 상태 제거
-      visitedSteps = [];
-      saveAcceptedPackage(null);
+    visitedSteps = [];
+    previousNextStopKey = null;
+    suppressNextStopChangeToast = false;
+    saveAcceptedPackage(null);
   }
 
   acceptedPackage =
@@ -438,6 +597,14 @@ async function acceptOffer(pkg, button) {
         packageId
       );
       visitedSteps = [];
+      completedPackages = completedPackages.filter(
+        item => String(item.package_id) !== String(pkg.package_id)
+      );
+
+      sessionStorage.setItem(
+        completedPackagesKey,
+        JSON.stringify(completedPackages)
+      );
       saveAcceptedPackage({
         ...pkg,
         status: 'MATCHING'
@@ -468,11 +635,20 @@ async function completeCurrentStop(button) {
     try {
       const response =
         await Yogiyo.apiClient.demo.riderArrive();
+      
+      suppressNextStopChangeToast = true;
+
       if (acceptedPackage) {
-        saveAcceptedPackage({
+        const updatedPackage = {
           ...acceptedPackage,
           status: response.package_status
-        });
+        };
+
+        if (response.package_status === 'COMPLETED') {
+          saveCompletedPackage(updatedPackage);
+        }
+
+        saveAcceptedPackage(updatedPackage);
       }
       if (response.completed) {
         const key =
@@ -524,6 +700,7 @@ function bindRiderSheet() {
 
 Yogiyo.el('offerSortSelect').addEventListener('change', event => { offerSort = event.currentTarget.value; if (currentRider) renderRider(currentRider); });
 Yogiyo.el('packageDetailCloseButton').addEventListener('click', closePackageDetail);
+Yogiyo.el('riderMapActionButton').addEventListener('click', event => completeCurrentStop(event.currentTarget));
 Yogiyo.el('packageDetailBackdrop').addEventListener('click', closePackageDetail);
 bindRiderTabs();
 bindRiderSheet();

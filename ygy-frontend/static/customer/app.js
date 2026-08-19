@@ -390,6 +390,25 @@ function bindCustomerSheet() {
   );
 }
 
+// 임의 성절 시간
+// function etaBaseMinutes() {
+//   return 17 * 60 + 21;
+// }
+
+// 실제 시간 반영
+function etaBaseMinutes() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
+
+function formatArrivalEta(etaMin) {
+  const remainingMin = Math.max(0, Math.ceil(Number(etaMin)));
+  const arrivalTotalMin = (etaBaseMinutes() + remainingMin) % (24 * 60);
+  const hour = Math.floor(arrivalTotalMin / 60);
+  const minute = arrivalTotalMin % 60;
+
+  return `도착 예정 시간: ${String(hour).padStart(2, '0')}시 ${String(minute).padStart(2, '0')}분(${remainingMin}분 뒤)`;
+}
 
 function renderCustomer(order) {
   currentOrder = order;
@@ -400,19 +419,15 @@ function renderCustomer(order) {
   const assignmentConfirmed =
     hasConfirmedAssignment(order);
 
-  const etaLabel =
-    !assignmentConfirmed &&
-    ['NEW', 'COOKING'].includes(
-      order.status
-    )
-      ? order.status === 'NEW'
-        ? '매장 확인 대기 중'
-        : '라이더 수락 대기 중'
-      : order.eta_min == null
-        ? 'ETA 계산 중'
-        : `약 ${Math.ceil(
-            order.eta_min
-          )}분`;
+  const etaLabel = ['DELIVERED', 'COMPLETED'].includes(order.status)
+  ? '배달 완료'
+  : !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
+    ? order.status === 'NEW'
+      ? '매장 확인 대기 중'
+      : '라이더 수락 대기 중'
+    : order.eta_min == null
+      ? '도착 예정 시간 확인 중'
+      : formatArrivalEta(order.eta_min);
 
   const items =
     Array.isArray(order.menu_items)

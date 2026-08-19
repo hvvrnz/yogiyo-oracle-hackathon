@@ -46,6 +46,15 @@
           <span class="badge brand" id="packageState">패키지 조회 중</span>
           <strong id="currentPackageSummary">운행 정보를 확인하고 있어요.</strong>
           <span id="riderLocationCount">내 위치 조회 중</span>
+
+          <button
+            type="button"
+            class="rider-map-action-button"
+            id="riderMapActionButton"
+            hidden
+          >
+            픽업 완료
+          </button>
         </div>
 
         <section
@@ -113,8 +122,8 @@
                   class="offer-sort"
                   aria-label="배차 제안 정렬"
                 >
-                  <option value="score">매칭 점수순</option>
-                  <option value="revenue">예상 수익순</option>
+                  <option value="revenue-desc">예상 수익 높은순</option>
+                  <option value="revenue-asc">예상 수익 낮은순</option>
                 </select>
               </div>
             </div>
@@ -125,6 +134,23 @@
 
             <div id="riderOffers">
               <div class="card skeleton"></div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title-row">
+              <h2>완료한 배차</h2>
+              <span id="completedDispatchCount">0건</span>
+            </div>
+
+            <div id="riderCompletedHistory">
+              <div class="state-card empty">
+                <div class="state-icon">✓</div>
+                <div>
+                  <strong>완료한 배차가 없습니다.</strong>
+                  <p>배달을 완료하면 이곳에서 최근 배차를 확인할 수 있습니다.</p>
+                </div>
+              </div>
             </div>
           </section>
 

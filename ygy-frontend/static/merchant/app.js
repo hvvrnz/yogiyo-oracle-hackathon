@@ -13,7 +13,7 @@ const COOK_MIN_STEP = 5;
 
 const cookMinuteDrafts = new Map();
 
-const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
+const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', COOKED: '조리 완료', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
 const statusTone = status =>
   status === 'NEW'
     ? 'info'
@@ -78,41 +78,60 @@ function renderDetail(order, store, view={}) {
   return;
 }
 
-  const isNew = order.status === 'NEW';
-  const items = Array.isArray(order.menu_items)
-    ? order.menu_items
-    : [];
+    const isNew = order.status === 'NEW';
 
-  const cookMinutes =
-    cookMinuteDrafts.get(String(order.order_id)) ??
-    DEFAULT_COOK_MIN;
+    const canCompleteCooking =
+      ['COOKING', 'MATCHED'].includes(order.status);
 
-  const actionButtons = isNew
-  ? `
-    <div class="merchant-decision-actions">
-      <div class="cook-time-stepper">
-        <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
-        <input
-          type="number"
-          data-cook-minutes="${order.order_id}"
-          value="${cookMinutes}"
-          min="${MIN_COOK_MIN}"
-          max="${MAX_COOK_MIN}"
-          step="${COOK_MIN_STEP}"
-          readonly
-        />
-        <span>분</span>
-        <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
-      </div>
-      <button
-        class="primary-button"
-        type="button"
-        data-order-accept="${order.order_id}">
-        조리 시작
-      </button>
-    </div>
-  `
-  : '';
+    const items = Array.isArray(order.menu_items)
+      ? order.menu_items
+      : [];
+
+    const cookMinutes =
+      cookMinuteDrafts.get(String(order.order_id)) ??
+      DEFAULT_COOK_MIN;
+
+    const actionButtons = isNew
+      ? `
+        <div class="merchant-decision-actions">
+          <div class="cook-time-stepper">
+            <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
+
+            <input
+              type="number"
+              data-cook-minutes="${order.order_id}"
+              value="${cookMinutes}"
+              min="${MIN_COOK_MIN}"
+              max="${MAX_COOK_MIN}"
+              step="${COOK_MIN_STEP}"
+              readonly
+            />
+
+            <span>분</span>
+
+            <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
+          </div>
+
+          <button
+            class="primary-button"
+            type="button"
+            data-order-accept="${order.order_id}">
+            조리 시작
+          </button>
+        </div>
+      `
+      : canCompleteCooking
+        ? `
+          <div class="merchant-decision-actions">
+            <button
+              class="primary-button"
+              type="button"
+              data-order-cook-complete="${order.order_id}">
+              조리 완료
+            </button>
+          </div>
+        `
+        : '';
 
   root.innerHTML = `
     <div class="merchant-detail-head">
@@ -196,6 +215,15 @@ function renderDetail(order, store, view={}) {
         event.currentTarget
       );
     });
+
+    root
+  .querySelector('[data-order-cook-complete]')
+  ?.addEventListener('click', event => {
+    completeCooking(
+      Number(event.currentTarget.dataset.orderCookComplete),
+      event.currentTarget
+    );
+  });
 
   root
   .querySelector('[data-stepper-decrease]')
@@ -439,6 +467,8 @@ const minutes = Number(
   DEFAULT_COOK_MIN
 );
 
+
+
 if (
   !Number.isInteger(minutes) ||
   minutes < MIN_COOK_MIN ||
@@ -461,6 +491,29 @@ if (
       Yogiyo.toast(
         `주문 #${orderId}의 조리를 시작했습니다.`
       );
+
+      await loadMerchant();
+    } catch (error) {
+      Yogiyo.toast(error.message);
+    }
+  });
+}
+
+async function completeCooking(orderId, button) {
+  await Yogiyo.withPending(button, async () => {
+    try {
+      const result =
+        await Yogiyo.apiClient.demo.merchantCookComplete();
+
+      if (result.rerouted) {
+        Yogiyo.toast('경로가 재조정되었습니다.');
+      } else if (result.message) {
+        Yogiyo.toast(result.message);
+      } else {
+        Yogiyo.toast(
+          `주문 #${orderId}의 조리가 완료되었습니다.`
+        );
+      }
 
       await loadMerchant();
     } catch (error) {
