@@ -252,7 +252,7 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .order-card { border-left:4px solid var(--brand); }
 .order-card.ready { border-left-color:var(--good); }
 .order-card.delayed { border-left-color:var(--warn); }
-.offer-list { display:grid; gap:8px; max-height:340px; overflow-y:auto; padding-right:2px; }
+.offer-list { display:grid; gap:8px; padding-right:2px; }
 .offer-list-notice { margin:0 2px 8px; color:var(--muted); font-size:11px; line-height:1.5; }
 .offer-title-actions { display:flex; align-items:center; gap:7px; }
 .offer-sort { min-height:29px; border:1px solid #dedee7; border-radius:9px; padding:4px 7px; background:var(--surface); color:var(--ink); font-size:11px; }
