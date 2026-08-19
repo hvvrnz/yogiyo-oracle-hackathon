@@ -356,6 +356,16 @@ const visibleOffers = offers
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
   Yogiyo.el('packageState').textContent = activePackage ? packageStatus(activePackage.status) : visibleOffers.length ? `배차 제안 ${visibleOffers.length}건` : '진행 중인 배차 없음';
   Yogiyo.el('currentPackageSummary').textContent = nextStop?.type ? `${nextStop.type === 'pickup' ? '다음 픽업' : '다음 배달'} · ${nextStop.label}` : activePackage ? `패키지 #${activePackage.package_id} 운행 중` : '배차 탭에서 제안을 확인하세요.';
+  const mapActionButton = Yogiyo.el('riderMapActionButton');
+  if (nextStop?.type) {
+    mapActionButton.hidden = false;
+    mapActionButton.textContent =
+      nextStop.type === 'pickup'
+        ? '픽업 완료'
+        : '배달 완료';
+  } else {
+    mapActionButton.hidden = true;
+  }
   Yogiyo.el('riderLocationCount').textContent = profile.lat != null ? '내 위치 · 5초 갱신' : '내 위치 정보 없음';
   Yogiyo.renderMap('riderMap', riderMapData(profile, activePackage));
   Yogiyo.el('riderRunSummary').innerHTML = activePackage ? `<div><span>${Yogiyo.escape(packageStatus(activePackage.status))}</span><strong>패키지 #${Yogiyo.escape(activePackage.package_id)}</strong></div><strong>${Yogiyo.money(activePackage.package_revenue)}</strong>` : '<div><span>운행 대기</span><strong>배차 탭에서 새 제안을 확인하세요.</strong></div>';
@@ -544,6 +554,7 @@ function bindRiderSheet() {
 
 Yogiyo.el('offerSortSelect').addEventListener('change', event => { offerSort = event.currentTarget.value; if (currentRider) renderRider(currentRider); });
 Yogiyo.el('packageDetailCloseButton').addEventListener('click', closePackageDetail);
+Yogiyo.el('riderMapActionButton').addEventListener('click', event => completeCurrentStop(event.currentTarget));
 Yogiyo.el('packageDetailBackdrop').addEventListener('click', closePackageDetail);
 bindRiderTabs();
 bindRiderSheet();
