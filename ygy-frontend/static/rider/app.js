@@ -4,6 +4,9 @@ let stopRiderViewPolling;
 let offerSort = 'score';
 let visitedSteps = []; 
 
+let previousNextStopKey = null;
+let suppressNextStopChangeToast = false;
+
 const acceptedPackageKey = 'ygy-demo-accepted-package';
 
 function restoreAcceptedPackage() {
@@ -387,13 +390,30 @@ async function fetchRiderView() {
   let nextStop = null;
 
   if (profile.status === 'BUSY') {
-    nextStop =
-      await Yogiyo.apiClient.demo.riderNextStop()
-        .catch(() => null);
+  nextStop =
+    await Yogiyo.apiClient.demo.riderNextStop()
+      .catch(() => null);
+
+  const currentNextStopKey = stopKey(nextStop);
+
+  if (
+    previousNextStopKey &&
+    currentNextStopKey &&
+    previousNextStopKey !== currentNextStopKey
+  ) {
+    if (!suppressNextStopChangeToast) {
+      Yogiyo.toast('경로가 변경되었습니다.');
+    }
+  }
+
+    previousNextStopKey = currentNextStopKey;
+    suppressNextStopChangeToast = false;
   } else {
     // /api/demo/reset 이후 이전 시연의 프론트 상태 제거
-      visitedSteps = [];
-      saveAcceptedPackage(null);
+    visitedSteps = [];
+    previousNextStopKey = null;
+    suppressNextStopChangeToast = false;
+    saveAcceptedPackage(null);
   }
 
   acceptedPackage =
@@ -468,6 +488,9 @@ async function completeCurrentStop(button) {
     try {
       const response =
         await Yogiyo.apiClient.demo.riderArrive();
+      
+      suppressNextStopChangeToast = true;
+
       if (acceptedPackage) {
         saveAcceptedPackage({
           ...acceptedPackage,
