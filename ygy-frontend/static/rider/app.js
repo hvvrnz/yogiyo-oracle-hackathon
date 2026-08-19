@@ -1,8 +1,8 @@
 const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let currentRider;
 let stopRiderViewPolling;
-let offerSort = 'score';
 let visitedSteps = []; 
+let offerSort = 'revenue-desc';
 
 let previousNextStopKey = null;
 let suppressNextStopChangeToast = false;
@@ -236,10 +236,7 @@ function offerCard(pkg) {
   const text =
     String(pkg.rider_text || '').trim() ||
     '수익과 추천 방문 순서를 확인한 뒤 수락해 주세요.';
-  const score =
-    Number.isFinite(Number(pkg.score))
-      ? Number(pkg.score).toFixed(2)
-      : '-';
+
   return `
     <article class="offer-row">
       <div class="offer-header">
@@ -249,7 +246,6 @@ function offerCard(pkg) {
       <div class="offer-main">
         <span>
           ${Yogiyo.escape(pkg.bundle_size ?? '-')}건 묶음
-          · AI 경로 점수 ${Yogiyo.escape(score)}
         </span>
         <div class="offer-route-list">
           ${routeSummary(pkg)}
@@ -337,20 +333,15 @@ function renderRider(view) {
   currentRider = view;
   const { profile, offers = [], offersError, nextStop, packages = [] } = view;
   const activePackage = packages[0];
-const visibleOffers = offers
-  .slice()
-  .sort((left, right) => {
-    if (offerSort === 'revenue') {
-      return (
-        Number(right.package_revenue || 0) -
-        Number(left.package_revenue || 0)
-      );
-    }
+  const visibleOffers = offers
+    .slice()
+    .sort((left, right) => {
+      const leftRevenue = Number(left.package_revenue || 0);
+      const rightRevenue = Number(right.package_revenue || 0);
 
-    return (
-      Number(left.score ?? Infinity) -
-      Number(right.score ?? Infinity)
-    );
+      return offerSort === 'revenue-asc'
+        ? leftRevenue - rightRevenue
+        : rightRevenue - leftRevenue;
   });
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
