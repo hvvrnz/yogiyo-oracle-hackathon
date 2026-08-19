@@ -25,7 +25,6 @@ const statusTone = status =>
         : 'brand';
 const setConnection = online => { const node = Yogiyo.el('connection'); node.classList.toggle('online', online); node.classList.toggle('offline', !online); node.querySelector('span').textContent = online ? '영업중' : '연결 확인 필요'; };
 const menuSummary = items => (Array.isArray(items) ? items : []).map(item => `${item.menu}${item.qty > 1 ? ` ${item.qty}개` : ''}`).join(' · ') || '메뉴 정보 없음';
-const riderLocationLabel = rider => Number.isFinite(Number(rider?.lat)) && Number.isFinite(Number(rider?.lng)) ? `${Number(rider.lat).toFixed(5)}, ${Number(rider.lng).toFixed(5)}` : '위치 확인 중';
 
 async function getStore() {
   if (storeDirectory) return storeDirectory.find(store => String(store.store_id) === String(storeId));
@@ -213,7 +212,7 @@ function renderDetail(order, store, view={}) {
 
               <div class="row">
                 <span class="label">현재 위치</span>
-                <span class="value">${Yogiyo.escape(riderLocationLabel(assignedRider))}</span>
+                <span class="value" data-rider-location>주소 확인 중</span>
               </div>
 
               <div class="row">
@@ -251,6 +250,20 @@ function renderDetail(order, store, view={}) {
       }
     </div>
   `;
+
+  const riderLocationNode = root.querySelector('[data-rider-location]');
+
+  if (assignedRider && riderLocationNode) {
+    Promise.resolve(Yogiyo.reverseGeocode?.(assignedRider.lat, assignedRider.lng))
+      .then(address => {
+        if (!riderLocationNode.isConnected) return;
+        riderLocationNode.textContent = address || '주소를 확인할 수 없습니다.';
+      })
+      .catch(() => {
+        if (!riderLocationNode.isConnected) return;
+        riderLocationNode.textContent = '주소를 확인할 수 없습니다.';
+      });
+  }
 
   root
     .querySelector('[data-order-accept]')

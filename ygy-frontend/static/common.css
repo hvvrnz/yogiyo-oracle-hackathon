@@ -395,6 +395,7 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .rider-map-legend span { padding:5px 7px; border-radius:999px; background:rgba(255,255,255,.92); box-shadow:0 3px 10px rgba(25,30,35,.12); color:#4a4a55; font-size:10px; font-weight:750; }
 .rider-map-state { grid-template-columns:minmax(0,1fr) auto; column-gap:10px; }
 .rider-map-state #packageState { grid-column:1; grid-row:1; justify-self:start; }
+.rider-map-state #packageState.badge.brand::before { content:""; width:7px; height:7px; flex:0 0 7px; border-radius:50%; background:currentColor; }
 .rider-map-state #currentPackageSummary { grid-column:1; grid-row:2; min-width:0; }
 .rider-map-state #riderLocationCount { grid-column:1; grid-row:3; }
 .rider-map-action-button { grid-column:2; grid-row:1 / 4; align-self:center; min-width:82px; height:40px; border:0; border-radius:11px; padding:0 12px; background:var(--brand); color:#fff; font-size:12px; font-weight:850; cursor:pointer; white-space:nowrap; }
