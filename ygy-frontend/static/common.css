@@ -449,10 +449,10 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .merchant-order-item .badge { justify-self:start; }
 .merchant-empty-copy { margin:8px 3px; color:var(--muted); font-size:12px; }
 .merchant-order-detail { height:100%; display:flex; flex-direction:column; min-height:0; }
-.merchant-detail-head { display:flex; justify-content:space-between; gap:16px; align-items:start; padding:2px 3px 14px; }
+.merchant-detail-head { display:flex; justify-content:space-between; gap:16px; align-items:center; padding:2px 3px 14px; }
+.merchant-detail-head > strong { padding-top:0; font-size:20px; font-weight:800; white-space:nowrap; }
 .merchant-detail-head h2 { margin:7px 0 3px; font-size:21px; }
 .merchant-detail-head p { margin:0; color:var(--muted); font-size:12px; }
-.merchant-detail-head > strong { padding-top:9px; font-size:18px; white-space:nowrap; }
 .merchant-decision-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:0 0 12px; }
 .merchant-decision-actions button { min-width:104px; }
 .merchant-decision-actions > button { height:60px; min-height:60px; }
