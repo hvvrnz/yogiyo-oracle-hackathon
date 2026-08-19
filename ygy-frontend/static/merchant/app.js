@@ -467,6 +467,8 @@ const minutes = Number(
   DEFAULT_COOK_MIN
 );
 
+
+
 if (
   !Number.isInteger(minutes) ||
   minutes < MIN_COOK_MIN ||
@@ -489,6 +491,29 @@ if (
       Yogiyo.toast(
         `주문 #${orderId}의 조리를 시작했습니다.`
       );
+
+      await loadMerchant();
+    } catch (error) {
+      Yogiyo.toast(error.message);
+    }
+  });
+}
+
+async function completeCooking(orderId, button) {
+  await Yogiyo.withPending(button, async () => {
+    try {
+      const result =
+        await Yogiyo.apiClient.demo.merchantCookComplete();
+
+      if (result.rerouted) {
+        Yogiyo.toast('경로가 재조정되었습니다.');
+      } else if (result.message) {
+        Yogiyo.toast(result.message);
+      } else {
+        Yogiyo.toast(
+          `주문 #${orderId}의 조리가 완료되었습니다.`
+        );
+      }
 
       await loadMerchant();
     } catch (error) {
