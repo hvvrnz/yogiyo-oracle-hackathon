@@ -437,8 +437,13 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .merchant-top-tab b { font-size:inherit; }
 .merchant-load-state { position:absolute; z-index:30; top:126px; left:16px; right:16px; }
 .merchant-workspace { display:grid; grid-template-columns:minmax(280px,.82fr) minmax(0,1.55fr); gap:0; flex:1; min-height:0; background:#f7f7fa; }
-.merchant-order-panel { overflow-y:auto; padding:16px; background:#f2f2f6; border-right:1px solid var(--line); }
+.merchant-order-panel { min-height:0; overflow:hidden; padding:16px; background:#f2f2f6; border-right:1px solid var(--line); }
 .merchant-detail-panel { min-width:0; padding:18px; overflow:hidden; }
+#merchantProcessingList { height:100%; min-height:0; display:grid; grid-template-rows:minmax(0,1fr) minmax(0,1fr); gap:16px; }
+#merchantProcessingList .merchant-order-group { min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+#merchantProcessingList .merchant-order-group + .merchant-order-group { margin-top:0; }
+#newOrderList, #progressOrderList { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:4px; }
+#merchantCompletedList { height:100%; min-height:0; overflow-y:auto; padding-right:4px; }
 .merchant-order-group + .merchant-order-group { margin-top:22px; }
 .merchant-group-title { display:flex; align-items:center; justify-content:space-between; margin:0 3px 9px; }
 .merchant-group-title h2 { margin:0; font-size:15px; }
