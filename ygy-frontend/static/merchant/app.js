@@ -1,7 +1,17 @@
 const storeId = Yogiyo.qs('storeId', Yogiyo.defaultIds.merchant);
-let currentMerchant;
+
+let currentMerchant = { orders: [] };
+let currentCompleted = { orders: [] };
+let activeMerchantTab = 'processing';
 let selectedOrderId;
 let storeDirectory;
+
+const DEFAULT_COOK_MIN = 20;
+const MIN_COOK_MIN = 5;
+const MAX_COOK_MIN = 40;
+const COOK_MIN_STEP = 5;
+
+const cookMinuteDrafts = new Map();
 
 const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
 const statusTone = status =>
@@ -54,7 +64,10 @@ function renderDetail(order, store, view={}) {
             `
             : `
               <p>
-                새 주문이 들어오면 이곳에 표시됩니다.
+                ${Yogiyo.escape(
+                  view.empty_description ||
+                  '새 주문이 들어오면 이곳에 표시됩니다.'
+                )}
               </p>
             `
         }
@@ -70,12 +83,24 @@ function renderDetail(order, store, view={}) {
     ? order.menu_items
     : [];
 
+  const cookMinutes =
+    cookMinuteDrafts.get(String(order.order_id)) ??
+    DEFAULT_COOK_MIN;
+
   const actionButtons = isNew
   ? `
     <div class="merchant-decision-actions">
       <div class="cook-time-stepper">
         <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
-        <input type="number" data-cook-minutes="${order.order_id}" value="20" min="5" max="40" step="5" readonly />
+        <input
+          type="number"
+          data-cook-minutes="${order.order_id}"
+          value="${cookMinutes}"
+          min="${MIN_COOK_MIN}"
+          max="${MAX_COOK_MIN}"
+          step="${COOK_MIN_STEP}"
+          readonly
+        />
         <span>분</span>
         <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
       </div>
@@ -83,7 +108,7 @@ function renderDetail(order, store, view={}) {
         class="primary-button"
         type="button"
         data-order-accept="${order.order_id}">
-        수락하고 조리 시작
+        조리 시작
       </button>
     </div>
   `
@@ -137,7 +162,9 @@ function renderDetail(order, store, view={}) {
             ${
               order.owner_cook_min
                 ? `${order.owner_cook_min}분`
-                : '수락 후 입력'
+                : view.isCompletedTab
+                  ? '기록 없음'
+                  : '수락 후 입력'
             }
           </span>
         </div>
@@ -170,45 +197,96 @@ function renderDetail(order, store, view={}) {
       );
     });
 
-  root.querySelector('[data-stepper-decrease]')?.addEventListener('click', event => {
-    const orderId = event.currentTarget.dataset.stepperDecrease;
-    const input = root.querySelector(`[data-cook-minutes="${orderId}"]`);
+  root
+  .querySelector('[data-stepper-decrease]')
+  ?.addEventListener('click', event => {
+    const orderId =
+      event.currentTarget.dataset.stepperDecrease;
+
+    const input =
+      root.querySelector(
+        `[data-cook-minutes="${orderId}"]`
+      );
+
+    if (!input) return;
+
     const current = Number(input.value);
-    if (current > 5) input.value = current - 5;
+    const next = Math.max(
+      MIN_COOK_MIN,
+      current - COOK_MIN_STEP
+    );
+
+    input.value = next;
+    cookMinuteDrafts.set(String(orderId), next);
   });
 
-  root.querySelector('[data-stepper-increase]')?.addEventListener('click', event => {
-    const orderId = event.currentTarget.dataset.stepperIncrease;
-    const input = root.querySelector(`[data-cook-minutes="${orderId}"]`);
+  root
+  .querySelector('[data-stepper-increase]')
+  ?.addEventListener('click', event => {
+    const orderId =
+      event.currentTarget.dataset.stepperIncrease;
+
+    const input =
+      root.querySelector(
+        `[data-cook-minutes="${orderId}"]`
+      );
+
+    if (!input) return;
+
     const current = Number(input.value);
-    if (current < 40) input.value = current + 5;
+    const next = Math.min(
+      MAX_COOK_MIN,
+      current + COOK_MIN_STEP
+    );
+
+    input.value = next;
+    cookMinuteDrafts.set(String(orderId), next);
   });
+  
 
 }
 
-function renderMerchant(view, store) {
-  currentMerchant = view;
+function renderMerchant(processingView, completedView, store) {
+  currentMerchant = processingView || { orders: [] };
+  currentCompleted = completedView || { orders: [] };
 
-  const orders = Array.isArray(view.orders)
-    ? view.orders
+  const rawProcessingOrders = Array.isArray(currentMerchant.orders)
+    ? currentMerchant.orders
     : [];
 
-  const newOrders = orders.filter(
+  const completedOrders = Array.isArray(currentCompleted.orders)
+    ? currentCompleted.orders
+    : [];
+
+  const completedOrderIds = new Set(
+    completedOrders.map(order => String(order.order_id))
+  );
+
+  const processingOrders = rawProcessingOrders.filter(
+    order => !completedOrderIds.has(String(order.order_id))
+  );
+
+  const activeOrders =
+    activeMerchantTab === 'completed'
+      ? completedOrders
+      : processingOrders;
+
+  const newOrders = processingOrders.filter(
     order => order.status === 'NEW'
   );
 
-  const progressOrders = orders.filter(
+  const progressOrders = processingOrders.filter(
     order => order.status !== 'NEW'
   );
 
   if (
-    !orders.some(
+    !activeOrders.some(
       order =>
         String(order.order_id) ===
         String(selectedOrderId)
     )
   ) {
-    selectedOrderId = orders[0]?.order_id;
+    selectedOrderId = activeOrders[0]?.order_id;
   }
 
   Yogiyo.el('merchantStoreName').textContent =
@@ -219,23 +297,61 @@ function renderMerchant(view, store) {
       .filter(Boolean)
       .join(' · ') || '주문 처리 현황';
 
+  // 상단 탭 건수
   Yogiyo.el('processingCount').textContent =
-    orders.length;
+    processingOrders.length;
 
+  Yogiyo.el('completedCount').textContent =
+    completedOrders.length;
+
+  // 처리중 탭 내부 건수
   Yogiyo.el('newOrderCount').textContent =
     `${newOrders.length}건`;
 
   Yogiyo.el('progressOrderCount').textContent =
     `${progressOrders.length}건`;
 
+  // 처리완료 탭 내부 건수
+  Yogiyo.el('completedOrderCount').textContent =
+    `${completedOrders.length}건`;
+
+  // 신규 주문
   Yogiyo.el('newOrderList').innerHTML =
     newOrders.map(orderListCard).join('') ||
     '<p class="merchant-empty-copy">신규 주문이 없습니다.</p>';
 
+  // 진행 중 주문
   Yogiyo.el('progressOrderList').innerHTML =
     progressOrders.map(orderListCard).join('') ||
     '<p class="merchant-empty-copy">진행 중인 주문이 없습니다.</p>';
 
+  // 처리 완료 주문
+  Yogiyo.el('completedOrderList').innerHTML =
+    completedOrders.map(orderListCard).join('') ||
+    '<p class="merchant-empty-copy">처리 완료된 주문이 없습니다.</p>';
+
+  // 현재 선택된 탭에 맞는 목록만 표시
+  Yogiyo.el('merchantProcessingList').hidden =
+    activeMerchantTab !== 'processing';
+
+  Yogiyo.el('merchantCompletedList').hidden =
+    activeMerchantTab !== 'completed';
+
+  // 상단 탭 active 상태 갱신
+  document
+    .querySelectorAll('[data-merchant-tab]')
+    .forEach(button => {
+      const active =
+        button.dataset.merchantTab === activeMerchantTab;
+
+      button.classList.toggle('active', active);
+      button.setAttribute(
+        'aria-selected',
+        String(active)
+      );
+    });
+
+  // 주문 선택
   document
     .querySelectorAll('[data-order-select]')
     .forEach(button => {
@@ -243,43 +359,109 @@ function renderMerchant(view, store) {
         selectedOrderId =
           Number(button.dataset.orderSelect);
 
-        renderMerchant(currentMerchant, store);
+        renderMerchant(
+          currentMerchant,
+          currentCompleted,
+          store
+        );
       });
     });
 
-  const selectedOrder = orders.find(
+  const selectedOrder = activeOrders.find(
     order =>
       String(order.order_id) ===
       String(selectedOrderId)
   );
 
+  const detailView =
+    activeMerchantTab === 'completed'
+      ? {
+          ...currentCompleted,
+          isCompletedTab: true,
+          message: '처리 완료된 주문이 없습니다.',
+          empty_description:
+            '라이더가 픽업한 주문이 이곳에 표시됩니다.',
+        }
+      : {
+          ...currentMerchant,
+          message:
+            processingOrders.length === 0
+              ? '현재 처리중인 주문이 없습니다.'
+              : currentMerchant.message,
+          empty_description:
+            '새 주문이 들어오면 이곳에 표시됩니다.',
+        };
+
   renderDetail(
     selectedOrder,
     store,
-    view
+    detailView
   );
 
   Yogiyo.clearLoadState('merchantLoadState');
 }
 
 async function loadMerchant() {
-  try { const [view, store] = await Promise.all([Yogiyo.apiClient.demo.merchantOrders(), getStore()]); renderMerchant(view, store); setConnection(true); }
-  catch (error) { showFailure(error); Yogiyo.toast(error.message); }
+  try {
+    const [
+      processingView,
+      completedView,
+      store
+    ] = await Promise.all([
+      Yogiyo.apiClient.demo.merchantOrders(),
+      Yogiyo.apiClient.demo.merchantCompleted(),
+      getStore(),
+    ]);
+
+    renderMerchant(
+      processingView,
+      completedView,
+      store
+    );
+
+    setConnection(true);
+  } catch (error) {
+    showFailure(error);
+    Yogiyo.toast(error.message);
+  }
 }
 
 async function acceptOrder(orderId, button) {
-  const stepperInput = document.querySelector(`[data-cook-minutes="${orderId}"]`);
-  const minutes = Number(stepperInput?.value || 20);
-  if (!Number.isInteger(minutes) || minutes < 5 || minutes > 40) {
-    Yogiyo.toast('조리시간은 5분에서 40분 사이여야 합니다.');
-    return;
-  }
+  
+  const stepperInput =
+  document.querySelector(
+    `[data-cook-minutes="${orderId}"]`
+  );
+
+const minutes = Number(
+  stepperInput?.value ??
+  cookMinuteDrafts.get(String(orderId)) ??
+  DEFAULT_COOK_MIN
+);
+
+if (
+  !Number.isInteger(minutes) ||
+  minutes < MIN_COOK_MIN ||
+  minutes > MAX_COOK_MIN ||
+  minutes % COOK_MIN_STEP !== 0
+) {
+  Yogiyo.toast(
+    '조리시간은 5분 단위로 5분에서 40분 사이에서 선택해 주세요.'
+  );
+  return;
+}
+
+
   await Yogiyo.withPending(button, async () => {
     try {
       await Yogiyo.apiClient.demo.merchantCookStart(minutes);
+
+      cookMinuteDrafts.delete(String(orderId));
+
       Yogiyo.toast(
-        `주문 #${orderId}을 수락하고 조리를 시작했습니다.`
+        `주문 #${orderId}의 조리를 시작했습니다.`
       );
+
       await loadMerchant();
     } catch (error) {
       Yogiyo.toast(error.message);
@@ -287,4 +469,62 @@ async function acceptOrder(orderId, button) {
   });
 }
 
-Yogiyo.poll(() => Yogiyo.apiClient.demo.merchantOrders(), async view => { renderMerchant(view, await getStore()); setConnection(true); }, { intervalMs: 5000, onError: showFailure });
+document
+  .querySelectorAll('[data-merchant-tab]')
+  .forEach(button => {
+    button.addEventListener('click', async () => {
+      const nextTab =
+        button.dataset.merchantTab;
+
+      if (
+        !['processing', 'completed'].includes(nextTab) ||
+        nextTab === activeMerchantTab
+      ) {
+        return;
+      }
+
+      activeMerchantTab = nextTab;
+      selectedOrderId = undefined;
+
+      renderMerchant(
+        currentMerchant,
+        currentCompleted,
+        await getStore()
+      );
+    });
+  });
+
+Yogiyo.poll(
+  async () => {
+    const [
+      processingView,
+      completedView
+    ] = await Promise.all([
+      Yogiyo.apiClient.demo.merchantOrders(),
+      Yogiyo.apiClient.demo.merchantCompleted(),
+    ]);
+
+    return {
+      processingView,
+      completedView
+    };
+  },
+
+  async ({
+    processingView,
+    completedView
+  }) => {
+    renderMerchant(
+      processingView,
+      completedView,
+      await getStore()
+    );
+
+    setConnection(true);
+  },
+
+  {
+    intervalMs: 5000,
+    onError: showFailure
+  }
+);
