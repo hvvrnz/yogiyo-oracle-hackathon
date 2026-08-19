@@ -352,9 +352,6 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .customer-map-canvas .map-pin.store span { font-size:11px; font-weight:900; }
 .customer-map-legend { position:absolute; top:14px; left:14px; right:14px; z-index:8; display:flex; flex-wrap:wrap; gap:5px; }
 .customer-map-legend span { padding:5px 7px; border-radius:999px; background:rgba(255,255,255,.92); box-shadow:0 3px 10px rgba(25,30,35,.12); color:#4a4a55; font-size:10px; font-weight:750; }
-.customer-map-state { position:absolute; z-index:8; top:14px; left:14px; right:14px; display:grid; gap:5px; padding:11px 12px; border-radius:16px; background:rgba(255,255,255,.94); box-shadow:0 6px 18px rgba(25,30,35,.12); }
-.customer-map-state strong { font-size:17px; letter-spacing:-.4px; }
-.customer-map-state > span:last-child { color:var(--muted); font-size:11px; }
 .customer-load-state { position:absolute; z-index:30; top:82px; left:16px; right:16px; }
 .customer-bottom-panel { position:absolute; z-index:25; left:0; right:0; bottom:76px; max-height:calc(100% - 138px); padding:10px 16px 14px; border-radius:25px 25px 0 0; background:rgba(250,250,252,.98); box-shadow:0 -12px 32px rgba(20,20,30,.15); transform:translateY(calc(100% - 112px)); transition:transform .25s ease; touch-action:none; }
 .customer-bottom-panel.expanded { transform:translateY(0); }
@@ -385,14 +382,15 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .rider-map-canvas .map-pin.store span { font-size:11px; font-weight:900; }
 .rider-map-legend { position:absolute; z-index:8; top:14px; left:14px; right:14px; display:flex; gap:5px; flex-wrap:wrap; }
 .rider-map-legend span { padding:5px 7px; border-radius:999px; background:rgba(255,255,255,.92); box-shadow:0 3px 10px rgba(25,30,35,.12); color:#4a4a55; font-size:10px; font-weight:750; }
-.rider-map-state { position:absolute; z-index:8; top:14px; left:14px; right:14px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 10px; padding:11px 12px; border-radius:16px; background:rgba(255,255,255,.94); box-shadow:0 6px 18px rgba(25,30,35,.12); }
-.rider-map-state #packageState { grid-column:1; }
-.rider-map-state #currentPackageSummary { grid-column:1; }
-.rider-map-state #riderLocationCount { grid-column:1; }
-.rider-map-action-button { grid-column:2; grid-row:1 / span 3; align-self:center; min-width:82px; min-height:40px; border:0; border-radius:11px; padding:0 12px; background:var(--brand); color:#fff; font-size:12px; font-weight:850; cursor:pointer; }
-.rider-map-state strong { font-size:17px; letter-spacing:-.4px; }
-.rider-map-state > span:last-child { color:var(--muted); font-size:11px; }
+.rider-map-state { grid-template-columns:minmax(0,1fr) auto; column-gap:10px; }
+.rider-map-state #packageState { grid-column:1; grid-row:1; justify-self:start; }
+.rider-map-state #currentPackageSummary { grid-column:1; grid-row:2; min-width:0; }
+.rider-map-state #riderLocationCount { grid-column:1; grid-row:3; }
+.rider-map-action-button { grid-column:2; grid-row:1 / 4; align-self:center; min-width:82px; height:40px; border:0; border-radius:11px; padding:0 12px; background:var(--brand); color:#fff; font-size:12px; font-weight:850; cursor:pointer; white-space:nowrap; }
 .rider-load-state { position:absolute; z-index:30; top:82px; left:16px; right:16px; }
+.customer-map-state, .rider-map-state { position:absolute; z-index:8; top:14px; left:14px; right:14px; height:92px; box-sizing:border-box; display:grid; align-content:center; gap:5px; padding:11px 12px; border-radius:16px; background:rgba(255,255,255,.94); box-shadow:0 6px 18px rgba(25,30,35,.12); }
+.customer-map-state strong, .rider-map-state strong { font-size:17px; line-height:1.25; letter-spacing:-.4px; }
+.customer-map-state > span:last-child, .rider-map-state #riderLocationCount { color:var(--muted); font-size:11px; }
 .rider-bottom-panel { position:absolute; z-index:25; left:0; right:0; bottom:76px; max-height:calc(100% - 138px); padding:10px 16px 14px; border-radius:25px 25px 0 0; background:rgba(250,250,252,.98); box-shadow:0 -12px 32px rgba(20,20,30,.15); transform:translateY(calc(100% - 112px)); transition:transform .25s ease; touch-action:none; }
 .rider-bottom-panel.expanded { transform:translateY(0); }
 .rider-sheet-handle { display:grid; justify-items:center; gap:6px; width:100%; padding:0 0 9px; border:0; background:transparent; color:var(--muted); font-size:11px; cursor:grab; touch-action:none; }
