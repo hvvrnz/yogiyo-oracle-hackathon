@@ -664,6 +664,11 @@ async function completeCurrentStop(button) {
           ];
         }
       }
+
+      if (currentRider?.profile && currentRider?.packages?.[0]) {
+        Yogiyo.renderMap('riderMap', riderMapData(currentRider.profile, currentRider.packages[0]));
+      }
+
       Yogiyo.toast(
         `${response.completed?.label || '현재 작업'} ${
           response.completed?.type === 'pickup'

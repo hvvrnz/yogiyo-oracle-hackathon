@@ -161,63 +161,29 @@
   };
 
 
-  const fitMapOnce = (
-    state,
-    data
-  ) => {
-    const signature =
-      routeSignature(
-        data.route
-      );
+const fitMapOnce = (state, data) => {
+  const routeStopMarkers = data.markers.filter(item => ['pickup', 'dropoff', 'delivery'].includes(String(item.meta?.type || '').toLowerCase()));
+  const points = data.route.length ? data.route : routeStopMarkers.length ? routeStopMarkers : data.markers;
 
-    if (
-      state.hasFitted &&
-      state.routeSignature ===
-        signature
-    ) {
-      return;
-    }
+  if (!points.length) return;
+  if (state.layer.clientWidth <= 0 || state.layer.clientHeight <= 0) return;
 
-    const points = [
-      ...data.route,
-      ...data.markers,
-    ];
+  const signature = routeSignature(points);
 
-    if (!points.length) {
-      return;
-    }
+  if (state.hasFitted && state.routeSignature === signature) return;
 
-    if (points.length === 1) {
-      state.map.setCenter(
-        positionOf(points[0])
-      );
+  if (points.length === 1) {
+    state.map.setCenter(positionOf(points[0]));
+    state.map.setLevel(4);
+  } else {
+    const bounds = new window.kakao.maps.LatLngBounds();
+    points.forEach(point => bounds.extend(positionOf(point)));
+    state.map.setBounds(bounds, 120, 36, 130, 36);
+  }
 
-      state.map.setLevel(4);
-    } else {
-      const bounds =
-        new window.kakao.maps
-          .LatLngBounds();
-
-      points.forEach(
-        point =>
-          bounds.extend(
-            positionOf(point)
-          )
-      );
-
-      state.map.setBounds(
-        bounds,
-        32,
-        32,
-        32,
-        32
-      );
-    }
-
-    state.hasFitted = true;
-    state.routeSignature =
-      signature;
-  };
+  state.hasFitted = true;
+  state.routeSignature = signature;
+};
 
 
   const ensureState = (
@@ -391,25 +357,37 @@
 
         const content = document.createElement('div');
 
-        if (kind === 'store') {
-          // 매장(픽업지) - 주황색 원 + 매장 아이콘
-          content.innerHTML = '🏪';
-          content.style.cssText = `
-            width: 32px; height: 32px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            background: #ff9800; font-size: 18px;
-            border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          `;
-        } else if (kind === 'delivery') {
-          // 배달지(고객 위치) - 파란색 원 + 집 아이콘
-          content.innerHTML = '🏠';
-          content.style.cssText = `
-            width: 32px; height: 32px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            background: #2196f3; font-size: 18px;
-            border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          `;
-        } else {
+        const isRouteStop = Boolean(item.meta?.type);
+
+    if (isRouteStop && (kind === 'store' || kind === 'delivery')) {
+      const activeColor = kind === 'store' ? '#ff9800' : '#2196f3';
+
+      content.textContent = sequence != null ? String(sequence) : '';
+      content.style.cssText = `
+        width:32px; height:32px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        background:${visited ? '#999999' : activeColor};
+        color:white; font-size:14px; font-weight:800;
+        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else if (kind === 'store') {
+      content.innerHTML = '🏪';
+      content.style.cssText = `
+        width:32px; height:32px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        background:#ff9800; font-size:18px;
+        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else if (kind === 'delivery') {
+      content.innerHTML = '🏠';
+      content.style.cssText = `
+        width:32px; height:32px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        background:#2196f3; font-size:18px;
+        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else {
+
           // 그 외(라이더 배차 경로 등) - 기존 순서 숫자 원
           content.textContent = sequence != null ? String(sequence) : '';
           content.style.cssText = `

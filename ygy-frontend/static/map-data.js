@@ -764,7 +764,7 @@
                 'rider'
                 ? 'rider'
                 : ''
-          } ${riderRole}`;
+          } ${riderRole} ${item.meta?.visited ? 'visited' : ''}`;
 
         pin.style.left =
           `${position.x}%`;
