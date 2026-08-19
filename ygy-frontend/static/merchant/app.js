@@ -5,6 +5,8 @@ let currentCompleted = { orders: [] };
 let activeMerchantTab = 'processing';
 let selectedOrderId;
 let storeDirectory;
+let currentRiderProfile = null;
+let currentRiderPackages = [];
 
 const DEFAULT_COOK_MIN = 20;
 const MIN_COOK_MIN = 5;
@@ -24,6 +26,8 @@ const statusTone = status =>
         : 'brand';
 const setConnection = online => { const node = Yogiyo.el('connection'); node.classList.toggle('online', online); node.classList.toggle('offline', !online); node.querySelector('span').textContent = online ? '영업중' : '연결 확인 필요'; };
 const menuSummary = items => (Array.isArray(items) ? items : []).map(item => `${item.menu}${item.qty > 1 ? ` ${item.qty}개` : ''}`).join(' · ') || '메뉴 정보 없음';
+const assignedPackageForOrder = orderId => currentRiderPackages.find(pkg => (pkg.order_ids || []).some(id => String(id) === String(orderId)));
+const riderLocationLabel = rider => Number.isFinite(Number(rider?.lat)) && Number.isFinite(Number(rider?.lng)) ? `${Number(rider.lat).toFixed(5)}, ${Number(rider.lng).toFixed(5)}` : '위치 확인 중';
 
 async function getStore() {
   if (storeDirectory) return storeDirectory.find(store => String(store.store_id) === String(storeId));
@@ -86,6 +90,8 @@ function renderDetail(order, store, view={}) {
     const items = Array.isArray(order.menu_items)
       ? order.menu_items
       : [];
+    const assignedPackage = assignedPackageForOrder(order.order_id);
+    const assignedRider = assignedPackage ? currentRiderProfile : null; 
 
     const cookMinutes =
       cookMinuteDrafts.get(String(order.order_id)) ??
@@ -187,6 +193,47 @@ function renderDetail(order, store, view={}) {
             }
           </span>
         </div>
+      </section>
+
+      <section class="card merchant-rider-card">
+        <div class="section-title-row">
+          <h2>라이더 정보</h2>
+        </div>
+
+        ${
+          assignedRider
+            ? `
+              <div class="row">
+                <span class="label">라이더 ID</span>
+                <span class="value">${Yogiyo.escape(assignedRider.rider_id || '-')}</span>
+              </div>
+
+              <div class="row">
+                <span class="label">라이더 이름</span>
+                <span class="value">${Yogiyo.escape(assignedRider.name || '-')}</span>
+              </div>
+
+              <div class="row">
+                <span class="label">현재 위치</span>
+                <span class="value">${Yogiyo.escape(riderLocationLabel(assignedRider))}</span>
+              </div>
+
+              <div class="row">
+                <span class="label">활동 지역</span>
+                <span class="value">${Yogiyo.escape(assignedRider.region || '-')}</span>
+              </div>
+
+              <div class="row">
+                <span class="label">현재 상태</span>
+                <span class="value">${Yogiyo.escape(assignedRider.status || '-')}</span>
+              </div>
+            `
+            : `
+              <p class="merchant-rider-empty">
+                배차 지정된 라이더가 없습니다.
+              </p>
+            `
+        }
       </section>
 
       ${
@@ -431,15 +478,16 @@ function renderMerchant(processingView, completedView, store) {
 
 async function loadMerchant() {
   try {
-    const [
-      processingView,
-      completedView,
-      store
-    ] = await Promise.all([
+    const [processingView, completedView, store, riderProfile, riderPackagesView] = await Promise.all([
       Yogiyo.apiClient.demo.merchantOrders(),
       Yogiyo.apiClient.demo.merchantCompleted(),
       getStore(),
+      Yogiyo.apiClient.demo.riderProfile(),
+      Yogiyo.apiClient.demo.riderPackages(),
     ]);
+
+    currentRiderProfile = riderProfile;
+    currentRiderPackages = Array.isArray(riderPackagesView.packages) ? riderPackagesView.packages : [];
 
     renderMerchant(
       processingView,
@@ -549,24 +597,19 @@ document
 
 Yogiyo.poll(
   async () => {
-    const [
-      processingView,
-      completedView
-    ] = await Promise.all([
+    const [processingView, completedView, riderProfile, riderPackagesView] = await Promise.all([
       Yogiyo.apiClient.demo.merchantOrders(),
       Yogiyo.apiClient.demo.merchantCompleted(),
+      Yogiyo.apiClient.demo.riderProfile(),
+      Yogiyo.apiClient.demo.riderPackages(),
     ]);
 
-    return {
-      processingView,
-      completedView
-    };
+    return { processingView, completedView, riderProfile, riderPackagesView };
   },
 
-  async ({
-    processingView,
-    completedView
-  }) => {
+  async ({ processingView, completedView, riderProfile, riderPackagesView }) => {
+  currentRiderProfile = riderProfile;
+  currentRiderPackages = Array.isArray(riderPackagesView.packages) ? riderPackagesView.packages : [];
     renderMerchant(
       processingView,
       completedView,
