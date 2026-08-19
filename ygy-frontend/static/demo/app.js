@@ -279,6 +279,9 @@ const loadDemoPanels = async () => {
      */
     await Yogiyo.apiClient.demo.reset();
 
+    sessionStorage.removeItem('ygy-demo-completed-packages');
+    sessionStorage.removeItem('ygy-demo-accepted-package');
+
     if (requestId !== demoSelectionRequestId) {
       return;
     }
