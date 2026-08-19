@@ -244,15 +244,12 @@ function offerCard(pkg) {
     <article class="offer-row">
       <div class="offer-header">
         <strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong>
-        <span class="offer-revenue-highlight">시간당 ${Yogiyo.money(pkg.hourly_revenue)}</span>
+        <span class="offer-revenue-highlight">예상 수익 ${Yogiyo.money(pkg.package_revenue)}</span>
       </div>
       <div class="offer-main">
         <span>
           ${Yogiyo.escape(pkg.bundle_size ?? '-')}건 묶음
           · AI 경로 점수 ${Yogiyo.escape(score)}
-        </span>
-        <span>
-          예상 수익 ${Yogiyo.money(pkg.package_revenue)}
         </span>
         <div class="offer-route-list">
           ${routeSummary(pkg)}
