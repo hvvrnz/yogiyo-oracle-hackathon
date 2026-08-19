@@ -229,7 +229,7 @@ function runDetail(pkg, nextStop) {
 
 function runStatusCard(pkg) {
   if (!pkg) return '<div class="run-status-card empty"><strong>현재 운행 중인 패키지가 없습니다.</strong><span>배차 제안을 수락하면 운행 정보가 표시됩니다.</span></div>';
-  return `<div class="run-status-card"><div><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><div>${routeSummary(pkg)}</div><small>예상 수익 ${Yogiyo.money(pkg.package_revenue)}</small></div>`;
+  return `<div class="run-status-card"><div><strong>패키지 #${Yogiyo.escape(pkg.package_id)}</strong><span class="badge brand">${Yogiyo.escape(packageStatus(pkg.status))}</span></div><div class="run-route-list">${routeSummary(pkg)}</div><small>예상 수익 ${Yogiyo.money(pkg.package_revenue)}</small></div>`;
 }
 
 function offerCard(pkg) {
