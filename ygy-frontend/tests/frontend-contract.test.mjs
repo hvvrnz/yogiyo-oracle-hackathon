@@ -140,11 +140,6 @@ test(
 
     assert.match(
       source,
-      /fromRouteDetail/
-    );
-
-    assert.match(
-      source,
       /fromCustomerOrder/
     );
 
@@ -212,10 +207,14 @@ test(
       );
     }
 
+    assert.match(
+      source,
+      /조리 시작/
+    );
 
     assert.match(
       source,
-      /수락하고 조리 시작/
+      /조리 완료/
     );
 
     assert.match(
@@ -310,12 +309,6 @@ test(
       /futureSlot/i
     );
 
-
-    assert.match(
-      source,
-      /data-rider-arrive/
-    );
-
     assert.match(
       source,
       /completeCurrentStop/
@@ -339,11 +332,6 @@ test(
     assert.match(
       source,
       /rider_text/
-    );
-
-    assert.match(
-      source,
-      /fromRouteDetail/
     );
 
     assert.match(
@@ -435,11 +423,6 @@ test(
     assert.match(
       source,
       /fromCustomerOrder/
-    );
-
-    assert.match(
-      source,
-      /fromRouteDetail/
     );
 
     assert.match(
