@@ -239,7 +239,7 @@ function renderDetail(order, store, view={}) {
       ${
         order.merchant_text
           ? `
-            <section class="notice llm-guidance">
+            <section class="notice llm-guidance merchant-ai-guidance">
               <span>✦</span>
               <div>
                 <strong>AI 조리 안내</strong>
