@@ -78,41 +78,60 @@ function renderDetail(order, store, view={}) {
   return;
 }
 
-  const isNew = order.status === 'NEW';
-  const items = Array.isArray(order.menu_items)
-    ? order.menu_items
-    : [];
+    const isNew = order.status === 'NEW';
 
-  const cookMinutes =
-    cookMinuteDrafts.get(String(order.order_id)) ??
-    DEFAULT_COOK_MIN;
+    const canCompleteCooking =
+      ['COOKING', 'MATCHED'].includes(order.status);
 
-  const actionButtons = isNew
-  ? `
-    <div class="merchant-decision-actions">
-      <div class="cook-time-stepper">
-        <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
-        <input
-          type="number"
-          data-cook-minutes="${order.order_id}"
-          value="${cookMinutes}"
-          min="${MIN_COOK_MIN}"
-          max="${MAX_COOK_MIN}"
-          step="${COOK_MIN_STEP}"
-          readonly
-        />
-        <span>분</span>
-        <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
-      </div>
-      <button
-        class="primary-button"
-        type="button"
-        data-order-accept="${order.order_id}">
-        조리 시작
-      </button>
-    </div>
-  `
-  : '';
+    const items = Array.isArray(order.menu_items)
+      ? order.menu_items
+      : [];
+
+    const cookMinutes =
+      cookMinuteDrafts.get(String(order.order_id)) ??
+      DEFAULT_COOK_MIN;
+
+    const actionButtons = isNew
+      ? `
+        <div class="merchant-decision-actions">
+          <div class="cook-time-stepper">
+            <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
+
+            <input
+              type="number"
+              data-cook-minutes="${order.order_id}"
+              value="${cookMinutes}"
+              min="${MIN_COOK_MIN}"
+              max="${MAX_COOK_MIN}"
+              step="${COOK_MIN_STEP}"
+              readonly
+            />
+
+            <span>분</span>
+
+            <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
+          </div>
+
+          <button
+            class="primary-button"
+            type="button"
+            data-order-accept="${order.order_id}">
+            조리 시작
+          </button>
+        </div>
+      `
+      : canCompleteCooking
+        ? `
+          <div class="merchant-decision-actions">
+            <button
+              class="primary-button"
+              type="button"
+              data-order-cook-complete="${order.order_id}">
+              조리 완료
+            </button>
+          </div>
+        `
+        : '';
 
   root.innerHTML = `
     <div class="merchant-detail-head">
@@ -196,6 +215,15 @@ function renderDetail(order, store, view={}) {
         event.currentTarget
       );
     });
+
+    root
+  .querySelector('[data-order-cook-complete]')
+  ?.addEventListener('click', event => {
+    completeCooking(
+      Number(event.currentTarget.dataset.orderCookComplete),
+      event.currentTarget
+    );
+  });
 
   root
   .querySelector('[data-stepper-decrease]')
