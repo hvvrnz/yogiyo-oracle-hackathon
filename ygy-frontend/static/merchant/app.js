@@ -13,7 +13,7 @@ const COOK_MIN_STEP = 5;
 
 const cookMinuteDrafts = new Map();
 
-const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
+const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', COOKED: '조리 완료', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
 const statusTone = status =>
   status === 'NEW'
     ? 'info'
