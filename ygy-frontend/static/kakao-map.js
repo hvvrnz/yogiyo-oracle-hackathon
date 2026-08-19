@@ -391,25 +391,37 @@
 
         const content = document.createElement('div');
 
-        if (kind === 'store') {
-          // 매장(픽업지) - 주황색 원 + 매장 아이콘
-          content.innerHTML = '🏪';
-          content.style.cssText = `
-            width: 32px; height: 32px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            background: #ff9800; font-size: 18px;
-            border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          `;
-        } else if (kind === 'delivery') {
-          // 배달지(고객 위치) - 파란색 원 + 집 아이콘
-          content.innerHTML = '🏠';
-          content.style.cssText = `
-            width: 32px; height: 32px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            background: #2196f3; font-size: 18px;
-            border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          `;
-        } else {
+        const isRouteStop = Boolean(item.meta?.type);
+
+    if (isRouteStop && (kind === 'store' || kind === 'delivery')) {
+      const activeColor = kind === 'store' ? '#ff9800' : '#2196f3';
+
+      content.textContent = sequence != null ? String(sequence) : '';
+      content.style.cssText = `
+        width:32px; height:32px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        background:${visited ? '#999999' : activeColor};
+        color:white; font-size:14px; font-weight:800;
+        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else if (kind === 'store') {
+      content.innerHTML = '🏪';
+      content.style.cssText = `
+        width:32px; height:32px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        background:#ff9800; font-size:18px;
+        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else if (kind === 'delivery') {
+      content.innerHTML = '🏠';
+      content.style.cssText = `
+        width:32px; height:32px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        background:#2196f3; font-size:18px;
+        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else {
+
           // 그 외(라이더 배차 경로 등) - 기존 순서 숫자 원
           content.textContent = sequence != null ? String(sequence) : '';
           content.style.cssText = `
