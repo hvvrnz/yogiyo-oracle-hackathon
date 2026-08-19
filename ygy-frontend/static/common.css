@@ -20,6 +20,7 @@
   --radius: 22px;
 }
 
+
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 html { scrollbar-color: var(--brand) #f0f0f3; }
@@ -561,4 +562,23 @@ html.embedded .merchant-shell {
   font-weight:600;
   color:#555;
   margin-right:4px;
+}
+
+.explanation-copy,
+.llm-guidance,
+#landingDescription,
+#landingFoot,
+.notice,
+.merchant-text,
+.rider-text,
+.consumer-text,
+[class*="text"] {
+  white-space: pre-line;
+}
+
+.tagline {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 4px 0 14px;
+  opacity: .95;
 }
