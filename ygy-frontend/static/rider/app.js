@@ -258,6 +258,22 @@ const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
 ).join('') || '방문 순서 정보 없음';
 
+const routeSummaryText = pkg =>
+  routeSteps(pkg)
+    .map(
+      step =>
+        `${step.sequence}. ${
+          step.type === 'pickup'
+            ? '픽업'
+            : '배달'
+        } · ${
+          step.label ||
+          '위치 정보 없음'
+        }`
+    )
+    .join(' → ') ||
+  '방문 순서 정보 없음';
+
 function distanceMeters(
   lat1,
   lng1,
@@ -862,7 +878,7 @@ function offerCard(
 
 
 function completedPackageRow(pkg) {
-  const route = routeSummary(pkg);
+  const route = routeSummaryText(pkg);
 
   return `
     <article class="completed-dispatch-row">
