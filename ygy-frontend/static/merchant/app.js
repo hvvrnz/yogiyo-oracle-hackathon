@@ -864,9 +864,7 @@ async function completeCooking(
     button,
     async () => {
       try {
-        const result =
-          await Yogiyo.apiClient.demo
-            .merchantCookComplete();
+        const result = await Yogiyo.apiClient.demo.merchantCookComplete();
 
 
         latestCookFeedback =
