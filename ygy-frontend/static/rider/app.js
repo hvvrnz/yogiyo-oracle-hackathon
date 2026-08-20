@@ -10,6 +10,7 @@ let waitingForBusyConfirmation = false;
 let previousNextStopKey = null;
 let suppressNextStopChangeToast = false;
 let isAcceptingOffer = false;
+let isCompletingStop = false;
 let lastOfferRenderKey = '';
 let riderViewGeneration = 0;
 
@@ -1484,10 +1485,17 @@ async function acceptOffer(
 async function completeCurrentStop(
   button
 ) {
-  await Yogiyo.withPending(
-    button,
-    async () => {
-      try {
+  if (isCompletingStop) {
+    return;
+  }
+
+  isCompletingStop = true;
+
+  try {
+    await Yogiyo.withPending(
+      button,
+      async () => {
+        try {
         /*
          * API 호출 전 현재 패키지를 기억
          */
@@ -1674,16 +1682,19 @@ async function completeCurrentStop(
 
         await loadRider();
 
-      } catch (error) {
-        isRiderMoving =
-          false;
+        } catch (error) {
+          isRiderMoving =
+            false;
 
-        Yogiyo.toast(
-          error.message
-        );
+          Yogiyo.toast(
+            error.message
+          );
+        }
       }
-    }
-  );
+    );
+  } finally {
+    isCompletingStop = false;
+  }
 }
 
 function switchRiderTab(
