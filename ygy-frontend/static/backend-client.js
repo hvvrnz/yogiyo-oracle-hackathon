@@ -85,20 +85,16 @@
     }),
   });
 
-  const poll = (task, onData, { intervalMs = 5000, onError } = {}) => {
-    let inFlight = false;
-    let stopped = false;
-    const run = async () => {
-      if (stopped || inFlight) return;
-      inFlight = true;
-      try { onData?.(await task()); }
-      catch (error) { onError?.(error); }
-      finally { inFlight = false; }
-    };
-    run();
-    const timer = window.setInterval(run, intervalMs);
-    return () => { stopped = true; window.clearInterval(timer); };
-  };
-
-  Object.assign(window.Yogiyo, { api: request, apiClient, apiUrl: path => `${apiBaseUrl}${path}`, defaultIds, poll, useMock: false });
+  Object.assign(
+    window.Yogiyo,
+    {
+      api: request,
+      apiClient,
+      apiUrl:
+        path =>
+          `${apiBaseUrl}${path}`,
+      defaultIds,
+      useMock: false
+    }
+  );
 })();
