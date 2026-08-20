@@ -989,7 +989,9 @@ window.addEventListener(
   }
 );
 
-
+/*
+ * 시연 주문 API · 5초 갱신
+ */
 stopPolling =
   Yogiyo.poll(
     () =>
