@@ -13,8 +13,22 @@
 </head>
 <body>
   <main class="demo-shell">
-    <header class="demo-head"><div><h1>AI 조리·배달 동기화 통합 시연</h1><p id="demoModeDescription">시연 모드를 확인하고 있어요.</p></div><div class="demo-links"><span class="status-line"><i class="status-dot"></i><span id="connectionText" aria-live="polite">시연 모드 확인 중</span></span><a id="backendDocsLink" href="/docs" target="_blank" hidden>API 문서</a><a href="/">시작 화면</a></div></header>
-
+    <header class="demo-head"><div><h1>AI 조리·배달 동기화 통합 시연</h1><p id="demoModeDescription">시연 모드를 확인하고 있어요.</p></div>
+     <div class="demo-links">
+        <div class="algo-explain-buttons">
+          <button type="button" data-explain="cook">조리시간 예측 결과</button><button type="button" data-explain="fallback">Vector Search Fallback</button><button type="button" data-explain="cluster">클러스터링 로직</button>
+          
+          
+          <button type="button" data-explain="route">배차 엔진 분석 결과</button>
+          <button type="button" data-explain="pipeline">데이터 축적 구조</button>
+        </div>
+        <a id="startHomeLink" href="/" class="icon-link" aria-label="시작 화면">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10.5 12 3l9 7.5"/>
+            <path d="M5 9.5V21h14V9.5"/>
+          </svg>
+        </a>
+      </header>
     <section class="control-grid">
       <div class="panel"><h2>시나리오 제어</h2><div class="control-groups">
         <section class="control-subpanel"><h3>데이터 세트 적용</h3><div class="controls"><select id="demoDataset"><option value="single">단일 배달 1건</option><option value="bundle2">AI 추천 2건</option><option value="bundle3" selected>AI 추천 3건</option></select><button id="applyDataset">데이터 적용</button></div></section>
@@ -30,11 +44,20 @@
     </section>
 
     <section class="screens">
-      <article class="phone-panel customer-panel"><div class="phone-title"><strong id="demoCustomerTitle">고객 · 강남 889 주문 1건</strong><span class="subtext">매장 기준 조회</span><a id="demoCustomerLink" href="/customer?storeId=889" target="_blank">새 창 ↗</a></div><iframe id="demoCustomerFrame" class="phone-frame" src="/customer?storeId=889" title="고객 주문 조회 화면"></iframe></article>
+      <article class="phone-panel customer-panel"><div class="phone-title"><strong id="demoCustomerTitle">고객 · 강남 889 주문 1건</strong><span class="subtext"></span><a id="demoCustomerLink" href="/customer?storeId=889" target="_blank">새 창 ↗</a></div><iframe id="demoCustomerFrame" class="phone-frame" src="/customer?storeId=889" title="고객 주문 조회 화면"></iframe></article>
       <article class="phone-panel"><div class="phone-title"><strong id="demoRiderTitle">라이더 · rider_12</strong><a id="demoRiderLink" href="/rider?riderId=rider_12" target="_blank">새 창 ↗</a></div><iframe id="demoRiderFrame" class="phone-frame" src="/rider?riderId=rider_12" title="rider rider_12 화면"></iframe></article>
       <article class="phone-panel merchant-panel"><div class="phone-title"><strong id="demoMerchantTitle">사장님 · 강남 889</strong><a id="demoMerchantLink" href="/merchant?storeId=889" target="_blank">새 창 ↗</a></div><iframe id="demoMerchantFrame" class="phone-frame" src="/merchant?storeId=889" title="매장 889 사장님 화면"></iframe></article>
     </section>
 
+
+
+<!-- demo 설명용 모달  -->
+<div id="explanationBackdrop" class="explain-modal-backdrop">
+  <div id="explanationSheet" class="explain-modal" role="dialog" aria-modal="true">
+    <button type="button" id="explanationCloseBtn" class="explain-modal-close" aria-label="닫기">✕</button>
+    <div id="explanationBody"></div>
+  </div>
+</div>
 
     
 <div id="eventList" hidden></div>

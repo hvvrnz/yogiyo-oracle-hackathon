@@ -28,7 +28,7 @@
       >
         <div class="header-title">
           <div class="brand-mark">
-            요
+            C
           </div>
 
           <div>
@@ -108,26 +108,12 @@
           <span></span>
 
           <b>
-            위로 끌어 주문 상세 보기
+            주문 상세 보기
           </b>
         </button>
 
 
-        <div class="customer-sheet-summary">
-          <div>
-            <span id="deliveryOrder">
-              상태 확인 중
-            </span>
-
-            <strong id="currentMessage">
-              주문 상태를 확인하고 있어요.
-            </strong>
-          </div>
-
-          <strong id="remainingMin">
-            -
-          </strong>
-        </div>
+        
 
 
         <div
@@ -142,7 +128,7 @@
               class="section-title-row"
             >
               <h2>
-                주문 배송 현황
+                주문 현황
               </h2>
 
               <span id="packageId">
@@ -217,7 +203,6 @@
               </h2>
 
               <span>
-                LLM 배차 설명
               </span>
             </div>
 
@@ -239,23 +224,35 @@
               </h2>
 
               <span id="amount">
-                0원
+              
               </span>
             </div>
 
-            <div class="card">
+            <section class="card">
               <div class="row">
-                <span class="label">
-                  배달지
-                </span>
-
-                <span
-                  class="value"
-                  id="deliveryAddress"
-                >
-                  주소 정보 없음
-                </span>
+                <span class="label">배달지</span>
+                <span class="value" id="deliveryAddress">주소 정보 없음</span>
               </div>
+
+              <div id="itemsCard"></div>
+
+              <div class="row">
+                <span class="label">배달팁</span>
+                <span class="value" id="deliveryTip">-</span>
+              </div>
+              <div class="row">
+                <span class="label">총 결제금액</span>
+                <span class="value" id="totalAmount">-</span>
+              </div>
+              <div class="row">
+                <span class="label">결제수단</span>
+                <span class="value" id="paymentMethod">-</span>
+              </div>
+              <div class="row">
+                <span class="label">매장 안심번호</span>
+                <span class="value" id="safetyNumber">-</span>
+              </div>
+            </section>
 
               <div id="itemsCard"></div>
             </div>
@@ -268,7 +265,6 @@
       <nav class="bottom-nav">
         <a
           class="nav-item"
-          href="/"
         >
           <strong>⌂</strong>
           <span>홈</span>
