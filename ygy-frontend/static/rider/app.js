@@ -831,29 +831,41 @@ function offerCard(
   </div>
 </div>
       <div class="rider-guide-card">
-        <div class="rider-guide-header">
-          <span class="rider-guide-dot"></span>
-          <span class="rider-guide-eyebrow">
-            조리시간까지 고려한 방문 순서예요.
-          </span>
-        </div>
+      <div class="rider-guide-header">
+        <span class="rider-guide-dot"></span>
 
-        <p class="rider-guide-headline">
-          조리시간과 이동 동선을 함께 고려해 \n 운행 동선을 추천했어요.
-        </p>
-
-        <ul class="rider-guide-points">
-          <li>
-            ${Yogiyo.escape(pkg.bundle_size ?? '-')}개 주문의
-            조리 완료 시점을 함께 계산했어요.
-          </li>
-
-          <li>
-            매장에서 기다리는 시간을 줄이도록
-            픽업 순서를 맞췄어요.
-          </li>
-        </ul>
+        <span class="rider-guide-eyebrow">
+          AI 운행 안내
+        </span>
       </div>
+
+      <ul class="rider-guide-points">
+        ${
+          String(
+            pkg.rider_text ||
+            '수익과 추천 방문 순서를 확인한 뒤 수락해 주세요.'
+          )
+            .split(/\r?\n/)
+            .map(line =>
+              line
+                .replace(
+                  /^[•\-]\s*/,
+                  ''
+                )
+                .trim()
+            )
+            .filter(Boolean)
+            .map(
+              line => `
+                <li>
+                  ${Yogiyo.escape(line)}
+                </li>
+              `
+            )
+            .join('')
+        }
+      </ul>
+    </div>
 
       <div class="offer-actions">
         <button
@@ -975,6 +987,24 @@ function openPackageDetail(pkg) {
       </div>
       ${routeSchedule(pkg)}
     </div>
+    <div class="card">
+  <div class="notice llm-guidance">
+    <span>✦</span>
+
+    <div>
+      <strong>
+        AI 운행 안내
+      </strong>
+
+      <span>
+        ${Yogiyo.escape(
+          pkg.rider_text ||
+          '배차 정보를 확인해 주세요.'
+        )}
+      </span>
+    </div>
+  </div>
+</div>
   `;
   Yogiyo.el('packageDetailBackdrop').classList.add('open');
   Yogiyo.el('packageDetailSheet').classList.add('open');
