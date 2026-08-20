@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -26,6 +28,80 @@ ORDER_C_MENU = [
     {"menu": "단무지 추가", "qty": 2, "price": 5000},
     {"menu": "락교", "qty": 1, "price": 4000},
 ]
+
+
+
+
+
+# ─────────────────────────────────────
+# 조리 시작 후 유입되는 신규 주문
+# ─────────────────────────────────────
+
+# 제공받은 패키지 데이터에는 order_id가 없으므로
+# 데모에서 충돌하지 않는 ID를 사용한다.
+PACKAGE_20826_ORDER_A_ID = 2082601
+PACKAGE_20816_ORDER_A_ID = 2081601
+
+
+# PACKAGE 20826 - 요기요햄버거 주문
+PACKAGE_20826_ORDER_A_MENU = [
+    {
+        "menu": "새우버거세트",
+        "qty": 1,
+        "price": 11000,
+    },
+    {
+        "menu": "너겟 4조각",
+        "qty": 1,
+        "price": 5000,
+    },
+]
+
+
+# PACKAGE 20816 - 요기요햄버거 주문
+PACKAGE_20816_ORDER_A_MENU = [
+    {
+        "menu": "치킨버거세트",
+        "qty": 1,
+        "price": 7000,
+    },
+]
+
+
+PACKAGE_20826_MERCHANT_ORDER = {
+    "order_id": PACKAGE_20826_ORDER_A_ID,
+    "store_id": STORE_A["store_id"],
+    "store_name": STORE_A["name"],
+    "menu_items": PACKAGE_20826_ORDER_A_MENU,
+    "amount": 16000,
+    "delivery_fee": 3000,
+    "status": "NEW",
+    "owner_cook_min": 15,
+    "package_id": None,
+    "rider_id": None,
+    "created_at": "2026-08-17 09:08:01.497473000",
+}
+
+
+PACKAGE_20816_MERCHANT_ORDER = {
+    "order_id": PACKAGE_20816_ORDER_A_ID,
+    "store_id": STORE_A["store_id"],
+    "store_name": STORE_A["name"],
+    "menu_items": PACKAGE_20816_ORDER_A_MENU,
+    "amount": 7000,
+    "delivery_fee": 3000,
+    "status": "NEW",
+    "owner_cook_min": 15,
+    "package_id": None,
+    "rider_id": None,
+    "created_at": "2026-08-17 09:07:18.720477000",
+}
+
+
+
+
+
+
 
 ORDER_A_PAYMENT = {
     "product_amount": 20000,
@@ -189,6 +265,36 @@ class DemoState:
 state = DemoState()
 
 
+
+
+def _seconds_since_cook_start():
+    if state.cook_started_at is None:
+        return 0.0
+
+    return max(
+        0.0,
+        time.monotonic() - state.cook_started_at,
+    )
+
+
+def _merchant_extra_orders():
+    if state.cook_started_at is None:
+        return []
+
+    # 기존 주문 조리 시작 후 5초 전까지는
+    # 신규 주문을 보여주지 않는다.
+    if _seconds_since_cook_start() < 5:
+        return []
+
+    # 5초가 지나면 신규 주문 2건을 동시에 노출한다.
+    return [
+        dict(PACKAGE_20826_MERCHANT_ORDER),
+        dict(PACKAGE_20816_MERCHANT_ORDER),
+    ]
+
+
+
+
 def _stop_summary(stop):
     return {"sequence": stop["sequence"], "order_id": stop["order_id"], "type": stop["type"], "label": stop["label"], "lat": stop["lat"], "lng": stop["lng"]}
 
@@ -349,6 +455,34 @@ def demo_merchant_next():
     }
 
 
+
+
+@router.get("/merchant/orders")
+def demo_merchant_orders():
+    orders = []
+
+    # 기존 메인 주문
+    primary_order = demo_merchant_next()
+
+    if primary_order.get("order_id") is not None:
+        orders.append(primary_order)
+
+    # 조리 시작 5초 후부터 신규 주문 2건 추가
+    orders.extend(
+        _merchant_extra_orders()
+    )
+
+    return {
+        "store_id": STORE_A["store_id"],
+        "orders": orders,
+        "merchant_text": primary_order.get(
+            "merchant_text"
+        ),
+    }
+
+
+
+
 @router.get("/merchant/completed")
 def demo_merchant_completed():
     if state.merchant_stage == "COOKED" and 43351 in state.delivered_order_ids:
@@ -373,6 +507,7 @@ def demo_cook_start(body: CookTimeInput):
     state.merchant_stage = "COOKING"
     state.package_stage = "OFFERED"
     _get_demo_explanations("COOKING")
+    state.cook_started_at = time.monotonic()
     return {
         "triggered": [
             {"order_id": 43351, "store_id": STORE_A["store_id"], "owner_cook_min": body.owner_cook_min, "triggered_by": "user"},

@@ -60,15 +60,15 @@
           method: 'POST',
       }),
       merchantOrders: async () => {
-        const data = await request('/api/demo/merchant/next-to-cook');
-
-        if (data?.order_id == null) {
-          return { ...data, orders: [] };
-        }
+        const data =
+          await request(
+            '/api/demo/merchant/orders'
+          );
 
         return {
           ...data,
-          orders: [normalizeOrder(data)]
+          orders: asArray(data.orders)
+            .map(normalizeOrder),
         };
       },
 

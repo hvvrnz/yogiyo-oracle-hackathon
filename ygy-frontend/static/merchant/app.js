@@ -850,6 +850,9 @@ if (
       );
 
       await loadMerchant();
+      window.setTimeout(() => {
+        loadMerchant();
+      }, 5000);
     } catch (error) {
       Yogiyo.toast(error.message);
     }
