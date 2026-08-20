@@ -50,11 +50,24 @@
         const data = await request('/api/demo/merchant/next-to-cook');
         return data?.order_id == null ? data : normalizeOrder(data);
       },
-      merchantCookStart: ownerCookMin => request('/api/demo/merchant/cook-start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }),
-      }),
+      merchantCookStart: (
+        orderId,
+        ownerCookMin
+      ) =>
+        request(
+          '/api/demo/merchant/cook-start',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              order_id: Number(orderId),
+              owner_cook_min:
+                Number(ownerCookMin)
+            })
+          }
+        ),
       merchantCookComplete: () =>
         request('/api/demo/merchant/cook-complete', {
           method: 'POST',

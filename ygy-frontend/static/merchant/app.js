@@ -841,7 +841,11 @@ if (
 
   await Yogiyo.withPending(button, async () => {
     try {
-      await Yogiyo.apiClient.demo.merchantCookStart(minutes);
+      await Yogiyo.apiClient.demo
+        .merchantCookStart(
+          orderId,
+          minutes
+        );
 
       cookMinuteDrafts.delete(String(orderId));
 

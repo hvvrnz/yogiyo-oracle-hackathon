@@ -230,7 +230,15 @@ class DemoState:
         self.package_stage = "NONE"
         self.owner_cook_min = 15
         self.cook_started_at = None
-        
+        self.extra_order_status = {
+            PACKAGE_20826_ORDER_A_ID: "NEW",
+            PACKAGE_20816_ORDER_A_ID: "NEW",
+        }
+
+        self.extra_order_cook_min = {
+            PACKAGE_20826_ORDER_A_ID: 15,
+            PACKAGE_20816_ORDER_A_ID: 15,
+        }
         self.cook_feedback = None
         self.picked_up_order_ids = set()
         self.delivered_order_ids = set()
@@ -281,15 +289,40 @@ def _merchant_extra_orders():
     if state.cook_started_at is None:
         return []
 
-    # 기존 주문 조리 시작 후 5초 전까지는
-    # 신규 주문을 보여주지 않는다.
     if _seconds_since_cook_start() < 5:
         return []
 
-    # 5초가 지나면 신규 주문 2건을 동시에 노출한다.
+    order_20826 = dict(
+        PACKAGE_20826_MERCHANT_ORDER
+    )
+    order_20826["status"] = (
+        state.extra_order_status[
+            PACKAGE_20826_ORDER_A_ID
+        ]
+    )
+    order_20826["owner_cook_min"] = (
+        state.extra_order_cook_min[
+            PACKAGE_20826_ORDER_A_ID
+        ]
+    )
+
+    order_20816 = dict(
+        PACKAGE_20816_MERCHANT_ORDER
+    )
+    order_20816["status"] = (
+        state.extra_order_status[
+            PACKAGE_20816_ORDER_A_ID
+        ]
+    )
+    order_20816["owner_cook_min"] = (
+        state.extra_order_cook_min[
+            PACKAGE_20816_ORDER_A_ID
+        ]
+    )
+
     return [
-        dict(PACKAGE_20826_MERCHANT_ORDER),
-        dict(PACKAGE_20816_MERCHANT_ORDER),
+        order_20826,
+        order_20816,
     ]
 
 
@@ -498,11 +531,92 @@ def demo_merchant_completed():
 
 
 class CookTimeInput(BaseModel):
+    order_id: int = 43351
     owner_cook_min: int = 20
 
 
 @router.post("/merchant/cook-start")
 def demo_cook_start(body: CookTimeInput):
+    order_id = body.order_id
+    owner_cook_min = body.owner_cook_min
+
+    # ─────────────────────────────
+    # 기존 메인 주문
+    # ─────────────────────────────
+    if order_id == 43351:
+        state.owner_cook_min = owner_cook_min
+        state.merchant_stage = "COOKING"
+        state.package_stage = "OFFERED"
+
+        # 최초 주문 조리 시작 시에만
+        # 신규 주문 유입 타이머를 시작한다.
+        if state.cook_started_at is None:
+            state.cook_started_at = time.monotonic()
+
+        _get_demo_explanations("COOKING")
+
+        return {
+            "order_id": order_id,
+            "status": "COOKING",
+            "triggered": [
+                {
+                    "order_id": 43351,
+                    "store_id": STORE_A["store_id"],
+                    "owner_cook_min": owner_cook_min,
+                    "triggered_by": "user",
+                },
+                {
+                    "order_id": 44095,
+                    "store_id": STORE_B["store_id"],
+                    "owner_cook_min": 5,
+                    "triggered_by": "auto",
+                },
+                {
+                    "order_id": 44101,
+                    "store_id": STORE_C["store_id"],
+                    "owner_cook_min": 15,
+                    "triggered_by": "auto",
+                },
+            ],
+        }
+
+    # ─────────────────────────────
+    # 5초 후 유입된 신규 주문
+    # ─────────────────────────────
+    if order_id in state.extra_order_status:
+        if (
+            state.cook_started_at is None
+            or _seconds_since_cook_start() < 5
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="아직 유입되지 않은 주문입니다.",
+            )
+
+        if state.extra_order_status[order_id] != "NEW":
+            raise HTTPException(
+                status_code=409,
+                detail="이미 조리를 시작한 주문입니다.",
+            )
+
+        state.extra_order_status[
+            order_id
+        ] = "COOKING"
+
+        state.extra_order_cook_min[
+            order_id
+        ] = owner_cook_min
+
+        return {
+            "order_id": order_id,
+            "status": "COOKING",
+            "owner_cook_min": owner_cook_min,
+        }
+
+    raise HTTPException(
+        status_code=404,
+        detail="존재하지 않는 주문입니다.",
+    )
     state.owner_cook_min = body.owner_cook_min
     state.merchant_stage = "COOKING"
     state.package_stage = "OFFERED"
