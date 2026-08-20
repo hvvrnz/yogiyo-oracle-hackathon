@@ -142,6 +142,68 @@ function syncVisitedSteps(pkg, nextStop) {
     .map(stopKey)
     .filter(Boolean);
 }
+function riderDisplayPosition(
+  profile,
+  pkg
+) {
+  if (
+    Number.isFinite(
+      Number(
+        simulatedRiderPosition?.lat
+      )
+    ) &&
+    Number.isFinite(
+      Number(
+        simulatedRiderPosition?.lng
+      )
+    )
+  ) {
+    return {
+      lat:
+        Number(
+          simulatedRiderPosition.lat
+        ),
+      lng:
+        Number(
+          simulatedRiderPosition.lng
+        ),
+    };
+  }
+
+  const lastVisitedStep =
+    [...routeSteps(pkg)]
+      .reverse()
+      .find(
+        step =>
+          visitedSteps.includes(
+            stopKey(step)
+          ) &&
+          Number.isFinite(
+            Number(step.lat)
+          ) &&
+          Number.isFinite(
+            Number(step.lng)
+          )
+      );
+
+  if (lastVisitedStep) {
+    return {
+      lat:
+        Number(
+          lastVisitedStep.lat
+        ),
+      lng:
+        Number(
+          lastVisitedStep.lng
+        ),
+    };
+  }
+
+  return {
+    lat: profile?.lat,
+    lng: profile?.lng,
+  };
+}
 const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
 ).join('') || '방문 순서 정보 없음';
@@ -213,16 +275,19 @@ function riderMapData(
    * API의 고정 좌표 대신
    * 프론트에서 이동한 좌표를 사용
    */
-  const displayProfile =
-    simulatedRiderPosition
-      ? {
-          ...profile,
-          lat:
-            simulatedRiderPosition.lat,
-          lng:
-            simulatedRiderPosition.lng,
-        }
-      : profile;
+  const riderPosition =
+    riderDisplayPosition(
+      profile,
+      pkg
+    );
+
+  const displayProfile = {
+    ...profile,
+    lat:
+      riderPosition.lat,
+    lng:
+      riderPosition.lng,
+  };
 
 
   const riderMap =
@@ -528,10 +593,10 @@ function runStatusCard(
 
 
   const riderPosition =
-    simulatedRiderPosition || {
-      lat: profile?.lat,
-      lng: profile?.lng,
-    };
+    riderDisplayPosition(
+      profile,
+      pkg
+    );
 
 
   let destinationText =
@@ -618,10 +683,10 @@ function firstDestinationText(
   }
 
   const riderPosition =
-    simulatedRiderPosition || {
-      lat: profile?.lat,
-      lng: profile?.lng,
-    };
+  riderDisplayPosition(
+    profile,
+    pkg
+  );
 
   if (
     !Number.isFinite(
@@ -981,11 +1046,11 @@ function renderRider(view) {
           )
       );
 
-    const riderPosition =
-      simulatedRiderPosition || {
-        lat: profile?.lat,
-        lng: profile?.lng,
-      };
+  const riderPosition =
+    riderDisplayPosition(
+      profile,
+      activePackage
+    );
 
     let destinationText =
       '다음 목적지를 확인해 주세요.';
