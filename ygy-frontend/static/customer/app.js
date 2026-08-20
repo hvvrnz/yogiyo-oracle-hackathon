@@ -171,21 +171,26 @@ function menuOneLineSummary(items) {
 
 
 function renderCustomerExplanation() {
-  const section = Yogiyo.el(
-    'customerExplanationSection'
-  );
-  const content = Yogiyo.el(
-    'customerExplanationContent'
-  );
+  const section =
+    Yogiyo.el(
+      'customerExplanationSection'
+    );
 
-  if (!section || !content) return;
+  const content =
+    Yogiyo.el(
+      'customerExplanationContent'
+    );
+
+  if (!section || !content) {
+    return;
+  }
 
   const status =
     currentOrder?.status || '';
 
   const shouldShow =
-    ['MATCHED', 'PICKED_UP', 'DELIVERED'].includes(
-      status
+    hasConfirmedAssignment(
+      currentOrder
     );
 
   if (!shouldShow) {
@@ -194,57 +199,79 @@ function renderCustomerExplanation() {
     return;
   }
 
-  let eyebrow = '요기요 고객님을 위한 맞춤 배달 안내';
-  let headline =
-    '음식이 조리된 뒤 오래 기다리지 않도록\n'
-    + '배달 순서를 최적화했어요.';
-  let bodyLines = [
-    '조리시간과 라이더 이동 동선을 함께 계산했어요.',
-    '음식이 완성된 뒤 매장에서 오래 기다리지 않도록\n'
-    +'픽업 시점을 맞췄어요.',
-    '더 따뜻하고 신선한 상태로 전달해드릴게요.',
-  ];
+  const consumerText =
+    String(
+      currentOrder?.consumer_text || ''
+    ).trim();
+
+  let fallbackText =
+    '조리시간과 라이더 이동 동선을 함께 고려해 배달 순서를 조정하고 있어요.';
 
   if (status === 'PICKED_UP') {
-    eyebrow = '요기요 고객님을 위한 맞춤 배달 안내';
-    headline =
-      '음식이 조리된 직후 빠르게 픽업되어\n'
-      +'고객님께 이동 중이에요.';
-    bodyLines = [
-      '조리 완료 시점과 라이더 도착 시점을 함께 고려했어요.',
-      '조금만 기다리시면 받아보실 수 있어요.',
-    ];
+    fallbackText =
+      '음식 픽업이 완료되어 고객님께 이동 중이에요.';
   }
 
-  if (status === 'DELIVERED') {
-    eyebrow = '요기요 고객님을 위한 맞춤 배달 완료';
-    headline =
-      '조리 후 대기 시간을 줄이도록 계산된 동선으로 배달이 완료되었어요.';
-    bodyLines = [
-      '조리시간과 라이더 이동 순서를 함께 고려해 배달했어요.',
-      '음식이 완성된 뒤 오래 기다리지 않도록 순서를 조정했어요.',
-      '더 안정적인 상태로 받아보실 수 있도록 설계했어요.',
-    ];
+  if (
+    ['DELIVERED', 'COMPLETED'].includes(
+      status
+    )
+  ) {
+    fallbackText =
+      '배달이 완료됐어요. 신선하게 받아보셨길 바라요!';
   }
+
+  const guideText =
+    consumerText ||
+    fallbackText;
+
+  const bodyLines =
+    guideText
+      .split(/\r?\n/)
+      .map(line =>
+        line
+          .replace(
+            /^[•\-]\s*/,
+            ''
+          )
+          .trim()
+      )
+      .filter(Boolean);
+
+  const eyebrow =
+    ['DELIVERED', 'COMPLETED'].includes(
+      status
+    )
+      ? '요기요 맞춤 배달 완료'
+      : '요기요 맞춤 배달 안내';
 
   content.innerHTML = `
     <div class="customer-guide-card">
       <div class="customer-guide-header">
-        <span class="customer-guide-dot"></span>
-        <span class="customer-guide-eyebrow">${Yogiyo.escape(
-          eyebrow
-        )}</span>
+        <span
+          class="customer-guide-dot"
+        ></span>
+
+        <span
+          class="customer-guide-eyebrow"
+        >
+          ${Yogiyo.escape(
+            eyebrow
+          )}
+        </span>
       </div>
 
-      <p class="customer-guide-headline">
-        ${Yogiyo.escape(headline)}
-      </p>
-
-      <ul class="customer-guide-points">
+      <ul
+        class="customer-guide-points"
+      >
         ${bodyLines
           .map(
             line => `
-              <li>${Yogiyo.escape(line)}</li>
+              <li>
+                ${Yogiyo.escape(
+                  line
+                )}
+              </li>
             `
           )
           .join('')}
