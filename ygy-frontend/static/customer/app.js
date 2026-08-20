@@ -472,14 +472,36 @@ function renderCustomerMap(
   const riderStep =
     Yogiyo.el('riderStep');
 
+const isCompleted =
+  ['DELIVERED', 'COMPLETED'].includes(
+    currentOrder.status
+  );
+
+if (isCompleted) {
   riderStep.textContent =
-    hasAssignedRider(currentOrder)
-      ? currentRiderProfile
-        ? '라이더님이 매장으로 이동 중이에요!'
-        : `라이더 ${
-            currentOrder.rider_id
-          } 위치 확인 중`
-      : '라이더 배정 전';
+    '배달이 완료되었어요!';
+} else if (
+  currentOrder.status === 'PICKED_UP'
+) {
+  riderStep.textContent =
+    currentRiderProfile
+      ? '라이더님이 고객님께 이동 중이에요!'
+      : `라이더 ${
+          currentOrder.rider_id
+        } 위치 확인 중`;
+} else if (
+  hasAssignedRider(currentOrder)
+) {
+  riderStep.textContent =
+    currentRiderProfile
+      ? '라이더님이 픽업 경로를 따라 이동 중이에요!'
+      : `라이더 ${
+          currentOrder.rider_id
+        } 위치 확인 중`;
+} else {
+  riderStep.textContent =
+    '라이더 배정 전';
+}
 }
 
 
