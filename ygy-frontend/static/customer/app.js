@@ -4,6 +4,7 @@ let stopRiderPolling;
 let trackedRiderId;
 let currentRiderProfile;
 let currentRiderPosition;
+let customerMapRenderKey = '';
 
 const riderPositionKey =  'ygy-demo-rider-position';
 
@@ -406,14 +407,67 @@ function customerMapData(order) {
   );
 }
 
+function customerMapSignature(order) {
+  if (!order) {
+    return '';
+  }
 
-function renderCustomerMap() {
+  const completed =
+    ['DELIVERED', 'COMPLETED']
+      .includes(order.status);
+
+  const hasProfilePosition =
+    Number.isFinite(
+      Number(currentRiderProfile?.lat)
+    ) &&
+    Number.isFinite(
+      Number(currentRiderProfile?.lng)
+    );
+
+  const showRider =
+    !completed &&
+    hasAssignedRider(order) &&
+    Boolean(
+      currentRiderPosition ||
+      hasProfilePosition
+    );
+
+  return [
+    order.order_id ?? '',
+    order.store_lat ?? '',
+    order.store_lng ?? '',
+    order.delivery_lat ?? '',
+    order.delivery_lng ?? '',
+    showRider
+      ? `rider:${order.rider_id}`
+      : 'no-rider',
+  ].join('|');
+}
+
+function renderCustomerMap(
+  { force = false } = {}
+) {
   if (!currentOrder) return;
 
-  Yogiyo.renderMap(
-    'customerMap',
-    customerMapData(currentOrder)
-  );
+  const nextKey =
+    customerMapSignature(
+      currentOrder
+    );
+
+  if (
+    force ||
+    customerMapRenderKey !== nextKey
+  ) {
+    Yogiyo.renderMap(
+      'customerMap',
+      customerMapData(
+        currentOrder
+      )
+    );
+
+    customerMapRenderKey =
+      nextKey;
+  }
 
   const riderStep =
     Yogiyo.el('riderStep');
@@ -421,7 +475,7 @@ function renderCustomerMap() {
   riderStep.textContent =
     hasAssignedRider(currentOrder)
       ? currentRiderProfile
-        ? `라이더님이 매장으로 이동 중이에요!`
+        ? '라이더님이 매장으로 이동 중이에요!'
         : `라이더 ${
             currentOrder.rider_id
           } 위치 확인 중`
@@ -880,7 +934,9 @@ window.addEventListener(
       }
     }
 
-    renderCustomerMap();
+    renderCustomerMap({
+      force: true
+    });
   }
 );
 

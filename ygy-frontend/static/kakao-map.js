@@ -274,8 +274,34 @@ const riderMarkerSvg = () => `
 `;
 
 const fitMapOnce = (state, data) => {
-  const routeStopMarkers = data.markers.filter(item => ['pickup', 'dropoff', 'delivery'].includes(String(item.meta?.type || '').toLowerCase()));
-  const points = data.route.length ? data.route : routeStopMarkers.length ? routeStopMarkers : data.markers;
+  const routeStopMarkers =
+    data.markers.filter(
+      item =>
+        [
+          'pickup',
+          'dropoff',
+          'delivery'
+        ].includes(
+          String(
+            item.meta?.type || ''
+          ).toLowerCase()
+        )
+    );
+
+  const stableMarkers =
+    data.markers.filter(
+      item =>
+        item.kind !== 'rider'
+    );
+
+  const points =
+    data.route.length
+      ? data.route
+      : routeStopMarkers.length
+        ? routeStopMarkers
+        : stableMarkers.length
+          ? stableMarkers
+          : data.markers;
 
   if (!points.length) return;
   if (state.layer.clientWidth <= 0 || state.layer.clientHeight <= 0) return;
