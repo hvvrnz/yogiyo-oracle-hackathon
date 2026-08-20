@@ -1274,8 +1274,26 @@ const visibleOffers = offers
     activePackage,
     profile
   );
-  Yogiyo.el('offerCount').textContent = visibleOffers.length;
-  Yogiyo.el('offerCountDetail').textContent = `${visibleOffers.length}건`;
+const offerCount =
+  Yogiyo.el('offerCount');
+
+const availableOfferCount =
+  activePackage || offersError
+    ? 0
+    : visibleOffers.length;
+
+offerCount.textContent =
+  availableOfferCount;
+
+offerCount.classList.toggle(
+  'is-empty',
+  availableOfferCount === 0
+);
+
+Yogiyo.el(
+  'offerCountDetail'
+).textContent =
+  `${visibleOffers.length}건`;
   
   const offerRenderKey =
     JSON.stringify({

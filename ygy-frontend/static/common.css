@@ -483,7 +483,25 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .rider-top-tabs { position:absolute; z-index:30; left:0; right:0; bottom:0; height:76px; box-sizing:border-box; display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:4px; padding:7px 14px; background:#fff; border-top:1px solid var(--line); }
 .rider-top-tab { border:0; border-radius:10px; padding:9px; background:transparent; color:var(--muted); font-size:13px; font-weight:800; }
 .rider-top-tab.active { background:var(--brand-soft); color:var(--brand-dark); }
-.rider-top-tab span { display:inline-grid; place-items:center; min-width:17px; height:17px; margin-left:3px; padding:0 4px; border-radius:999px; background:currentColor; color:#fff; font-size:10px; }
+#offerCount {
+  display:inline-grid;
+  place-items:center;
+  min-width:18px;
+  height:18px;
+  margin-left:4px;
+  padding:0 5px;
+  border-radius:999px;
+  background:var(--brand);
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+  line-height:1;
+  vertical-align:middle;
+}
+
+#offerCount.is-empty {
+  display:none;
+}
 .rider-tab-panel { position:absolute; left:0; right:0; bottom:76px; top:66px; }
 .rider-run-tab { background:#e8edf0; }
 .rider-dispatch-tab { background:var(--canvas); }
