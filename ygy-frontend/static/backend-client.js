@@ -19,8 +19,19 @@
   const request = async (path, options = {}) => {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
     let response;
-    try { response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers }); }
-    catch { throw new Error('백엔드 서버에 연결할 수 없습니다. http://localhost:8000 실행 상태를 확인해 주세요.'); }
+    try {
+      response = await fetch(
+        `${apiBaseUrl}${path}`,
+        {
+          ...options,
+          headers
+        }
+      );
+    } catch {
+      throw new Error(
+        '백엔드 서버에 연결할 수 없습니다. 서버 실행 상태와 API 연결 설정을 확인해 주세요.'
+      );
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(data.detail || data.message || `요청에 실패했습니다. (${response.status})`);
