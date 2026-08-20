@@ -201,12 +201,34 @@ window.addEventListener('message', event => {
     type,
     packageId,
     riderId,
-    orderIds
+    orderIds,
+    lat,
+    lng,
+    durationMs,
   } = event.data || {};
 
-  if (type !== 'ygy:package-accepted') {
-    return;
-  }
+if (type === 'ygy:rider-position') {
+  Yogiyo.el('demoCustomerFrame')
+    .contentWindow
+    ?.postMessage(
+      {
+        type:
+          'ygy:customer-rider-position',
+
+        packageId,
+        riderId,
+        lat,
+        lng,
+        durationMs,
+      },
+
+      window.location.origin
+    );
+
+  return;
+}
+
+  if (type !== 'ygy:package-accepted') {    return;  }
 
 
   /*
@@ -389,6 +411,10 @@ const resetDemoState = async button => {
 
         sessionStorage.removeItem(
           'ygy-demo-accepted-package'
+        );
+
+        sessionStorage.removeItem(
+          'ygy-demo-rider-position'
         );
 
         loadDemoPanels();

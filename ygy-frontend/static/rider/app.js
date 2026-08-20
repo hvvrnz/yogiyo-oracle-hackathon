@@ -16,6 +16,7 @@ let riderViewGeneration = 0;
 
 const acceptedPackageKey = 'ygy-demo-accepted-package';
 const completedPackagesKey = 'ygy-demo-completed-packages';
+const riderPositionKey = 'ygy-demo-rider-position';
 
 function restoreAcceptedPackage() {
   try {
@@ -203,6 +204,55 @@ function riderDisplayPosition(
     lat: profile?.lat,
     lng: profile?.lng,
   };
+}
+function publishRiderPosition(
+  pkg,
+  position,
+  durationMs = 0
+) {
+  const lat =
+    Number(position?.lat);
+
+  const lng =
+    Number(position?.lng);
+
+  if (
+    pkg?.package_id == null ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return;
+  }
+
+  const payload = {
+    riderId: String(
+      currentRider?.profile?.rider_id ||
+      riderId
+    ),
+
+    packageId: String(
+      pkg.package_id
+    ),
+
+    lat,
+    lng,
+    durationMs,
+  };
+
+  sessionStorage.setItem(
+    riderPositionKey,
+    JSON.stringify(payload)
+  );
+
+  if (window.parent !== window) {
+    window.parent.postMessage(
+      {
+        type: 'ygy:rider-position',
+        ...payload,
+      },
+      window.location.origin
+    );
+  }
 }
 const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
@@ -1590,20 +1640,30 @@ async function completeCurrentStop(
          * 1. 먼저 라이더를 해당 지점까지 이동
          */
         if (
-          completedStop &&
-          Number.isFinite(
-            Number(
-              completedStop.lat
-            )
-          ) &&
-          Number.isFinite(
-            Number(
-              completedStop.lng
-            )
-          )
-        ) {
-          isRiderMoving =
-            true;
+  completedStop &&
+  Number.isFinite(
+    Number(completedStop.lat)
+  ) &&
+  Number.isFinite(
+    Number(completedStop.lng)
+  )
+) {
+  const targetPosition = {
+    lat: Number(
+      completedStop.lat
+    ),
+    lng: Number(
+      completedStop.lng
+    ),
+  };
+
+  publishRiderPosition(
+    currentPackage,
+    targetPosition,
+    900
+  );
+
+  isRiderMoving = true;
 
 
           try {
@@ -1981,6 +2041,21 @@ stopRiderViewPolling =
       }
 
       renderRider(view);
+
+      const activePackage =
+        view.packages?.[0];
+
+      if (activePackage) {
+        publishRiderPosition(
+          activePackage,
+          riderDisplayPosition(
+            view.profile,
+            activePackage
+          ),
+          0
+        );
+      }
+
       setConnection(true);
     },
 

@@ -3,6 +3,9 @@ let stopPolling;
 let stopRiderPolling;
 let trackedRiderId;
 let currentRiderProfile;
+let currentRiderPosition;
+
+const riderPositionKey =  'ygy-demo-rider-position';
 
 const assignmentConfirmedStatuses = new Set([
   'MATCHING',
@@ -287,10 +290,120 @@ function customerStatusMeta(order) {
   );
 }
 
+function restoreRiderPosition(
+  order
+) {
+  try {
+    const raw =
+      sessionStorage.getItem(
+        riderPositionKey
+      );
+
+    if (!raw) {
+      return null;
+    }
+
+    const saved =
+      JSON.parse(raw);
+
+    if (
+      String(saved.riderId ?? '') !==
+        String(order?.rider_id ?? '') ||
+      String(saved.packageId ?? '') !==
+        String(order?.package_id ?? '')
+    ) {
+      return null;
+    }
+
+    const lat =
+      Number(saved.lat);
+
+    const lng =
+      Number(saved.lng);
+
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
+    ) {
+      return null;
+    }
+
+    return {
+      lat,
+      lng,
+    };
+  } catch {
+    return null;
+  }
+}
 
 function customerMapData(order) {
-  if (!order) return Yogiyo.mapData.create();
-  return Yogiyo.mapData.fromCustomerOrder(order);
+  if (!order) {
+    return Yogiyo.mapData.create();
+  }
+
+  const orderMap =
+    Yogiyo.mapData
+      .fromCustomerOrder(order);
+
+  const completed =
+    ['DELIVERED', 'COMPLETED']
+      .includes(order.status);
+
+  if (
+    completed ||
+    !hasAssignedRider(order)
+  ) {
+    return orderMap;
+  }
+
+  const position =
+    currentRiderPosition ||
+    (
+      Number.isFinite(
+        Number(currentRiderProfile?.lat)
+      ) &&
+      Number.isFinite(
+        Number(currentRiderProfile?.lng)
+      )
+        ? {
+            lat: Number(
+              currentRiderProfile.lat
+            ),
+            lng: Number(
+              currentRiderProfile.lng
+            ),
+          }
+        : null
+    );
+
+  if (!position) {
+    return orderMap;
+  }
+
+  const riderMap =
+    Yogiyo.mapData
+      .fromRiderProfile({
+        ...(currentRiderProfile || {}),
+
+        rider_id:
+          currentRiderProfile
+            ?.rider_id ||
+          order.rider_id,
+
+        name:
+          currentRiderProfile
+            ?.name ||
+          '담당 라이더',
+
+        lat: position.lat,
+        lng: position.lng,
+      });
+
+  return Yogiyo.mapData.combine(
+    orderMap,
+    riderMap
+  );
 }
 
 
@@ -332,9 +445,18 @@ function syncRiderLocation(order) {
   trackedRiderId = riderId;
   currentRiderProfile = undefined;
 
-  if (!riderId) {
-    return;
-  }
+currentRiderPosition =
+  riderId
+    ? restoreRiderPosition(order)
+    : null;
+
+if (!riderId) {
+  sessionStorage.removeItem(
+    riderPositionKey
+  );
+
+  return;
+}
 
   stopRiderPolling =
     Yogiyo.poll(
@@ -348,9 +470,27 @@ function syncRiderLocation(order) {
           return;
         }
 
-        currentRiderProfile = profile;
+    currentRiderProfile = profile;
 
-        renderCustomerMap();
+    if (!currentRiderPosition) {
+      const lat =
+        Number(profile?.lat);
+
+      const lng =
+        Number(profile?.lng);
+
+      if (
+        Number.isFinite(lat) &&
+        Number.isFinite(lng)
+      ) {
+        currentRiderPosition = {
+          lat,
+          lng,
+        };
+      }
+    }
+
+    renderCustomerMap();
       },
 
       {
@@ -634,6 +774,115 @@ async function loadCustomer(
     }
   }
 }
+
+window.addEventListener(
+  'message',
+
+  async event => {
+    if (
+      event.origin !==
+        window.location.origin ||
+      event.source !== window.parent
+    ) {
+      return;
+    }
+
+    const {
+      type,
+      riderId,
+      packageId,
+      lat,
+      lng,
+      durationMs,
+    } = event.data || {};
+
+    if (
+      type !==
+      'ygy:customer-rider-position'
+    ) {
+      return;
+    }
+
+    if (
+      !currentOrder ||
+      String(
+        currentOrder.rider_id ?? ''
+      ) !== String(riderId ?? '') ||
+      String(
+        currentOrder.package_id ?? ''
+      ) !== String(packageId ?? '')
+    ) {
+      return;
+    }
+
+    const target = {
+      lat: Number(lat),
+      lng: Number(lng),
+    };
+
+    if (
+      !Number.isFinite(target.lat) ||
+      !Number.isFinite(target.lng)
+    ) {
+      return;
+    }
+
+    const samePosition =
+      currentRiderPosition &&
+      Math.abs(
+        currentRiderPosition.lat -
+        target.lat
+      ) < 0.0000001 &&
+      Math.abs(
+        currentRiderPosition.lng -
+        target.lng
+      ) < 0.0000001;
+
+    if (samePosition) {
+      return;
+    }
+
+    currentRiderPosition =
+      target;
+
+    sessionStorage.setItem(
+      riderPositionKey,
+
+      JSON.stringify({
+        riderId:
+          String(riderId),
+
+        packageId:
+          String(packageId),
+
+        lat: target.lat,
+        lng: target.lng,
+      })
+    );
+
+    const duration =
+      Number(durationMs);
+
+    if (
+      Number.isFinite(duration) &&
+      duration > 0
+    ) {
+      const animated =
+        await Yogiyo
+          .animateRiderMarker?.(
+            'customerMap',
+            target,
+            duration
+          );
+
+      if (animated) {
+        return;
+      }
+    }
+
+    renderCustomerMap();
+  }
+);
 
 
 stopPolling =
