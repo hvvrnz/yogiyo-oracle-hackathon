@@ -157,24 +157,35 @@ WALLET_LOCATION, WALLET_PASSWORD)가 필요하며, 이 파일은 git에
 python stores/repository/store_repo.py
 python riders/repository/rider_repo.py
 
-# 2. 라이더 위치를 Redis Geo에 등록
-python stream_processor/riders/geo_client.py
+# 2. 라이더 위치를 Redis Geo에 등록 (최초 1회 또는 재초기화 시)
+python -m stream_processor.riders.geo_client
 
-# 3. Kafka 토픽 초기화 (기존 데이터 정리시)
-docker exec -it ygy-kafka kafka-topics --bootstrap-server localhost:9092 \
-    --delete --topic order-events
-docker exec -it ygy-kafka kafka-topics --bootstrap-server localhost:9092 \
-    --create --topic order-events --partitions 1 --replication-factor 1
+# 3. Consumer 실행 (라이더 위치 시뮬레이터가 백그라운드 스레드로 자동 포함,
+#    따로 실행할 필요 없음)
+python -m stream_processor.orders.consumer
 
-# 4. Consumer 실행 (라이더 위치 시뮬레이터가 백그라운드 스레드로 자동 포함)
-python stream_processor/orders/consumer.py
+# 4. (새 터미널) Producer 실행 — 더미 주문을 계속 생성해 Kafka로 전송
+#    10~20초 정도 돌린 뒤 Ctrl+C로 멈춰도 무방 (그동안 쌓인 주문으로 충분)
+python -m stream_processor.orders.producer
 
-# 5. (새 터미널) Producer 실행 — 더미 주문을 계속 생성해 Kafka로 전송
-python stream_processor/orders/producer.py
+# 5. (새 터미널) 대기 중(NEW)인 주문에 조리시간을 입력해 COOKING으로 전환
+#    이 단계가 있어야 consumer의 클러스터링 대상에 주문이 포함됨
+python cook_demo_orders.py --limit 10
 
-# 6. (새 터미널) API 서버 실행
+# 6. consumer 윈도우가 한 바퀴 돌 때까지 대기 (WINDOW_SECONDS 만큼),
+#    "묶음 확정 시도" 로그가 뜨는지 3번 터미널에서 확인
+
+# 7. (새 터미널) 배차 제안(OFFERED)된 패키지에 라이더 수락 처리
+python accept_demo_packages.py --limit 5
+
+# 8. (필요 시) API 서버 실행
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+**참고**
+- 2번(Redis 라이더 등록)은 DB/Redis 데이터가 유지되는 한 매번 다시 할 필요 없음. Redis가 초기화됐거나 라이더 데이터를 바꿨을 때만 재실행.
+- 3번(consumer)은 켜두면 `WINDOW_SECONDS`(현재 15초)마다 자동으로 `COOKING` 상태 주문을 모아 클러스터링·배차를 시도함. 4~7번은 이 3번이 켜진 상태에서 순서대로 실행.
+- `cook_demo_orders.py`, `accept_demo_packages.py`는 데모/검증용 스크립트로, 실제 서비스라면 프론트(사장님 화면의 조리시작 버튼, 라이더 화면의 수락 버튼)가 대신 호출하는 API를 시뮬레이션하는 역할.
 
 
 ## AI(조리시간 예측) 구현

@@ -12,9 +12,6 @@ from common.config import MIN_ACCEPTABLE_HOURLY_REVENUE
 
 
 def _build_route_detail(best_route, orders_by_id):
-    """
-    각 방문 지점에 좌표까지 포함해서 저장.
-    """
     detail = []
     for oid, vtype in best_route:
         order = orders_by_id[oid]
@@ -42,12 +39,6 @@ def _build_score_detail(detail):
 
 
 def _get_available_riders(store_lat, store_lng, assigned_rider_ids, radius_km=5):
-    """
-    특정 위치 근처 라이더 중에서,
-    1) 이번 윈도우에서 이미 배정된 라이더(assigned_rider_ids)
-    2) Redis 상 아직 이전 배달을 완료 안 한(BUSY) 라이더
-    둘 다 제외한 진짜 배정 가능한 후보만 반환.
-    """
     nearby_riders = find_nearby_riders(store_lat, store_lng, radius_km)
     return [
         (rid, dist) for rid, dist in nearby_riders
@@ -55,7 +46,6 @@ def _get_available_riders(store_lat, store_lng, assigned_rider_ids, radius_km=5)
     ]
 
 
-# 자동 확정 대신 제안만 하도록
 def assign_bundle(cluster, assigned_rider_ids):
     rep_store_lat = cluster[0]["store_lat"]
     rep_store_lng = cluster[0]["store_lng"]
@@ -72,10 +62,14 @@ def assign_bundle(cluster, assigned_rider_ids):
     package_revenue, hourly_revenue = calculate_revenue(cluster, best_detail['total_time'])
 
     if not is_hourly_revenue_acceptable(hourly_revenue):
+        print(f"   ✗ 수익 기준 미달, 배차 취소: 시간당 {round(hourly_revenue)}원 (기준 {MIN_ACCEPTABLE_HOURLY_REVENUE}원)")
         return False
 
     order_ids = [o["order_id"] for o in cluster]
-    orders_by_id = {o["order_id"]: o for o in cluster}   # ← 이 줄 추가!
+    orders_by_id = {o["order_id"]: o for o in cluster}
+
+    print_route_timeline(best_detail, orders_by_id)
+    print_consumer_eta(best_detail, orders_by_id)
 
     package_id = insert_package(
         rider_id=None,
@@ -89,7 +83,8 @@ def assign_bundle(cluster, assigned_rider_ids):
         status="OFFERED",
     )
     insert_orders(cluster, package_id=package_id, status="OFFERED")
-    print(f"   📢 제안됨 (수락 대기 중): package_id={package_id}")
+    assigned_rider_ids.add(nearest_rider_id)
+    print(f"   📢 제안됨 (수락 대기 중): package_id={package_id}, 후보 라이더={nearest_rider_id}")
     return True
 
 
@@ -106,13 +101,16 @@ def assign_solo(order, assigned_rider_ids):
     route, score, detail = calculate_solo_delivery(order, rider_start_pos)
     revenue, hourly = calculate_revenue([order], detail['total_time'])
 
-    orders_by_id = {order["order_id"]: order}  
+    orders_by_id = {order["order_id"]: order}
+
+    print_route_timeline(detail, orders_by_id)
+    print_consumer_eta(detail, orders_by_id)
 
     package_id = insert_package(
         rider_id=None,
         package_type="SOLO",
         order_ids=[order["order_id"]],
-        route_detail=_build_route_detail(route, orders_by_id),   # ← orders_by_id 추가
+        route_detail=_build_route_detail(route, orders_by_id),
         score=round(score, 2),
         score_detail=_build_score_detail(detail),
         package_revenue=revenue,
@@ -120,8 +118,9 @@ def assign_solo(order, assigned_rider_ids):
         status="OFFERED",
     )
     insert_orders([order], package_id=package_id, status="OFFERED")
+    assigned_rider_ids.add(nearest_rider_id)
 
-    print(f"   📢 한집배달 제안됨 (수락 대기 중): package_id={package_id}")
+    print(f"   📢 한집배달 제안됨 (수락 대기 중): package_id={package_id}, 후보 라이더={nearest_rider_id}")
     return True
 
 

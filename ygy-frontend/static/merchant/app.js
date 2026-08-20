@@ -6,6 +6,7 @@ let activeMerchantTab = 'processing';
 let selectedOrderId;
 let storeDirectory;
 let currentRiderProfile = null;
+let latestCookFeedback = null;
 
 const DEFAULT_COOK_MIN = 20;
 const MIN_COOK_MIN = 5;
@@ -14,7 +15,7 @@ const COOK_MIN_STEP = 5;
 
 const cookMinuteDrafts = new Map();
 
-const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', COOKED: '조리 완료', MATCHED: '배차 완료', PICKED_UP: '픽업 완료', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
+const statusLabels = Object.freeze({ NEW: '신규 주문', COOKING: '조리 중', COOKED: '조리 완료', MATCHED: '배차 완료', PICKED_UP: '배달 중', COMPLETED: '조리 완료', DELIVERED: '배달 완료' });
 const statusTone = status =>
   status === 'NEW'
     ? 'info'
@@ -37,10 +38,314 @@ function showFailure(error) {
   Yogiyo.renderLoadState('merchantLoadState', { title: '주문 정보를 불러오지 못했습니다.', description: Yogiyo.errorMessage(error, '매장 주문'), onRetry: loadMerchant });
 }
 
-function orderListCard(order) {
-  const selected = String(order.order_id) === String(selectedOrderId);
-  return `<button type="button" class="merchant-order-item${selected ? ' selected' : ''}" data-order-select="${order.order_id}"><span class="badge ${statusTone(order.status)}">${Yogiyo.escape(statusLabels[order.status] || order.status)}</span><strong>${Yogiyo.escape(menuSummary(order.menu_items))}</strong><span>주문 #${Yogiyo.escape(order.order_id)} · ${Yogiyo.money(order.amount)}</span></button>`;
+function receiptCard(order) {
+  const payment = order.payment;
+
+  const paymentLines = payment ? `
+  <div class="row"><span class="label">총 결제금액</span><span class="value">${Yogiyo.money(payment.total_amount)}</span></div>
+    <div class="row"><span class="label">배달팁</span><span class="value">${Yogiyo.money(payment.delivery_fee)}</span></div>
+    <div class="row"><span class="label">결제수단</span><span class="value">${Yogiyo.escape(payment.payment_method)}</span></div>
+    <div class="row"><span class="label">고객 연락처</span><span class="value">${Yogiyo.escape(payment.safety_number)}</span></div>
+    <div class="row"><span class="label">현금영수증</span><span class="value">${Yogiyo.escape(payment.cash_receipt)}</span></div>
+  ` : '<p class="subtext">결제 정보가 없습니다.</p>';
+
+  return `
+    <section class="card">
+      <div class="section-title-row">
+        <h2>주문 상세</h2>
+        <button type="button" class="receipt-print-button" data-print-receipt="${order.order_id}">🧾영수증 출력</button>
+      </div>
+      ${paymentLines}
+    </section>
+  `;
 }
+
+
+function openExplanationModal(content) {
+  const backdrop = Yogiyo.el('explanationBackdrop');
+  const sheet = Yogiyo.el('explanationSheet');
+  sheet.innerHTML = `
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title">${Yogiyo.escape(content.title)}</h2>
+    <ul class="explanation-steps">
+      ${content.steps.map(s => `<li>${Yogiyo.escape(s)}</li>`).join('')}
+    </ul>
+  `;
+  backdrop.classList.add('open');
+  sheet.classList.add('open');
+}
+
+function closeExplanationModal() {
+  Yogiyo.el('explanationBackdrop').classList.remove('open');
+  Yogiyo.el('explanationSheet').classList.remove('open');
+}
+
+
+function orderListCard(order, { showBadge = true } = {}) {
+  const selected = String(order.order_id) === String(selectedOrderId);
+  const badge = showBadge
+    ? `<span class="badge ${statusTone(order.status)}">${Yogiyo.escape(statusLabels[order.status] || order.status)}</span>`
+    : '';
+  return `<button type="button" class="merchant-order-item${selected ? ' selected' : ''}" data-order-select="${order.order_id}">
+    ${badge}
+    <strong class="order-number">YGY07${Yogiyo.escape(order.order_id)}</strong>
+    <span class="order-menu-line">${Yogiyo.escape(menuSummary(order.menu_items))} · ${Yogiyo.money(order.amount)}</span>
+  </button>`;
+}
+
+function orderSummaryBox(order) {
+  const items = Array.isArray(order.menu_items) ? order.menu_items : [];
+  const first = items[0];
+  const title = first
+    ? `${Yogiyo.escape(first.menu)} · ${first.qty ?? 1}개`
+    : '메뉴 정보 없음';
+
+  const itemLines = items.length > 1
+    ? `<ul class="order-summary-items">${items.map(item =>
+        `<li>${Yogiyo.escape(item.menu)} ${item.qty ?? 1}개</li>`
+      ).join('')}</ul>`
+    : '';
+
+  return `
+    <div class="order-summary-box">
+      <div class="order-summary-title">${title}</div>
+      ${itemLines}
+    </div>
+  `;
+}
+
+function orderRequestLines(order) {
+  const lines = [];
+  if (order.customer_request) lines.push(`<span>[매장 요청사항]: ${Yogiyo.escape(order.customer_request)}</span>`);
+  if (order.rider_request) lines.push(`<span>[라이더 요청사항]: ${Yogiyo.escape(order.rider_request)}</span>`);
+  if (!lines.length) return '';
+  return `<p class="order-request-line">${lines.join('<br/>')}</p>`;
+}
+
+
+
+function orderComponentLines(order) {
+  const items = Array.isArray(order.menu_items) ? order.menu_items : [];
+  const components = items[0]?.components || [];
+  if (!components.length) return '';
+
+  const lines = components.map(c => {
+    const extra = c.price_delta ? ` · +${Yogiyo.money(c.price_delta)}` : '';
+    return `<li>${Yogiyo.escape(c.name)} ${c.qty}개${extra}</li>`;
+  }).join('');
+
+  return `<ul class="order-component-list">${lines}</ul>`;
+}
+
+let latestReference = null; // 파일 상단, latestCookFeedback 선언 근처에 추가
+
+function merchantCookCoach(
+  order,
+  store,
+  cookMinutes
+) {
+  const feedback =
+    order?.cook_feedback ||
+    latestCookFeedback;
+
+  const isPostCook =
+    ['COOKED', 'MATCHED', 'PICKED_UP', 'DELIVERED'].includes(order?.status);
+
+  /*
+   * 조리 완료 이후(라이더 배차 대기~배달완료 전 구간 포함):
+   * 예상 vs 실제 피드백
+   */
+  if (feedback && isPostCook) {
+    const ownerMin =
+      Number(
+        feedback.owner_cook_min
+      );
+
+    const actualMin =
+      Number(
+        feedback.actual_cook_min
+      );
+
+    const diff =
+      actualMin - ownerMin;
+
+    const diffText =
+      diff < 0
+        ? `예상보다 ${Math.abs(diff)}분 빨리 완료`
+        : diff > 0
+          ? `예상보다 ${diff}분 더 소요`
+          : '입력값과 실제 시간이 일치';
+
+    return `
+      <section
+        class="
+          merchant-coach-card
+          merchant-feedback-card
+        "
+      >
+        <div class="merchant-coach-header">
+          <span class="merchant-coach-check">
+            ✓
+          </span>
+
+          <span class="merchant-coach-eyebrow">
+            오늘 조리 기록
+          </span>
+        </div>
+
+        <h3>
+          ${Yogiyo.escape(
+            feedback.title ||
+            diffText
+          )}
+        </h3>
+
+        <div class="merchant-time-compare">
+
+          <div>
+            <span>입력한 시간</span>
+            <strong>
+              ${ownerMin}분
+            </strong>
+          </div>
+
+          <span class="merchant-time-arrow">
+            →
+          </span>
+
+          <div class="actual">
+            <span>실제 조리</span>
+            <strong>
+              ${actualMin}분
+            </strong>
+          </div>
+
+        </div>
+
+        <p>
+          ${Yogiyo.escape(
+            feedback.message || ''
+          )}
+        </p>
+
+        <div class="merchant-learning-note">
+          <span>↗</span>
+
+          <strong>
+            ${
+              Yogiyo.escape(
+                feedback.learning_message ||
+                '이번 결과는 다음 조리시간 판단에 활용할 수 있는 실측 데이터예요.'
+              )
+            }
+          </strong>
+        </div>
+
+      </section>
+    `;
+  }
+
+
+  /*
+   * 조리 시작 전 / 조리 중:
+   * 신규 매장 Cold Start 참고정보
+   */
+  const reference = order?.cook_reference;
+  if (reference) latestReference = reference;
+  const effectiveReference = reference || latestReference;
+
+  if (!effectiveReference) {
+    return `
+      <section class="merchant-coach-card">
+        <div class="merchant-coach-header">
+          <span class="merchant-coach-dot"></span>
+          <span class="merchant-coach-eyebrow">조리시간 참고</span>
+        </div>
+        <h3>참고 정보를 불러오는 중이에요.</h3>
+      </section>
+    `;
+  }
+
+  const currentCookMin =
+    order.owner_cook_min ??
+    cookMinutes;
+
+  const avgMin = Number(effectiveReference.avg_cook_min);
+  const currentDiffClass = Math.abs(currentCookMin - avgMin) >= 5 ? 'metric-diff-warn' : 'metric-diff-good';
+
+  return `
+    <section class="merchant-coach-card">
+
+      <div class="merchant-coach-header">
+
+        <span class="merchant-coach-dot">
+        </span>
+
+        <span class="merchant-coach-eyebrow">
+          조리시간 참고
+        </span>
+
+      </div>
+
+      <h3>
+        ${Yogiyo.escape(
+          store?.name ||
+          '현재 매장'
+        )}은 아직 자체 조리 이력이
+        충분하지 않아요.
+      </h3>
+
+      <p>
+        강남 지역의 같은 버거류 매장
+        <strong>
+          ${Yogiyo.escape(
+            effectiveReference.matched_store_name
+          )}
+        </strong>
+        의 유사 조리 기록을 참고했어요.
+      </p>
+
+      <div class="merchant-coach-metrics">
+
+        <div>
+          <span>유사 기록</span>
+          <strong>
+            ${Yogiyo.escape(
+              effectiveReference.recent_case_count
+            )}건
+          </strong>
+        </div>
+
+        <div>
+          <span>평균 조리</span>
+          <strong>
+            ${Yogiyo.escape(
+              effectiveReference.avg_cook_min
+            )}분
+          </strong>
+        </div>
+
+        <div class="${currentDiffClass}">
+          <span>현재 입력</span>
+          <strong data-merchant-current-cook>
+            ${Yogiyo.escape(
+              currentCookMin
+            )}분
+          </strong>
+        </div>
+
+      </div>
+
+      <div class="merchant-coach-source">
+        <span>✦</span>
+
+        Oracle AI Vector Search를 통한 예측값이며 참고용으로 사용하시면 됩니다.
+      </div>
+
+    </section>
+  `;
+}
+
 
 function renderDetail(order, store, view={}) {
   const root = Yogiyo.el('merchantOrderDetail');
@@ -81,8 +386,7 @@ function renderDetail(order, store, view={}) {
 
     const isNew = order.status === 'NEW';
 
-    const canCompleteCooking =
-      ['COOKING', 'MATCHED'].includes(order.status);
+    const canCompleteCooking = order.status === 'COOKING';
 
     const items = Array.isArray(order.menu_items)
       ? order.menu_items
@@ -94,47 +398,44 @@ function renderDetail(order, store, view={}) {
       cookMinuteDrafts.get(String(order.order_id)) ??
       DEFAULT_COOK_MIN;
 
-    const actionButtons = isNew
-      ? `
-        <div class="merchant-decision-actions">
-          <div class="cook-time-stepper">
-            <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
+    const cookCoach =
+      merchantCookCoach(
+        order,
+        store,
+        cookMinutes
+      );
 
-            <input
-              type="number"
-              data-cook-minutes="${order.order_id}"
-              value="${cookMinutes}"
-              min="${MIN_COOK_MIN}"
-              max="${MAX_COOK_MIN}"
-              step="${COOK_MIN_STEP}"
-              readonly
-            />
-
-            <span>분</span>
-
-            <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
-          </div>
-
-          <button
-            class="primary-button"
-            type="button"
-            data-order-accept="${order.order_id}">
-            조리 시작
-          </button>
+    const headRightBlock = `
+      <div class="merchant-head-actions">
+        
+        <div class="cook-time-stepper" style="${isNew ? '' : 'display:none'}">
+          <button type="button" class="stepper-button" data-stepper-decrease="${order.order_id}">-</button>
+          <input
+            type="number"
+            data-cook-minutes="${order.order_id}"
+            value="${cookMinutes}"
+            min="${MIN_COOK_MIN}"
+            max="${MAX_COOK_MIN}"
+            step="${COOK_MIN_STEP}"
+            readonly
+          />
+          <span>분</span>
+          <button type="button" class="stepper-button" data-stepper-increase="${order.order_id}">+</button>
         </div>
-      `
-      : canCompleteCooking
-        ? `
-          <div class="merchant-decision-actions">
-            <button
-              class="primary-button"
-              type="button"
-              data-order-cook-complete="${order.order_id}">
-              조리 완료
-            </button>
-          </div>
-        `
-        : '';
+        <button class="primary-button" type="button"
+          data-order-accept="${order.order_id}"
+          style="${isNew ? '' : 'display:none'}">
+          조리 시작
+        </button>
+        <button class="primary-button" type="button"
+          data-order-cook-complete="${order.order_id}"
+          style="${canCompleteCooking ? '' : 'display:none'}">
+          조리 완료
+        </button>
+      </div>
+    `;
+      
+    
 
   root.innerHTML = `
     <div class="merchant-detail-head">
@@ -142,55 +443,19 @@ function renderDetail(order, store, view={}) {
         <span class="badge ${statusTone(order.status)}">
           ${Yogiyo.escape(statusLabels[order.status] || order.status)}
         </span>
-        <h2>주문 #${Yogiyo.escape(order.order_id)}</h2>
-        <p>${Yogiyo.escape(store?.name || '매장 주문')}</p>
+        <h2>주문 YGY07${Yogiyo.escape(order.order_id)}</h2>
+        <p class="order-menu-line">${Yogiyo.escape(menuSummary(order.menu_items))}</p>
+        ${orderComponentLines(order)}
+        ${orderRequestLines(order)}
       </div>
-      <strong>${Yogiyo.money(order.amount)}</strong>
+      ${headRightBlock}
     </div>
 
-    ${actionButtons}
-
     <div class="merchant-detail-scroll">
-      <section class="card">
-        <div class="section-title-row">
-          <h2>주문 내역</h2>
-          <span>총 ${Yogiyo.money(order.amount)}</span>
-        </div>
 
-        ${
-          items.map(item => `
-            <div class="row">
-              <span class="label">
-                ${Yogiyo.escape(item.menu)}
-              </span>
-              <span class="value">
-                ${item.qty}개 · ${Yogiyo.money(item.price)}
-              </span>
-            </div>
-          `).join('')
-          ||
-          '<p class="subtext">메뉴 정보가 없습니다.</p>'
-        }
-      </section>
-
-      <section class="card">
-        <div class="section-title-row">
-          <h2>조리 정보</h2>
-        </div>
-
-        <div class="row">
-          <span class="label">사장님 입력 조리시간</span>
-          <span class="value">
-            ${
-              order.owner_cook_min
-                ? `${order.owner_cook_min}분`
-                : view.isCompletedTab
-                  ? '기록 없음'
-                  : '수락 후 입력'
-            }
-          </span>
-        </div>
-      </section>
+      ${cookCoach}
+           
+      ${receiptCard(order)}
 
       <section class="card merchant-rider-card">
         <div class="section-title-row">
@@ -232,22 +497,6 @@ function renderDetail(order, store, view={}) {
             `
         }
       </section>
-
-      ${
-        order.merchant_text
-          ? `
-            <section class="notice llm-guidance merchant-ai-guidance">
-              <span>✦</span>
-              <div>
-                <strong>AI 조리 안내</strong>
-                <span>
-                  ${Yogiyo.escape(order.merchant_text)}
-                </span>
-              </div>
-            </section>
-          `
-          : ''
-      }
     </div>
   `;
 
@@ -304,6 +553,16 @@ function renderDetail(order, store, view={}) {
 
     input.value = next;
     cookMinuteDrafts.set(String(orderId), next);
+
+    const currentCookNode =
+      root.querySelector(
+        '[data-merchant-current-cook]'
+      );
+
+    if (currentCookNode) {
+      currentCookNode.textContent =
+        `${next}분`;
+    }
   });
 
   root
@@ -327,6 +586,16 @@ function renderDetail(order, store, view={}) {
 
     input.value = next;
     cookMinuteDrafts.set(String(orderId), next);
+
+    const currentCookNode =
+      root.querySelector(
+        '[data-merchant-current-cook]'
+      );
+
+    if (currentCookNode) {
+      currentCookNode.textContent =
+        `${next}분`;
+    }
   });
   
 
@@ -397,13 +666,13 @@ function renderMerchant(processingView, completedView, store) {
   Yogiyo.el('progressOrderCount').textContent =
     `${progressOrders.length}건`;
 
-  // 처리완료 탭 내부 건수
-  Yogiyo.el('completedOrderCount').textContent =
-    `${completedOrders.length}건`;
+  // // 처리완료 탭 내부 건수
+  // Yogiyo.el('completedOrderCount').textContent =
+  //   `${completedOrders.length}건`;
 
   // 신규 주문
   Yogiyo.el('newOrderList').innerHTML =
-    newOrders.map(orderListCard).join('') ||
+    newOrders.map(order => orderListCard(order, { showBadge: false })).join('') ||
     '<p class="merchant-empty-copy">신규 주문이 없습니다.</p>';
 
   // 진행 중 주문
@@ -545,7 +814,7 @@ if (
       cookMinuteDrafts.delete(String(orderId));
 
       Yogiyo.toast(
-        `주문 #${orderId}의 조리를 시작했습니다.`
+        `주문 YGY07${orderId}의 조리를 시작했습니다.`
       );
 
       await loadMerchant();
@@ -555,27 +824,47 @@ if (
   });
 }
 
-async function completeCooking(orderId, button) {
-  await Yogiyo.withPending(button, async () => {
-    try {
-      const result =
-        await Yogiyo.apiClient.demo.merchantCookComplete();
+async function completeCooking(
+  orderId,
+  button
+) {
+  await Yogiyo.withPending(
+    button,
+    async () => {
+      try {
+        const result =
+          await Yogiyo.apiClient.demo
+            .merchantCookComplete();
 
-      if (result.rerouted) {
-        Yogiyo.toast('경로가 재조정되었습니다.');
-      } else if (result.message) {
-        Yogiyo.toast(result.message);
-      } else {
+
+        latestCookFeedback =
+          result.cook_feedback ||
+          null;
+
+
+        if (
+          result.feedback_message
+        ) {
+          Yogiyo.toast(
+            result.feedback_message
+          );
+
+        } else {
+          Yogiyo.toast(
+            `주문 YGY07${orderId}의 조리가 완료되었습니다.`
+          );
+        }
+
+
+        await loadMerchant();
+
+      } catch (error) {
         Yogiyo.toast(
-          `주문 #${orderId}의 조리가 완료되었습니다.`
+          error.message
         );
       }
-
-      await loadMerchant();
-    } catch (error) {
-      Yogiyo.toast(error.message);
     }
-  });
+  );
 }
 
 document
@@ -603,31 +892,22 @@ document
     });
   });
 
-Yogiyo.poll(
-  async () => {
-    const [processingView, completedView, riderProfile] = await Promise.all([
+  Yogiyo.poll(
+  () => Promise.all([
     Yogiyo.apiClient.demo.merchantOrders(),
     Yogiyo.apiClient.demo.merchantCompleted(),
+    getStore(),
     Yogiyo.apiClient.demo.riderProfile(),
-]);
-
-return { processingView, completedView, riderProfile };
-  },
-
-    async ({ processingView, completedView, riderProfile }) => {
-      currentRiderProfile = riderProfile;
-
-      renderMerchant(
-        processingView,
-        completedView,
-        await getStore()
-      );
-
+  ]),
+  ([processingView, completedView, store, riderProfile]) => {
+    currentRiderProfile = riderProfile;
+    renderMerchant(processingView, completedView, store);
     setConnection(true);
   },
-
   {
     intervalMs: 5000,
-    onError: showFailure
+    onError: () => setConnection(false),
   }
 );
+
+loadMerchant();

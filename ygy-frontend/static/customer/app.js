@@ -12,6 +12,16 @@ const assignmentConfirmedStatuses = new Set([
   'COMPLETED',
 ]);
 
+const orderCardStatus = {
+  NEW: '주문 접수',
+  COOKING: '음식 조리 중',
+  MATCHING: '배차 진행 중',
+  MATCHED: '배차 완료',
+  PICKED_UP: '배달 중',
+  DELIVERED: '배달 완료',
+  COMPLETED: '배달 완료',
+};
+
 const hasPackage = order =>
   order?.package_id != null &&
   order?.package_id !== '';
@@ -35,17 +45,17 @@ const hasOfferedPackage = order =>
 
 const statusMeta = Object.freeze({
   NEW: {
-    label: '신규 주문',
+    label: '주문이 접수되었어요!',
     progress: 0,
     message:
-      '주문이 접수되었습니다. 매장에서 주문을 확인하고 있어요.',
+      '매장에서 주문을 확인하고 있어요.',
   },
 
   COOKING: {
-    label: '조리 중 · 배차 수락 대기',
+    label: '음식 조리 중',
     progress: 1,
     message:
-      '음식을 조리하고 있어요. 라이더의 배차 수락을 기다리고 있습니다.',
+      '라이더 배정이 확정되면 정확한 도착 시간을 알려드릴게요',
   },
 
   MATCHED: {
@@ -100,11 +110,14 @@ function setConnection(online) {
   if (label) {
     label.textContent =
       online
-        ? '서버 연결됨'
+        ? '실시간 조회 중'
         : '재연결 필요';
   }
 }
 
+function formatOrderCode(orderId) {
+  return `YGY07${orderId}`;
+}
 
 function showCustomerFailure(error) {
   setConnection(false);
@@ -145,44 +158,97 @@ function menuSummary(items) {
     .join(' · ') || '메뉴 정보 없음';
 }
 
+function menuOneLineSummary(items) {
+  if (!Array.isArray(items) || !items.length) return '메뉴 정보가 없습니다.';
+  const first = items[0].menu;
+  const restCount = items.length - 1;
+  return restCount > 0 ? `${first} 외 ${restCount}개` : first;
+}
+
 
 function renderCustomerExplanation() {
-  const section =
-    Yogiyo.el('customerExplanationSection');
+  const section = Yogiyo.el(
+    'customerExplanationSection'
+  );
+  const content = Yogiyo.el(
+    'customerExplanationContent'
+  );
 
-  const content =
-    Yogiyo.el('customerExplanationContent');
+  if (!section || !content) return;
 
-  if (!hasConfirmedAssignment(currentOrder)) {
+  const status =
+    currentOrder?.status || '';
+
+  const shouldShow =
+    ['MATCHED', 'PICKED_UP', 'DELIVERED'].includes(
+      status
+    );
+
+  if (!shouldShow) {
     section.hidden = true;
-    content.replaceChildren();
+    content.innerHTML = '';
     return;
   }
 
-  section.hidden = false;
+  let eyebrow = '요기요 고객님을 위한 맞춤 배달 안내';
+  let headline =
+    '음식이 조리된 뒤 오래 기다리지 않도록\n'
+    + '배달 순서를 최적화했어요.';
+  let bodyLines = [
+    '조리시간과 라이더 이동 동선을 함께 계산했어요.',
+    '음식이 완성된 뒤 매장에서 오래 기다리지 않도록\n'
+    +'픽업 시점을 맞췄어요.',
+    '더 따뜻하고 신선한 상태로 전달해드릴게요.',
+  ];
 
-  const text =
-    String(
-      currentOrder?.consumer_text || ''
-    ).trim();
+  if (status === 'PICKED_UP') {
+    eyebrow = '요기요 고객님을 위한 맞춤 배달 안내';
+    headline =
+      '음식이 조리된 직후 빠르게 픽업되어\n'
+      +'고객님께 이동 중이에요.';
+    bodyLines = [
+      '조리 완료 시점과 라이더 도착 시점을 함께 고려했어요.',
+      '조금만 기다리시면 받아보실 수 있어요.',
+    ];
+  }
 
-  const copy =
-    text ||
-    '배차 안내를 준비 중입니다. 확정된 배차 정보는 위 상태와 경로에서 확인할 수 있습니다.';
+  if (status === 'DELIVERED') {
+    eyebrow = '요기요 고객님을 위한 맞춤 배달 완료';
+    headline =
+      '조리 후 대기 시간을 줄이도록 계산된 동선으로 배달이 완료되었어요.';
+    bodyLines = [
+      '조리시간과 라이더 이동 순서를 함께 고려해 배달했어요.',
+      '음식이 완성된 뒤 오래 기다리지 않도록 순서를 조정했어요.',
+      '더 안정적인 상태로 받아보실 수 있도록 설계했어요.',
+    ];
+  }
 
   content.innerHTML = `
-    <div class="notice llm-guidance">
-      <span>✦</span>
-
-      <div>
-        <strong>배차 안내</strong>
-
-        <span class="explanation-copy">
-          ${Yogiyo.escape(copy)}
-        </span>
+    <div class="customer-guide-card">
+      <div class="customer-guide-header">
+        <span class="customer-guide-dot"></span>
+        <span class="customer-guide-eyebrow">${Yogiyo.escape(
+          eyebrow
+        )}</span>
       </div>
+
+      <p class="customer-guide-headline">
+        ${Yogiyo.escape(headline)}
+      </p>
+
+      <ul class="customer-guide-points">
+        ${bodyLines
+          .map(
+            line => `
+              <li>${Yogiyo.escape(line)}</li>
+            `
+          )
+          .join('')}
+      </ul>
     </div>
   `;
+
+  section.hidden = false;
 }
 
 
@@ -242,14 +308,11 @@ function renderCustomerMap() {
   riderStep.textContent =
     hasAssignedRider(currentOrder)
       ? currentRiderProfile
-        ? `담당 라이더 ${
-            currentRiderProfile.name ||
-            currentRiderProfile.rider_id
-          } 위치 표시 중`
-        : `담당 라이더 ${
+        ? `라이더님이 매장으로 이동 중이에요!`
+        : `라이더 ${
             currentOrder.rider_id
           } 위치 확인 중`
-      : '담당 라이더 배정 전';
+      : '라이더 배정 전';
 }
 
 
@@ -331,8 +394,8 @@ function bindCustomerSheet() {
 
     handle.querySelector('b').textContent =
       expanded
-        ? '아래로 끌어 지도 보기'
-        : '위로 끌어 주문 상세 보기';
+        ? '주문 상세 보기'
+        : '주문 상세 보기';
   };
 
   panel.addEventListener(
@@ -407,7 +470,7 @@ function formatArrivalEta(etaMin) {
   const hour = Math.floor(arrivalTotalMin / 60);
   const minute = arrivalTotalMin % 60;
 
-  return `도착 예정 시간: ${String(hour).padStart(2, '0')}시 ${String(minute).padStart(2, '0')}분(${remainingMin}분 뒤)`;
+  return `🍳 ${remainingMin}분 뒤 도착 예정 (${String(hour).padStart(2, '0')}시 ${String(minute).padStart(2, '0')}분)`;
 }
 
 function renderCustomer(order) {
@@ -423,8 +486,8 @@ function renderCustomer(order) {
   ? '배달 완료'
   : !assignmentConfirmed && ['NEW', 'COOKING'].includes(order.status)
     ? order.status === 'NEW'
-      ? '매장 확인 대기 중'
-      : '라이더 수락 대기 중'
+      ? '매장에서 주문을 확인하고 있어요.'
+      : '가장 가까운 라이더님을 찾고 있어요. 🛵'
     : order.eta_min == null
       ? '도착 예정 시간 확인 중'
       : formatArrivalEta(order.eta_min);
@@ -434,32 +497,26 @@ function renderCustomer(order) {
       ? order.menu_items
       : [];
 
-  Yogiyo.el(
-    'orderId'
-  ).textContent =
-    `내 주문번호 #${order.order_id} · ${
-      order.store_name || '매장'
-    }`;
+  Yogiyo.el('orderId').textContent =
+  `${order.store_name || '매장'} 주문 조회`;
 
-  Yogiyo.el(
-    'etaWindow'
-  ).textContent =
+  const etaWindow =
+    Yogiyo.el('etaWindow');
+
+  etaWindow.textContent =
     etaLabel;
 
-  Yogiyo.el(
-    'currentMessage'
-  ).textContent =
-    meta.message;
+  etaWindow.classList.toggle(
+    'is-loading',
+    order.status === 'NEW'
+  );
 
-  Yogiyo.el(
-    'deliveryOrder'
-  ).textContent =
-    meta.label;
 
   Yogiyo.el(
     'etaUpdated'
   ).textContent =
-    '시연 주문 API · 5초 갱신';
+    orderCardStatus[order.status] ||
+    '상태 확인 중';
 
   Yogiyo.el(
     'statusBadge'
@@ -473,20 +530,14 @@ function renderCustomer(order) {
   ).textContent =
     order.store_name || '매장';
 
-  Yogiyo.el(
-    'orderNumber'
-  ).textContent =
-    `내 주문번호 #${order.order_id}`;
+  Yogiyo.el('orderNumber').textContent =
+  `주문번호 ${formatOrderCode(order.order_id)}`;
 
   Yogiyo.el(
     'menuSummary'
   ).textContent =
     menuSummary(items);
 
-  Yogiyo.el(
-    'remainingMin'
-  ).textContent =
-    etaLabel;
 
   Yogiyo.el(
     'packageId'
@@ -497,8 +548,7 @@ function renderCustomer(order) {
         ? `배차 제안 ${order.package_id} · 라이더 수락 대기`
         : order.status === 'COOKING'
           ? '배차 수락 대기 중'
-          : '배차 번호 배정 전';
-
+          : '';
   [
     ...Yogiyo.el(
       'progressTrack'
@@ -512,10 +562,10 @@ function renderCustomer(order) {
     }
   );
 
-  Yogiyo.el(
-    'amount'
-  ).textContent =
-    Yogiyo.money(order.amount);
+  // Yogiyo.el(
+  //   'amount'
+  // ).textContent =
+  //   Yogiyo.money(order.amount);
 
   Yogiyo.el(
     'deliveryAddress'
@@ -523,35 +573,28 @@ function renderCustomer(order) {
     order.delivery_address ||
     '배달지 주소 정보 없음';
 
+  const payment = order.payment;
+
+  Yogiyo.el('deliveryTip').textContent =
+    payment ? Yogiyo.money(payment.delivery_fee) : '-';
+
+  Yogiyo.el('totalAmount').textContent =
+    payment ? Yogiyo.money(payment.total_amount) : Yogiyo.money(order.amount);
+
+  Yogiyo.el('paymentMethod').textContent =
+    payment ? payment.payment_method : '-';
+
+  Yogiyo.el('safetyNumber').textContent =
+    payment ? payment.safety_number : '-';
+
   Yogiyo.el(
     'itemsCard'
-  ).innerHTML =
-    items
-      .map(
-        item => `
-          <div class="row">
-            <span class="label">
-              ${Yogiyo.escape(
-                item.menu
-              )}
-            </span>
-
-            <span class="value">
-              ${item.qty}개 · ${
-                Yogiyo.money(
-                  item.price
-                )
-              }
-            </span>
-          </div>
-        `
-      )
-      .join('') ||
-    `
-      <div class="subtext">
-        메뉴 정보가 없습니다.
-      </div>
-    `;
+  ).innerHTML = `
+    <div class="row">
+      <span class="label">메뉴</span>
+      <span class="value">${Yogiyo.escape(menuOneLineSummary(items))}</span>
+    </div>
+  `;
 
   syncRiderLocation(order);
 

@@ -160,6 +160,118 @@
     state.polyline = null;
   };
 
+  const placeMarkerSvg = kind => {
+  if (kind === 'store') {
+    return `
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.1"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M4 10h16" />
+        <path d="M5 10v9h14v-9" />
+        <path d="M7 4h10l3 6H4l3-6Z" />
+        <path d="M9 19v-5h6v5" />
+      </svg>
+    `;
+  }
+
+  return `
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.1"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 11.5 12 4l9 7.5" />
+      <path d="M5.5 10v10h13V10" />
+      <path d="M9.5 20v-6h5v6" />
+    </svg>
+  `;
+};
+
+
+const createCustomerPlaceMarker = kind => {
+  const marker =
+    document.createElement('div');
+
+  marker.className =
+    `customer-kakao-marker ${kind}`;
+
+  const isStore =
+    kind === 'store';
+
+  marker.innerHTML =
+    placeMarkerSvg(kind);
+
+  marker.style.cssText = `
+    width: 38px;
+    height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 14px;
+
+    background:
+      ${isStore
+        ? '#ffffff'
+        : '#ff2f6e'};
+
+    color:
+      ${isStore
+        ? '#ff2f6e'
+        : '#ffffff'};
+
+    border:
+      3px solid
+      ${isStore
+        ? '#ff2f6e'
+        : '#ffffff'};
+
+    box-shadow:
+      0 4px 12px
+      rgba(26, 28, 38, 0.20);
+
+    box-sizing: border-box;
+  `;
+
+  return marker;
+};
+
+const riderMarkerSvg = () => `
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="5.5" cy="17.5" r="2.5" />
+    <circle cx="18.5" cy="17.5" r="2.5" />
+
+    <path d="M8 17.5h5l2.2-5H11l-2.3-3H6.5" />
+    <path d="M15.2 12.5h3l1.6 2.3" />
+    <path d="M6 15.3 8.5 12" />
+    <path d="M16.5 9.5h2.5" />
+  </svg>
+`;
 
 const fitMapOnce = (state, data) => {
   const routeStopMarkers = data.markers.filter(item => ['pickup', 'dropoff', 'delivery'].includes(String(item.meta?.type || '').toLowerCase()));
@@ -245,6 +357,9 @@ const fitMapOnce = (state, data) => {
 
       markers: [],
       polyline: null,
+      
+      riderMarker: null,
+      riderPoint: null,
 
       hasFitted: false,
 
@@ -351,75 +466,280 @@ const fitMapOnce = (state, data) => {
 
     data.markers.forEach(
       item => {
-        const visited = item.meta?.visited;
-        const sequence = item.sequence;
-        const kind = item.kind;
+        const visited =
+          Boolean(
+            item.meta?.visited
+          );
 
-        const content = document.createElement('div');
+        const sequence =
+          item.sequence;
 
-        const isRouteStop = Boolean(item.meta?.type);
+        const kind =
+          item.kind;
 
-    if (isRouteStop && (kind === 'store' || kind === 'delivery')) {
-      const activeColor = kind === 'store' ? '#ff9800' : '#2196f3';
+        const stopType =
+          String(
+            item.meta?.type || ''
+          ).toLowerCase();
 
-      content.textContent = sequence != null ? String(sequence) : '';
-      content.style.cssText = `
-        width:32px; height:32px; border-radius:50%;
-        display:flex; align-items:center; justify-content:center;
-        background:${visited ? '#999999' : activeColor};
-        color:white; font-size:14px; font-weight:800;
-        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
-      `;
-    } else if (kind === 'store') {
-      content.innerHTML = '🏪';
-      content.style.cssText = `
-        width:32px; height:32px; border-radius:50%;
-        display:flex; align-items:center; justify-content:center;
-        background:#ff9800; font-size:18px;
-        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
-      `;
-    } else if (kind === 'delivery') {
-      content.innerHTML = '🏠';
-      content.style.cssText = `
-        width:32px; height:32px; border-radius:50%;
-        display:flex; align-items:center; justify-content:center;
-        background:#2196f3; font-size:18px;
-        border:2px solid white; box-shadow:0 2px 4px rgba(0,0,0,0.3);
-      `;
-    } else {
+        const isRouteStop =
+          [
+            'pickup',
+            'dropoff',
+            'delivery',
+          ].includes(stopType);
 
-          // 그 외(라이더 배차 경로 등) - 기존 순서 숫자 원
-          content.textContent = sequence != null ? String(sequence) : '';
+        let content =
+          document.createElement(
+            'div'
+          );
+
+
+        /*
+        * 1. 라이더 현재 위치
+        *
+        * 기존에는 sequence=0이어서
+        * 핑크 원 안에 0이 표시됐습니다.
+        *
+        * 이제 라이더 SVG 아이콘으로 표시합니다.
+        */
+        if (kind === 'rider') {
+          content.innerHTML =
+            riderMarkerSvg();
+
           content.style.cssText = `
-            width: 28px; height: 28px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            background: ${visited ? '#999999' : '#ff2f6e'};
-            color: white; font-weight: bold; font-size: 14px;
-            border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            width: 38px;
+            height: 38px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 50%;
+
+            background: #ff2f6e;
+            color: #ffffff;
+
+            border: 3px solid #ffffff;
+
+            box-shadow:
+              0 4px 12px
+              rgba(255, 47, 110, 0.34);
+
+            box-sizing: border-box;
           `;
         }
+
+
+        /*
+        * 2. 라이더 경로의 픽업 / 배달 순서
+        *
+        * 픽업:
+        *   핑크 배경 + 흰 숫자
+        *
+        * 배달:
+        *   흰 배경 + 핑크 테두리/숫자
+        *
+        * 방문 완료:
+        *   모두 회색
+        */
+        else if (
+          isRouteStop &&
+          (
+            kind === 'store' ||
+            kind === 'delivery'
+          )
+        ) {
+          const isPickup =
+            stopType === 'pickup';
+
+          content.textContent =
+            sequence != null
+              ? String(sequence)
+              : '';
+
+
+          /*
+          * 이미 지나온 지점
+          */
+          if (visited) {
+            content.style.cssText = `
+              width: 32px;
+              height: 32px;
+
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              border-radius: 50%;
+
+              background: #9b9ba1;
+              color: #ffffff;
+
+              font-size: 14px;
+              font-weight: 800;
+
+              border: 2px solid #ffffff;
+
+              box-shadow:
+                0 2px 6px
+                rgba(0, 0, 0, 0.16);
+
+              box-sizing: border-box;
+            `;
+          }
+
+
+          /*
+          * 아직 방문하지 않은 픽업 지점
+          */
+          else if (isPickup) {
+            content.style.cssText = `
+              width: 32px;
+              height: 32px;
+
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              border-radius: 50%;
+
+              background: #ff2f6e;
+              color: #ffffff;
+
+              font-size: 14px;
+              font-weight: 800;
+
+              border: 2px solid #ffffff;
+
+              box-shadow:
+                0 3px 8px
+                rgba(255, 47, 110, 0.28);
+
+              box-sizing: border-box;
+            `;
+          }
+
+
+          /*
+          * 아직 방문하지 않은 배달 지점
+          */
+          else {
+            content.style.cssText = `
+              width: 32px;
+              height: 32px;
+
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              border-radius: 50%;
+
+              background: #ffffff;
+              color: #ff2f6e;
+
+              font-size: 14px;
+              font-weight: 800;
+
+              border: 3px solid #ff2f6e;
+
+              box-shadow:
+                0 3px 8px
+                rgba(31, 31, 38, 0.14);
+
+              box-sizing: border-box;
+            `;
+          }
+        }
+
+
+        /*
+        * 3. 고객 지도용 매장 / 집
+        *
+        * 아까 수정한 고객용 SVG 마커는
+        * 그대로 유지합니다.
+        */
+        else if (
+          kind === 'store' ||
+          kind === 'delivery'
+        ) {
+          content =
+            createCustomerPlaceMarker(
+              kind
+            );
+        }
+
+
+        /*
+        * 4. 혹시 모를 기타 마커
+        */
+        else {
+          content.textContent =
+            sequence != null
+              ? String(sequence)
+              : '';
+
+          content.style.cssText = `
+            width: 28px;
+            height: 28px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 50%;
+
+            background:
+              ${visited
+                ? '#999999'
+                : '#ff2f6e'};
+
+            color: #ffffff;
+
+            font-size: 14px;
+            font-weight: 800;
+
+            border: 2px solid #ffffff;
+
+            box-shadow:
+              0 2px 4px
+              rgba(0, 0, 0, 0.3);
+
+            box-sizing: border-box;
+          `;
+        }
+
 
         const marker =
           new window.kakao.maps
             .CustomOverlay({
               map: state.map,
+
               position:
-                positionOf(
-                  item
-                ),
-              content: content,
+                positionOf(item),
+
+              content,
+
               zIndex:
-                item.kind ===
-                'rider'
+                kind === 'rider'
                   ? 3
                   : 2,
             });
+        if (kind === 'rider') {
+          state.riderMarker =
+            marker;
+
+          state.riderPoint = {
+            lat: Number(item.lat),
+            lng: Number(item.lng),
+          };
+        }
+
         state.markers.push(
           marker
         );
       }
     );
-
 
     window.requestAnimationFrame(
       () => {
@@ -433,6 +753,136 @@ const fitMapOnce = (state, data) => {
     );
 
     return true;
+  };
+
+  const animateRiderMarker = (
+    containerId,
+    target,
+    durationMs = 900
+  ) => {
+    const root =
+      document.getElementById(
+        containerId
+      );
+
+    const state =
+      root
+        ? mapStates.get(root)
+        : null;
+
+    const marker =
+      state?.riderMarker;
+
+    const from =
+      state?.riderPoint;
+
+
+    const targetLat =
+      Number(target?.lat);
+
+    const targetLng =
+      Number(target?.lng);
+
+
+    if (
+      !marker ||
+      !from ||
+      !Number.isFinite(targetLat) ||
+      !Number.isFinite(targetLng)
+    ) {
+      return Promise.resolve(
+        false
+      );
+    }
+
+
+    return new Promise(resolve => {
+      const startTime =
+        performance.now();
+
+
+      /*
+      * 처음에는 빠르게,
+      * 도착할수록 부드럽게 감속
+      */
+      const easeOut =
+        value =>
+          1 -
+          Math.pow(
+            1 - value,
+            3
+          );
+
+
+      const animate = now => {
+        const elapsed =
+          now - startTime;
+
+        const progress =
+          Math.min(
+            elapsed /
+              durationMs,
+            1
+          );
+
+        const eased =
+          easeOut(progress);
+
+
+        const lat =
+          from.lat +
+          (
+            targetLat -
+            from.lat
+          ) *
+          eased;
+
+        const lng =
+          from.lng +
+          (
+            targetLng -
+            from.lng
+          ) *
+          eased;
+
+
+        marker.setPosition(
+          new window.kakao.maps
+            .LatLng(
+              lat,
+              lng
+            )
+        );
+
+
+        state.riderPoint = {
+          lat,
+          lng,
+        };
+
+
+        if (progress < 1) {
+          window.requestAnimationFrame(
+            animate
+          );
+
+          return;
+        }
+
+
+        state.riderPoint = {
+          lat: targetLat,
+          lng: targetLng,
+        };
+
+        resolve(true);
+      };
+
+
+      window.requestAnimationFrame(
+        animate
+      );
+    });
   };
 
 
@@ -564,6 +1014,7 @@ const fitMapOnce = (state, data) => {
   Object.assign(
     window.Yogiyo,
     {
+      animateRiderMarker,
       configureKakaoMap,
       renderKakaoMap,
       reverseGeocode,
