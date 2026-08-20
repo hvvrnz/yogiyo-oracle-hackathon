@@ -1672,6 +1672,11 @@ async function completeCurrentStop(
           await Yogiyo.apiClient.demo
             .riderArrive();
 
+            /*
+        * 방문 완료 전에 시작된 Polling 응답은
+        * 이전 경로 상태이므로 폐기합니다.
+        */
+        riderViewGeneration += 1;
 
         suppressNextStopChangeToast =
           true;
@@ -1796,27 +1801,54 @@ async function completeCurrentStop(
          * 3. 패키지 상태 갱신
          */
         if (acceptedPackage) {
-          const updatedPackage = {
-            ...acceptedPackage,
-            status:
-              response.package_status
-          };
+        const updatedPackage = {
+          ...acceptedPackage,
+          status:
+            response.package_status
+        };
 
+        if (
+          response.package_status ===
+          'COMPLETED'
+        ) {
+          saveCompletedPackage(
+            updatedPackage
+          );
 
-          if (
-            response.package_status ===
-            'COMPLETED'
-          ) {
-            saveCompletedPackage(
-              updatedPackage
-            );
+          /*
+          * 완료된 패키지는 더 이상
+          * 현재 운행 패키지가 아닙니다.
+          */
+          saveAcceptedPackage(null);
+
+          visitedSteps = [];
+          previousNextStopKey = null;
+          suppressNextStopChangeToast = false;
+          waitingForBusyConfirmation = false;
+
+          /*
+          * 서버 profile 재조회가 실패하더라도
+          * 화면은 즉시 운행 완료 상태로 전환합니다.
+          */
+          if (currentRider) {
+            renderRider({
+              ...currentRider,
+
+              profile: {
+                ...currentRider.profile,
+                status: 'AVAILABLE'
+              },
+
+              packages: [],
+              nextStop: null
+            });
           }
-
-
+        } else {
           saveAcceptedPackage(
             updatedPackage
           );
         }
+      }
 
 
         /*
