@@ -874,9 +874,6 @@ function offerCard(
   `;
 }
 
-
-
-
 function completedPackageRow(pkg) {
   const route = routeSummaryText(pkg);
 
@@ -1028,15 +1025,59 @@ function renderRider(view) {
   currentRider = view;
   const { profile, offers = [], offersError, nextStop, packages = [] } = view;
   const activePackage = packages[0];
-  const visibleOffers = offers
-    .slice()
-    .sort((left, right) => {
-      const leftRevenue = Number(left.package_revenue || 0);
-      const rightRevenue = Number(right.package_revenue || 0);
+const visibleOffers = offers
+  .slice()
+  .sort((left, right) => {
+    if (
+      offerSort === 'time-asc' ||
+      offerSort === 'time-desc'
+    ) {
+      const leftTime =
+        Number(
+          left.score_detail?.total_time
+        );
 
-      return offerSort === 'revenue-asc'
-        ? leftRevenue - rightRevenue
-        : rightRevenue - leftRevenue;
+      const rightTime =
+        Number(
+          right.score_detail?.total_time
+        );
+
+      const leftValid =
+        Number.isFinite(leftTime);
+
+      const rightValid =
+        Number.isFinite(rightTime);
+
+      if (!leftValid && !rightValid) {
+        return 0;
+      }
+
+      if (!leftValid) {
+        return 1;
+      }
+
+      if (!rightValid) {
+        return -1;
+      }
+
+      return offerSort === 'time-asc'
+        ? leftTime - rightTime
+        : rightTime - leftTime;
+    }
+
+    const leftRevenue =
+      Number(
+        left.package_revenue || 0
+      );
+
+    const rightRevenue =
+      Number(
+        right.package_revenue || 0
+      );
+
+    return offerSort === 'revenue-asc'
+      ? leftRevenue - rightRevenue
+      : rightRevenue - leftRevenue;
   });
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
