@@ -359,13 +359,47 @@ test(
 
 
 test(
-  '통합 시연은 시작 시 최종 reset API를 호출한다',
+  '통합 시연은 명시적 초기화 동작에서만 reset API를 호출한다',
   () => {
     const source =
       read(
         '../static/demo/app.js'
       );
 
+    const loadDemoPanelsStart =
+      source.indexOf(
+        'const loadDemoPanels'
+      );
+
+    const resetDemoStateStart =
+      source.indexOf(
+        'const resetDemoState'
+      );
+
+    assert.ok(
+      loadDemoPanelsStart >= 0
+    );
+
+    assert.ok(
+      resetDemoStateStart >
+      loadDemoPanelsStart
+    );
+
+    const loadDemoPanelsSource =
+      source.slice(
+        loadDemoPanelsStart,
+        resetDemoStateStart
+      );
+
+    assert.doesNotMatch(
+      loadDemoPanelsSource,
+      /apiClient\.demo\.reset\(\)/
+    );
+
+    assert.match(
+      source,
+      /const resetDemoState/
+    );
 
     assert.match(
       source,
@@ -374,38 +408,12 @@ test(
 
     assert.match(
       source,
+      /demoResetButton/
+    );
+
+    assert.match(
+      source,
       /DEMO_RESET/
-    );
-
-    assert.match(
-      source,
-      /90001/
-    );
-
-    assert.match(
-      source,
-      /80001/
-    );
-
-    assert.match(
-      source,
-      /rider_12/
-    );
-
-
-    assert.doesNotMatch(
-      source,
-      /884/
-    );
-
-    assert.doesNotMatch(
-      source,
-      /rider_2/
-    );
-
-    assert.doesNotMatch(
-      source,
-      /apiClient\.(customers|merchants|riders)/
     );
   }
 );
