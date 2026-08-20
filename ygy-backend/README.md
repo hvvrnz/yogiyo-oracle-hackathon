@@ -4,10 +4,9 @@
 
 ## 개요
 
-사장님이 설정한(그리고 카테고리별 보정계수로 예측한) 조리시간과
-매장/라이더 위치를 바탕으로, 여러 주문을 효율적으로 묶어 최적의
-배달 순서를 계산하는 배차 엔진과, 그 결과를 라이더/소비자/사장님
-화면에 노출하는 API를 제공한다.
+사장님이 직접 설정한 조리시간과 AI Vector Search 기반 유사 조리 사례,
+매장/라이더 위치를 바탕으로 여러 주문을 효율적으로 묶어
+최적의 배달 순서를 계산하는 배차 엔진과 관련 API를 제공한다.
 
 ## 폴더 구조 (2026-08-13 기준 실제 구현)
 
@@ -73,8 +72,8 @@ ygy-backend/
 │   ├── connection.py                  # Oracle 커넥션, execute_and_commit/fetch_all/fetch_one
 │   └── schema.sql                      # 전체 테이블 정의
 │
-├── explanation/                        # LLM 기반 설명 생성 (준영이 담당 영역)
-├── vector_search/                      # Vector Search 관련 (조리시간 예측 고도화, 진행 예정)
+├── explanation/                        # LLM 기반 설명 생성 (팀원: 박준영 담당)
+├── vector_search/                      # Cohere Embed + Oracle AI Vector Search 기반 조리시간 유사사례 검색
 ├── venv/                               # 로컬 가상환경 (git 추적 안 함)
 ├── requirements.txt
 └── .env                                 # DB 접속 정보 (git 추적 안 함)
@@ -106,7 +105,7 @@ ygy-backend/
   담당이지만, DB 저장/조회는 `api/routers/explanation.py`를 통해서만
   한다(DB/SQL 직접 접근 금지).
 
-## 주요 엔드포인트 
+## 주요 엔드포인트 (demo용은 따로 존재)
 
 | Method | Path | 설명 |
 |--------|------|------|
@@ -153,7 +152,7 @@ WALLET_LOCATION, WALLET_PASSWORD)가 필요하며, 이 파일은 git에
 ## 전체 파이프라인 실행 순서
 
 ```bash
-# 1. 매장/라이더 더미 데이터를 DB에 저장 (최초 1회 또는 재초기화 시)
+# 1. 매장/라이더 더미 데이터 DB 저장 (최초 1회 또는 재초기화 시)
 python stores/repository/store_repo.py
 python riders/repository/rider_repo.py
 
@@ -184,7 +183,7 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 
 **참고**
 - 2번(Redis 라이더 등록)은 DB/Redis 데이터가 유지되는 한 매번 다시 할 필요 없음. Redis가 초기화됐거나 라이더 데이터를 바꿨을 때만 재실행.
-- 3번(consumer)은 켜두면 `WINDOW_SECONDS`(현재 15초)마다 자동으로 `COOKING` 상태 주문을 모아 클러스터링·배차를 시도함. 4~7번은 이 3번이 켜진 상태에서 순서대로 실행.
+- 3번(consumer)은 켜두면 `WINDOW_SECONDS`(30초)마다 자동으로 `COOKING` 상태 주문을 모아 클러스터링·배차를 시도함. 4~7번은 이 3번이 켜진 상태에서 순서대로 실행.
 - `cook_demo_orders.py`, `accept_demo_packages.py`는 데모/검증용 스크립트로, 실제 서비스라면 프론트(사장님 화면의 조리시작 버튼, 라이더 화면의 수락 버튼)가 대신 호출하는 API를 시뮬레이션하는 역할.
 
 
@@ -196,11 +195,12 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 
 - vector_cases 테이블에 실제 벡터 데이터 시딩
 
-- 신규매장 조리시간 예측 4단계 fallback 검색:
-  1) 같은 지역+같은 브랜드
-  2) 다른 지역+같은 브랜드
-  3) 같은 지역+같은 카테고리(다른 브랜드 or 개인매장) - 시연 case
-  4) 카테고리 전체(지역 무관)
+- 자체 매장 이력 조회 + 신규매장 4단계 fallback 검색:
+  1) 자체 매장 이력
+  2) 같은 지역 + 같은 브랜드
+  3) 다른 지역 + 같은 브랜드
+  4) 같은 지역 + 같은 카테고리(다른 브랜드/개인매장)
+  5) 카테고리 전체(지역 무관)
 
 - 사장님 화면(merchant_text)에 LLM 적용 — case/fallback 단계에  따라 매번 다른 설명이 필요해 LLM이 실제로 필요한 지점
 - 지역보다 같은 브랜드를 fallback 우선순위로 잡은 이유:
@@ -212,6 +212,13 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
       → 위치는 다르지만, 조리법·메뉴·매뉴얼이 똑같음
       → "이 브랜드는 원래 이 메뉴에 시간이 이만큼 걸린다"는 본질적인 정보가 더 정확하게 반영됨
 
+- 조리완료 실측 데이터 피드백 루프 구현
+  - 사장님 입력 조리시간과 실제 조리시간 비교
+  - 조리완료 시 주문 상황을 Cohere Embed로 다시 임베딩
+  - 실제 조리시간을 `vector_cases.actual_cook_time`에 저장
+  - 축적된 실측 사례를 이후 Vector Search에서 다시 활용
+  - `예측 → 실행 → 실제 결과 기록 → 다음 예측` 순환 구조 구성
+
 ### 설계 원칙 — AI 사용 지점
 - 배차(라이더 매칭): 물리적 거리 기준 → 완전탐색 알고리즘
 - 조리시간 예측(사장님): 조리 프로세스 유사성 기준 → 
@@ -222,6 +229,6 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
   (마찬가지로 판단이 필요 없어 LLM 불필요)
 - → LLM은 "여러 경우의 수를 종합해서 설명해야 하는 지점"에만 선택적으로 적용, 나머지는 실시간 API 또는 템플릿으로 처리
 
-### TO DO
-- cron 기반 자동 데이터 갱신 (현재는 1회 시딩)
-- 라이더 교통정보 / 실제 기상청 API 연동 (현재는 상수)
+### 확장 가능
+- 누적 실측 데이터 기반 통계/보정값 정기 재계산 자동화
+- 실제 메뉴 구성 전체를 활용한 조리시간 예측 고도화
