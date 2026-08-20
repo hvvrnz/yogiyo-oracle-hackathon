@@ -82,20 +82,6 @@ function saveCompletedPackage(pkg) {
 function syncAcceptedPackageStatus(pkg, nextStop) {
   if (!pkg) return null;
 
-  if (nextStop?.type === 'pickup') {
-    return {
-      ...pkg,
-      status: 'MATCHING'
-    };
-  }
-
-  if (nextStop?.type === 'dropoff') {
-    return {
-      ...pkg,
-      status: 'PICKED_UP'
-    };
-  }
-
   if (nextStop?.message === '모든 경로 완료') {
     return {
       ...pkg,
@@ -106,7 +92,12 @@ function syncAcceptedPackageStatus(pkg, nextStop) {
   return pkg;
 }
 
-const packageStatusLabels = Object.freeze({ OFFERED: '수락 가능', MATCHING: '픽업 진행 중', PICKED_UP: '배달 진행 중', COMPLETED: '배달 완료' });
+const packageStatusLabels = Object.freeze({
+  OFFERED: '수락 가능',
+  MATCHING: '픽업 진행 중',
+  IN_PROGRESS: '배달 중',
+  COMPLETED: '배달 완료'
+});
 const packageStatus = status => packageStatusLabels[status] || status || '상태 정보 없음';
 const routeSteps = pkg => (Array.isArray(pkg?.route_detail) ? pkg.route_detail : [])
   .map((step, index) => ({ ...step, sequence: Number(step.sequence ?? index + 1) }))
