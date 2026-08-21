@@ -1278,7 +1278,7 @@ const offerCount =
   Yogiyo.el('offerCount');
 
 const availableOfferCount =
-  activePackage || offersError
+  offersError
     ? 0
     : visibleOffers.length;
 
@@ -1294,7 +1294,7 @@ Yogiyo.el(
   'offerCountDetail'
 ).textContent =
   `${visibleOffers.length}건`;
-  
+
   const offerRenderKey =
     JSON.stringify({
       activePackage:
