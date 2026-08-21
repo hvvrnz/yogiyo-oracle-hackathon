@@ -855,6 +855,29 @@ function renderCustomer(order) {
 
 
 function refreshCustomer(order) {
+  const previousPackageId =
+    currentOrder?.package_id ?? null;
+
+  const nextPackageId =
+    order?.package_id ?? null;
+
+  const packageChanged =
+    String(
+      previousPackageId ?? ''
+    ) !==
+    String(
+      nextPackageId ?? ''
+    );
+
+  if (packageChanged) {
+    currentRiderPosition = null;
+    currentRiderProfile = null;
+
+    sessionStorage.removeItem(
+      riderPositionKey
+    );
+  }
+
   renderCustomer(order);
 }
 
