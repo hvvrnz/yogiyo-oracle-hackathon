@@ -460,6 +460,7 @@ class DemoState:
     def reset(self):
         self.merchant_stage = "NEW"
         self.package_stage = "NONE"
+        self.accepted_package_id = None
         self.owner_cook_min = 15
         self.cook_started_at = None
         self.extra_order_status = {
@@ -492,10 +493,25 @@ class DemoState:
         return keys
 
     def next_incomplete_stop(self):
-        for stop in STOP_SEQUENCE:
+        package_id = self.accepted_package_id
+
+        if package_id == PACKAGE_ID:
+            route = STOP_SEQUENCE
+        elif package_id == 20826:
+            route = PACKAGE_20826_ROUTE
+        elif package_id == 20816:
+            route = PACKAGE_20816_ROUTE
+        else:
+            return None
+
+        visited = self.visited_keys()
+
+        for stop in route:
             key = f"{stop['order_id']}-{stop['type']}"
-            if key not in self.visited_keys():
+
+            if key not in visited:
                 return stop
+
         return None
 
     def order_status(self, order_id):
@@ -511,6 +527,32 @@ class DemoState:
 
 
 state = DemoState()
+
+def _current_package_stage():
+    package_id = state.accepted_package_id
+
+    if package_id == PACKAGE_ID:
+        return state.package_stage
+
+    if package_id in state.extra_package_stage:
+        return state.extra_package_stage[
+            package_id
+        ]
+
+    return None
+
+
+def _set_current_package_stage(stage):
+    package_id = state.accepted_package_id
+
+    if package_id == PACKAGE_ID:
+        state.package_stage = stage
+        return
+
+    if package_id in state.extra_package_stage:
+        state.extra_package_stage[
+            package_id
+        ] = stage
 
 def _seconds_since_cook_start():
     if state.cook_started_at is None:
@@ -587,14 +629,35 @@ def _stop_summary(stop):
     return {"sequence": stop["sequence"], "order_id": stop["order_id"], "type": stop["type"], "label": stop["label"], "lat": stop["lat"], "lng": stop["lng"]}
 
 
-def _route_with_visited():
+def _route_with_visited(package_id=PACKAGE_ID):
+    if package_id == PACKAGE_ID:
+        route = STOP_SEQUENCE
+    elif package_id == 20826:
+        route = PACKAGE_20826_ROUTE
+    elif package_id == 20816:
+        route = PACKAGE_20816_ROUTE
+    else:
+        return []
+
     visited = state.visited_keys()
     result = []
-    for stop in STOP_SEQUENCE:
-        key = f"{stop['order_id']}-{stop['type']}"
-        item = dict(_stop_summary(stop))
-        item["visited"] = key in visited
+
+    for stop in route:
+        key = (
+            f"{stop['order_id']}-"
+            f"{stop['type']}"
+        )
+
+        item = dict(
+            _stop_summary(stop)
+        )
+
+        item["visited"] = (
+            key in visited
+        )
+
         result.append(item)
+
     return result
 
 
@@ -619,7 +682,7 @@ def _extra_package_summary(package_id):
             "order_ids":
                 PACKAGE_20826_ORDER_IDS,
             "route_detail":
-                PACKAGE_20826_ROUTE,
+                _route_with_visited(20826),
             "rider_text": (
                 "세 주문의 조리시간과 이동 동선을 "
                 "함께 고려한 배차 제안입니다."
@@ -638,7 +701,7 @@ def _extra_package_summary(package_id):
             "order_ids":
                 PACKAGE_20816_ORDER_IDS,
             "route_detail":
-                PACKAGE_20816_ROUTE,
+                _route_with_visited(20816),
             "rider_text": (
                 "세 주문의 조리시간과 이동 동선을 "
                 "함께 고려한 배차 제안입니다."
@@ -1050,16 +1113,66 @@ def demo_rider_offers():
 
 @router.get("/rider/profile")
 def demo_rider_profile():
-    busy = state.package_stage in ("MATCHING", "IN_PROGRESS")
+    busy = (    _current_package_stage()    in ("MATCHING", "IN_PROGRESS"))
     return {"rider_id": RIDER_ID, "name": RIDER_NAME, "region": "강남", "status": "BUSY" if busy else "AVAILABLE",
             "completed_order_count": 12, "lat": RIDER_LAT, "lng": RIDER_LNG}
 
 
 @router.get("/rider/packages")
 def demo_rider_packages():
-    if state.package_stage not in ("MATCHING", "IN_PROGRESS", "COMPLETED"):
-        return {"rider_id": RIDER_ID, "current_lat": RIDER_LAT, "current_lng": RIDER_LNG, "packages": []}
-    pkg = _package_summary()
+    package_id = (
+        state.accepted_package_id
+    )
+
+    if package_id is None:
+        return {
+            "rider_id": RIDER_ID,
+            "current_lat": RIDER_LAT,
+            "current_lng": RIDER_LNG,
+            "packages": [],
+        }
+
+    stage = _current_package_stage()
+
+    if stage not in (
+        "MATCHING",
+        "IN_PROGRESS",
+        "COMPLETED",
+    ):
+        return {
+            "rider_id": RIDER_ID,
+            "current_lat": RIDER_LAT,
+            "current_lng": RIDER_LNG,
+            "packages": [],
+        }
+
+    if package_id == PACKAGE_ID:
+        pkg = _package_summary()
+
+        pkg["score_detail"] = (
+            SCORE_DETAIL
+        )
+
+        pkg["rider_text"] = (
+            _get_demo_explanations(
+                "MATCHED"
+            )["rider_text"]
+        )
+
+    else:
+        pkg = _extra_package_summary(
+            package_id
+        )
+
+    pkg["status"] = stage
+
+    return {
+        "rider_id": RIDER_ID,
+        "current_lat": RIDER_LAT,
+        "current_lng": RIDER_LNG,
+        "packages": [pkg],
+    }
+
     pkg["status"] = state.package_stage
     pkg["score_detail"] = SCORE_DETAIL
     pkg["rider_text"] = _get_demo_explanations("MATCHED")["rider_text"]
@@ -1068,28 +1181,93 @@ def demo_rider_packages():
 
 @router.put("/rider/package/{package_id}/accept")
 def demo_accept(package_id: int):
-    if package_id != PACKAGE_ID:
-        raise HTTPException(status_code=404, detail="존재하지 않는 패키지입니다.")
-    if state.package_stage != "OFFERED":
-        raise HTTPException(status_code=409, detail="이미 다른 라이더가 수락했거나 존재하지 않는 패키지입니다.")
-    state.package_stage = "MATCHING"
-    _get_demo_explanations("MATCHED")
-    return {"package_id": PACKAGE_ID, "rider_id": RIDER_ID, "status": "MATCHING"}
 
+    # 이미 운행 중인 패키지가 있는 경우
+    if state.accepted_package_id is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="이미 운행 중인 패키지가 있습니다.",
+        )
+
+    # ─────────────────────────────
+    # 기존 PACKAGE 20865
+    # ─────────────────────────────
+    if package_id == PACKAGE_ID:
+
+        if state.package_stage != "OFFERED":
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "이미 다른 라이더가 수락했거나 "
+                    "존재하지 않는 패키지입니다."
+                ),
+            )
+
+        state.package_stage = "MATCHING"
+
+        _get_demo_explanations(
+            "MATCHED"
+        )
+
+    # ─────────────────────────────
+    # 추가 PACKAGE 20826 / 20816
+    # ─────────────────────────────
+    elif package_id in state.extra_package_stage:
+
+        if (
+            state.extra_package_stage[
+                package_id
+            ] != "OFFERED"
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "이미 다른 라이더가 수락했거나 "
+                    "존재하지 않는 패키지입니다."
+                ),
+            )
+
+        state.extra_package_stage[
+            package_id
+        ] = "MATCHING"
+
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="존재하지 않는 패키지입니다.",
+        )
+
+    state.accepted_package_id = package_id
+
+    return {
+        "package_id": package_id,
+        "rider_id": RIDER_ID,
+        "status": "MATCHING",
+    }
 
 @router.get("/rider/next-stop")
 def demo_next_stop():
-    if state.package_stage not in ("MATCHING", "IN_PROGRESS"):
-        return {"message": "아직 배정된 경로 없음"}
+    if _current_package_stage() not in (
+        "MATCHING",
+        "IN_PROGRESS",
+    ):
+        return {
+            "message": "아직 배정된 경로 없음"
+        }
+
     stop = state.next_incomplete_stop()
+
     if not stop:
-        return {"message": "모든 경로 완료"}
+        return {
+            "message": "모든 경로 완료"
+        }
+
     return _stop_summary(stop)
 
 
 @router.post("/rider/arrive")
 def demo_arrive_stop():
-    if state.package_stage not in ("MATCHING", "IN_PROGRESS"):
+    if _current_package_stage() not in ("MATCHING", "IN_PROGRESS",):
         raise HTTPException(status_code=400, detail="아직 배차가 확정되지 않았습니다.")
 
     stop = state.next_incomplete_stop()
@@ -1099,7 +1277,9 @@ def demo_arrive_stop():
     if stop["order_id"] == 43351 and stop["type"] == "pickup" and state.merchant_stage != "COOKED":
         raise HTTPException(status_code=409, detail="아직 조리가 완료되지 않았습니다.")
 
-    state.package_stage = "IN_PROGRESS"
+    _set_current_package_stage(
+            "IN_PROGRESS"
+        )
     if stop["type"] == "pickup":
         state.picked_up_order_ids.add(stop["order_id"])
     else:
@@ -1107,12 +1287,12 @@ def demo_arrive_stop():
 
     next_stop = state.next_incomplete_stop()
     if not next_stop:
-        state.package_stage = "COMPLETED"
+        _set_current_package_stage(  "COMPLETED"    )
 
     return {
         "completed": _stop_summary(stop),
         "next": _stop_summary(next_stop) if next_stop else None,
-        "package_status": state.package_stage,
+        "package_status":    _current_package_stage(),
     }
 
 
@@ -1128,3 +1308,4 @@ def demo_reset_scenario():
     STOP_SEQUENCE = [dict(s) for s in ORIGINAL_STOP_SEQUENCE]
     demo_explanations.clear()
     return {"step": 0}
+
