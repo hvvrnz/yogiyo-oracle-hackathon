@@ -116,7 +116,239 @@ ORDER_A_CUSTOMER_REQUEST = "(수저/포크O) 케찹은 꼭 넣어주세요."
 ORDER_A_RIDER_REQUEST = "벨 x"
 
 
+
+
+# ─────────────────────────────────────
+# PACKAGE 20826 데이터
+# ─────────────────────────────────────
+
+PACKAGE_20826_STORE_A = {
+    "store_id": 889,
+    "name": "요기요햄버거 강남점🍔",
+    "category": "버거류",
+    "region": "강남",
+    "lat": 37.505486,
+    "lng": 127.02069,
+    "avg_delivery_eta_min": 28,
+}
+
+PACKAGE_20826_STORE_B = {
+    "store_id": 844,
+    "name": "장인우동 강남844점",
+    "category": "면류",
+    "region": "강남",
+    "lat": 37.500064,
+    "lng": 127.034504,
+    "avg_delivery_eta_min": 43,
+}
+
+PACKAGE_20826_STORE_C = {
+    "store_id": 815,
+    "name": "프리미엄도시락 강남815점",
+    "category": "완제품",
+    "region": "강남",
+    "lat": 37.493534,
+    "lng": 127.020428,
+    "avg_delivery_eta_min": 41,
+}
+
+PACKAGE_20826_DELIVERY_A = {
+    "lat": 37.522702,
+    "lng": 127.021673,
+}
+
+PACKAGE_20826_DELIVERY_B = {
+    "lat": 37.524798,
+    "lng": 127.027433,
+}
+
+PACKAGE_20826_DELIVERY_C = {
+    "lat": 37.520615,
+    "lng": 127.019962,
+}
+
+
+# ─────────────────────────────────────
+# PACKAGE 20816 데이터
+# ─────────────────────────────────────
+
+PACKAGE_20816_STORE_A = {
+    "store_id": 889,
+    "name": "요기요햄버거 강남점🍔",
+    "category": "버거류",
+    "region": "강남",
+    "lat": 37.505486,
+    "lng": 127.02069,
+    "avg_delivery_eta_min": 28,
+}
+
+PACKAGE_20816_STORE_B = {
+    "store_id": 862,
+    "name": "맛있는카페라떼 강남862점",
+    "category": "음료_HOT",
+    "region": "강남",
+    "lat": 37.499871,
+    "lng": 127.033495,
+    "avg_delivery_eta_min": 20,
+}
+
+PACKAGE_20816_STORE_C = {
+    "store_id": 839,
+    "name": "쉐프의카푸치노 강남839점",
+    "category": "음료_HOT",
+    "region": "강남",
+    "lat": 37.49683,
+    "lng": 127.030656,
+    "avg_delivery_eta_min": 41,
+}
+
+PACKAGE_20816_DELIVERY_A = {
+    "lat": 37.49638,
+    "lng": 127.013493,
+}
+
+PACKAGE_20816_DELIVERY_B = {
+    "lat": 37.498053,
+    "lng": 127.009474,
+}
+
+PACKAGE_20816_DELIVERY_C = {
+    "lat": 37.496681,
+    "lng": 127.003922,
+}
+
+
+
+
 PACKAGE_ID = 20865
+PACKAGE_20826_REVENUE = 9000
+PACKAGE_20816_REVENUE = 9000
+PACKAGE_20826_ORDER_IDS = [
+    2082601,
+    2082602,
+    2082603,
+]
+
+PACKAGE_20816_ORDER_IDS = [
+    2081601,
+    2081602,
+    2081603,
+]
+
+
+# ─────────────────────────────────────
+# PACKAGE 20826 방문 순서
+# ─────────────────────────────────────
+
+PACKAGE_20826_ROUTE = [
+    {
+        "sequence": 1,
+        "order_id": 2082601,
+        "type": "pickup",
+        "label": PACKAGE_20826_STORE_A["name"],
+        "lat": PACKAGE_20826_STORE_A["lat"],
+        "lng": PACKAGE_20826_STORE_A["lng"],
+    },
+    {
+        "sequence": 2,
+        "order_id": 2082602,
+        "type": "pickup",
+        "label": PACKAGE_20826_STORE_B["name"],
+        "lat": PACKAGE_20826_STORE_B["lat"],
+        "lng": PACKAGE_20826_STORE_B["lng"],
+    },
+    {
+        "sequence": 3,
+        "order_id": 2082603,
+        "type": "pickup",
+        "label": PACKAGE_20826_STORE_C["name"],
+        "lat": PACKAGE_20826_STORE_C["lat"],
+        "lng": PACKAGE_20826_STORE_C["lng"],
+    },
+    {
+        "sequence": 4,
+        "order_id": 2082601,
+        "type": "dropoff",
+        "label": "고객 배송지 A",
+        "lat": PACKAGE_20826_DELIVERY_A["lat"],
+        "lng": PACKAGE_20826_DELIVERY_A["lng"],
+    },
+    {
+        "sequence": 5,
+        "order_id": 2082602,
+        "type": "dropoff",
+        "label": "고객 배송지 B",
+        "lat": PACKAGE_20826_DELIVERY_B["lat"],
+        "lng": PACKAGE_20826_DELIVERY_B["lng"],
+    },
+    {
+        "sequence": 6,
+        "order_id": 2082603,
+        "type": "dropoff",
+        "label": "고객 배송지 C",
+        "lat": PACKAGE_20826_DELIVERY_C["lat"],
+        "lng": PACKAGE_20826_DELIVERY_C["lng"],
+    },
+]
+
+
+# ─────────────────────────────────────
+# PACKAGE 20816 방문 순서
+# ─────────────────────────────────────
+
+PACKAGE_20816_ROUTE = [
+    {
+        "sequence": 1,
+        "order_id": 2081601,
+        "type": "pickup",
+        "label": PACKAGE_20816_STORE_A["name"],
+        "lat": PACKAGE_20816_STORE_A["lat"],
+        "lng": PACKAGE_20816_STORE_A["lng"],
+    },
+    {
+        "sequence": 2,
+        "order_id": 2081602,
+        "type": "pickup",
+        "label": PACKAGE_20816_STORE_B["name"],
+        "lat": PACKAGE_20816_STORE_B["lat"],
+        "lng": PACKAGE_20816_STORE_B["lng"],
+    },
+    {
+        "sequence": 3,
+        "order_id": 2081603,
+        "type": "pickup",
+        "label": PACKAGE_20816_STORE_C["name"],
+        "lat": PACKAGE_20816_STORE_C["lat"],
+        "lng": PACKAGE_20816_STORE_C["lng"],
+    },
+    {
+        "sequence": 4,
+        "order_id": 2081601,
+        "type": "dropoff",
+        "label": "고객 배송지 A",
+        "lat": PACKAGE_20816_DELIVERY_A["lat"],
+        "lng": PACKAGE_20816_DELIVERY_A["lng"],
+    },
+    {
+        "sequence": 5,
+        "order_id": 2081602,
+        "type": "dropoff",
+        "label": "고객 배송지 B",
+        "lat": PACKAGE_20816_DELIVERY_B["lat"],
+        "lng": PACKAGE_20816_DELIVERY_B["lng"],
+    },
+    {
+        "sequence": 6,
+        "order_id": 2081603,
+        "type": "dropoff",
+        "label": "고객 배송지 C",
+        "lat": PACKAGE_20816_DELIVERY_C["lat"],
+        "lng": PACKAGE_20816_DELIVERY_C["lng"],
+    },
+]
+
+
+
 RIDER_ID = "rider_249"
 RIDER_NAME = "안전주행라이더"  # 실제 이름 확인되면 교체
 RIDER_LAT = 37.504000
@@ -235,10 +467,18 @@ class DemoState:
             PACKAGE_20816_ORDER_A_ID: "NEW",
         }
 
+        # 추가 주문 상태
         self.extra_order_cook_min = {
             PACKAGE_20826_ORDER_A_ID: 15,
             PACKAGE_20816_ORDER_A_ID: 15,
         }
+
+        # 추가 패키지 상태
+        self.extra_package_stage = {
+            20826: "NONE",
+            20816: "NONE",
+        }
+
         self.cook_feedback = None
         self.picked_up_order_ids = set()
         self.delivered_order_ids = set()
@@ -272,7 +512,14 @@ class DemoState:
 
 state = DemoState()
 
+def _seconds_since_cook_start():
+    if state.cook_started_at is None:
+        return 0.0
 
+    return max(
+        0.0,
+        time.monotonic() - state.cook_started_at,
+    )
 
 
 def _seconds_since_cook_start():
@@ -289,42 +536,50 @@ def _merchant_extra_orders():
     if state.cook_started_at is None:
         return []
 
-    if _seconds_since_cook_start() < 5:
-        return []
+    elapsed = _seconds_since_cook_start()
+    orders = []
 
-    order_20826 = dict(
-        PACKAGE_20826_MERCHANT_ORDER
-    )
-    order_20826["status"] = (
-        state.extra_order_status[
-            PACKAGE_20826_ORDER_A_ID
-        ]
-    )
-    order_20826["owner_cook_min"] = (
-        state.extra_order_cook_min[
-            PACKAGE_20826_ORDER_A_ID
-        ]
-    )
+    # 첫 주문 조리 시작 5초 후
+    if elapsed >= 5:
+        order = dict(
+            PACKAGE_20826_MERCHANT_ORDER
+        )
 
-    order_20816 = dict(
-        PACKAGE_20816_MERCHANT_ORDER
-    )
-    order_20816["status"] = (
-        state.extra_order_status[
-            PACKAGE_20816_ORDER_A_ID
-        ]
-    )
-    order_20816["owner_cook_min"] = (
-        state.extra_order_cook_min[
-            PACKAGE_20816_ORDER_A_ID
-        ]
-    )
+        order["status"] = (
+            state.extra_order_status[
+                PACKAGE_20826_ORDER_A_ID
+            ]
+        )
 
-    return [
-        order_20826,
-        order_20816,
-    ]
+        order["owner_cook_min"] = (
+            state.extra_order_cook_min[
+                PACKAGE_20826_ORDER_A_ID
+            ]
+        )
 
+        orders.append(order)
+
+    # 다시 5초 뒤 = 최초 조리 시작 기준 10초
+    if elapsed >= 10:
+        order = dict(
+            PACKAGE_20816_MERCHANT_ORDER
+        )
+
+        order["status"] = (
+            state.extra_order_status[
+                PACKAGE_20816_ORDER_A_ID
+            ]
+        )
+
+        order["owner_cook_min"] = (
+            state.extra_order_cook_min[
+                PACKAGE_20816_ORDER_A_ID
+            ]
+        )
+
+        orders.append(order)
+
+    return orders
 
 
 
@@ -350,6 +605,49 @@ def _package_summary():
         "bundle_size": 3, "order_ids": [43351, 44095, 44101],
         "route_detail": _route_with_visited(),
     }
+
+def _extra_package_summary(package_id):
+    if package_id == 20826:
+        return {
+            "package_id": 20826,
+            "package_type": "BUNDLE",
+            "score": None,
+            "package_revenue":
+                PACKAGE_20826_REVENUE,
+            "hourly_revenue": 0,
+            "bundle_size": 3,
+            "order_ids":
+                PACKAGE_20826_ORDER_IDS,
+            "route_detail":
+                PACKAGE_20826_ROUTE,
+            "rider_text": (
+                "세 주문의 조리시간과 이동 동선을 "
+                "함께 고려한 배차 제안입니다."
+            ),
+        }
+
+    if package_id == 20816:
+        return {
+            "package_id": 20816,
+            "package_type": "BUNDLE",
+            "score": None,
+            "package_revenue":
+                PACKAGE_20816_REVENUE,
+            "hourly_revenue": 0,
+            "bundle_size": 3,
+            "order_ids":
+                PACKAGE_20816_ORDER_IDS,
+            "route_detail":
+                PACKAGE_20816_ROUTE,
+            "rider_text": (
+                "세 주문의 조리시간과 이동 동선을 "
+                "함께 고려한 배차 제안입니다."
+            ),
+        }
+
+    raise ValueError(
+        f"지원하지 않는 패키지: {package_id}"
+    )
 
 
 def _demo_orders():
@@ -541,49 +839,32 @@ def demo_cook_start(body: CookTimeInput):
     owner_cook_min = body.owner_cook_min
 
     # ─────────────────────────────
-    # 기존 메인 주문
+    # 1. 최초 주문 #43351
     # ─────────────────────────────
     if order_id == 43351:
         state.owner_cook_min = owner_cook_min
         state.merchant_stage = "COOKING"
+
+        # 기존 패키지 20865 배차 제안 생성
         state.package_stage = "OFFERED"
 
-        # 최초 주문 조리 시작 시에만
-        # 신규 주문 유입 타이머를 시작한다.
+        # 최초 조리 시작 때 단 한 번만 타이머 시작
         if state.cook_started_at is None:
             state.cook_started_at = time.monotonic()
 
         _get_demo_explanations("COOKING")
 
         return {
-            "order_id": order_id,
+            "order_id": 43351,
             "status": "COOKING",
-            "triggered": [
-                {
-                    "order_id": 43351,
-                    "store_id": STORE_A["store_id"],
-                    "owner_cook_min": owner_cook_min,
-                    "triggered_by": "user",
-                },
-                {
-                    "order_id": 44095,
-                    "store_id": STORE_B["store_id"],
-                    "owner_cook_min": 5,
-                    "triggered_by": "auto",
-                },
-                {
-                    "order_id": 44101,
-                    "store_id": STORE_C["store_id"],
-                    "owner_cook_min": 15,
-                    "triggered_by": "auto",
-                },
-            ],
+            "package_id": 20865,
+            "package_status": "OFFERED",
         }
 
     # ─────────────────────────────
-    # 5초 후 유입된 신규 주문
+    # 2. PACKAGE 20826의 햄버거 주문
     # ─────────────────────────────
-    if order_id in state.extra_order_status:
+    if order_id == PACKAGE_20826_ORDER_A_ID:
         if (
             state.cook_started_at is None
             or _seconds_since_cook_start() < 5
@@ -591,12 +872,6 @@ def demo_cook_start(body: CookTimeInput):
             raise HTTPException(
                 status_code=404,
                 detail="아직 유입되지 않은 주문입니다.",
-            )
-
-        if state.extra_order_status[order_id] != "NEW":
-            raise HTTPException(
-                status_code=409,
-                detail="이미 조리를 시작한 주문입니다.",
             )
 
         state.extra_order_status[
@@ -607,29 +882,55 @@ def demo_cook_start(body: CookTimeInput):
             order_id
         ] = owner_cook_min
 
+        # 조리 시작 순간 PACKAGE 20826 제안 생성
+        state.extra_package_stage[
+            20826
+        ] = "OFFERED"
+
         return {
             "order_id": order_id,
             "status": "COOKING",
-            "owner_cook_min": owner_cook_min,
+            "package_id": 20826,
+            "package_status": "OFFERED",
+        }
+
+    # ─────────────────────────────
+    # 3. PACKAGE 20816의 햄버거 주문
+    # ─────────────────────────────
+    if order_id == PACKAGE_20816_ORDER_A_ID:
+        if (
+            state.cook_started_at is None
+            or _seconds_since_cook_start() < 10
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="아직 유입되지 않은 주문입니다.",
+            )
+
+        state.extra_order_status[
+            order_id
+        ] = "COOKING"
+
+        state.extra_order_cook_min[
+            order_id
+        ] = owner_cook_min
+
+        # 조리 시작 순간 PACKAGE 20816 제안 생성
+        state.extra_package_stage[
+            20816
+        ] = "OFFERED"
+
+        return {
+            "order_id": order_id,
+            "status": "COOKING",
+            "package_id": 20816,
+            "package_status": "OFFERED",
         }
 
     raise HTTPException(
         status_code=404,
         detail="존재하지 않는 주문입니다.",
     )
-    state.owner_cook_min = body.owner_cook_min
-    state.merchant_stage = "COOKING"
-    state.package_stage = "OFFERED"
-    _get_demo_explanations("COOKING")
-    state.cook_started_at = time.monotonic()
-    return {
-        "triggered": [
-            {"order_id": 43351, "store_id": STORE_A["store_id"], "owner_cook_min": body.owner_cook_min, "triggered_by": "user"},
-            {"order_id": 44095, "store_id": STORE_B["store_id"], "owner_cook_min": 5, "triggered_by": "auto"},
-            {"order_id": 44101, "store_id": STORE_C["store_id"], "owner_cook_min": 15, "triggered_by": "auto"},
-        ]
-    }
-
 
 @router.post("/merchant/cook-complete")
 def demo_cook_complete():
@@ -707,11 +1008,44 @@ def demo_cook_complete():
 
 @router.get("/rider/offers")
 def demo_rider_offers():
-    if state.package_stage != "OFFERED":
-        return {"rider_id": RIDER_ID, "offers": []}
-    offer = _package_summary()
-    offer["rider_text"] = _get_demo_explanations("COOKING")["rider_text"]
-    return {"rider_id": RIDER_ID, "offers": [offer]}
+    offers = []
+
+    # 기존 PACKAGE 20865
+    if state.package_stage == "OFFERED":
+        offer = _package_summary()
+
+        offer["rider_text"] = (
+            _get_demo_explanations(
+                "COOKING"
+            )["rider_text"]
+        )
+
+        offers.append(offer)
+
+    # PACKAGE 20826
+    if (
+        state.extra_package_stage[
+            20826
+        ] == "OFFERED"
+    ):
+        offers.append(
+            _extra_package_summary(20826)
+        )
+
+    # PACKAGE 20816
+    if (
+        state.extra_package_stage[
+            20816
+        ] == "OFFERED"
+    ):
+        offers.append(
+            _extra_package_summary(20816)
+        )
+
+    return {
+        "rider_id": RIDER_ID,
+        "offers": offers,
+    }
 
 
 @router.get("/rider/profile")
