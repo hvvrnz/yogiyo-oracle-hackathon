@@ -404,6 +404,12 @@ function renderDetail(order, store, view={}) {
         store,
         cookMinutes
       );
+    const merchantGuideText =
+      String(
+        order.merchant_text ||
+        view.merchant_text ||
+        ''
+      ).trim();
 
     const headRightBlock = `
       <div class="merchant-head-actions">
@@ -454,6 +460,32 @@ function renderDetail(order, store, view={}) {
     <div class="merchant-detail-scroll">
 
       ${cookCoach}
+
+      ${
+    merchantGuideText
+      ? `
+        <section class="merchant-coach-card">
+          <div class="merchant-coach-header">
+            <span
+              class="merchant-coach-dot"
+            ></span>
+
+            <span
+              class="merchant-coach-eyebrow"
+            >
+              AI 조리·포장 안내
+            </span>
+          </div>
+
+          <p>
+            ${Yogiyo.escape(
+              merchantGuideText
+            )}
+          </p>
+        </section>
+      `
+      : ''
+  }
            
       ${receiptCard(order)}
 
@@ -809,7 +841,11 @@ if (
 
   await Yogiyo.withPending(button, async () => {
     try {
-      await Yogiyo.apiClient.demo.merchantCookStart(minutes);
+      await Yogiyo.apiClient.demo
+        .merchantCookStart(
+          orderId,
+          minutes
+        );
 
       cookMinuteDrafts.delete(String(orderId));
 
@@ -818,6 +854,9 @@ if (
       );
 
       await loadMerchant();
+      window.setTimeout(() => {
+        loadMerchant();
+      }, 5000);
     } catch (error) {
       Yogiyo.toast(error.message);
     }
@@ -832,9 +871,7 @@ async function completeCooking(
     button,
     async () => {
       try {
-        const result =
-          await Yogiyo.apiClient.demo
-            .merchantCookComplete();
+        const result = await Yogiyo.apiClient.demo.merchantCookComplete();
 
 
         latestCookFeedback =

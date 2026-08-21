@@ -19,8 +19,19 @@
   const request = async (path, options = {}) => {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
     let response;
-    try { response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers }); }
-    catch { throw new Error('백엔드 서버에 연결할 수 없습니다. http://localhost:8000 실행 상태를 확인해 주세요.'); }
+    try {
+      response = await fetch(
+        `${apiBaseUrl}${path}`,
+        {
+          ...options,
+          headers
+        }
+      );
+    } catch {
+      throw new Error(
+        '백엔드 서버에 연결할 수 없습니다. 서버 실행 상태와 API 연결 설정을 확인해 주세요.'
+      );
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(data.detail || data.message || `요청에 실패했습니다. (${response.status})`);
@@ -39,25 +50,38 @@
         const data = await request('/api/demo/merchant/next-to-cook');
         return data?.order_id == null ? data : normalizeOrder(data);
       },
-      merchantCookStart: ownerCookMin => request('/api/demo/merchant/cook-start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner_cook_min: Number(ownerCookMin) }),
-      }),
+      merchantCookStart: (
+        orderId,
+        ownerCookMin
+      ) =>
+        request(
+          '/api/demo/merchant/cook-start',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              order_id: Number(orderId),
+              owner_cook_min:
+                Number(ownerCookMin)
+            })
+          }
+        ),
       merchantCookComplete: () =>
         request('/api/demo/merchant/cook-complete', {
           method: 'POST',
       }),
       merchantOrders: async () => {
-        const data = await request('/api/demo/merchant/next-to-cook');
-
-        if (data?.order_id == null) {
-          return { ...data, orders: [] };
-        }
+        const data =
+          await request(
+            '/api/demo/merchant/orders'
+          );
 
         return {
           ...data,
-          orders: [normalizeOrder(data)]
+          orders: asArray(data.orders)
+            .map(normalizeOrder),
         };
       },
 
@@ -85,20 +109,16 @@
     }),
   });
 
-  const poll = (task, onData, { intervalMs = 5000, onError } = {}) => {
-    let inFlight = false;
-    let stopped = false;
-    const run = async () => {
-      if (stopped || inFlight) return;
-      inFlight = true;
-      try { onData?.(await task()); }
-      catch (error) { onError?.(error); }
-      finally { inFlight = false; }
-    };
-    run();
-    const timer = window.setInterval(run, intervalMs);
-    return () => { stopped = true; window.clearInterval(timer); };
-  };
-
-  Object.assign(window.Yogiyo, { api: request, apiClient, apiUrl: path => `${apiBaseUrl}${path}`, defaultIds, poll, useMock: false });
+  Object.assign(
+    window.Yogiyo,
+    {
+      api: request,
+      apiClient,
+      apiUrl:
+        path =>
+          `${apiBaseUrl}${path}`,
+      defaultIds,
+      useMock: false
+    }
+  );
 })();

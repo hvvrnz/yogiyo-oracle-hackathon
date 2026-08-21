@@ -201,12 +201,34 @@ window.addEventListener('message', event => {
     type,
     packageId,
     riderId,
-    orderIds
+    orderIds,
+    lat,
+    lng,
+    durationMs,
   } = event.data || {};
 
-  if (type !== 'ygy:package-accepted') {
-    return;
-  }
+if (type === 'ygy:rider-position') {
+  Yogiyo.el('demoCustomerFrame')
+    .contentWindow
+    ?.postMessage(
+      {
+        type:
+          'ygy:customer-rider-position',
+
+        packageId,
+        riderId,
+        lat,
+        lng,
+        durationMs,
+      },
+
+      window.location.origin
+    );
+
+  return;
+}
+
+  if (type !== 'ygy:package-accepted') {    return;  }
 
 
   /*
@@ -267,15 +289,6 @@ const loadDemoPanels = async () => {
   const riderId = demoRiderId;
 
   try {
-    /*
-     * 최종 API
-     *
-     * POST /api/demo/reset
-     */
-    await Yogiyo.apiClient.demo.reset();
-
-    sessionStorage.removeItem('ygy-demo-completed-packages');
-    sessionStorage.removeItem('ygy-demo-accepted-package');
 
     if (requestId !== demoSelectionRequestId) {
       return;
@@ -330,9 +343,10 @@ const loadDemoPanels = async () => {
 
 
     appendDemoEvent(
-      'DEMO_RESET',
-      '시연 데이터를 초기화했습니다. 주문 90001, 패키지 80001, rider_12를 기준으로 시작합니다.'
+      'DEMO_LOADED',
+      '현재 시연 상태를 유지한 채 고객·사장님·라이더 화면을 연결했습니다.'  
     );
+
   } catch (error) {
     if (requestId !== demoSelectionRequestId) {
       return;
@@ -384,10 +398,86 @@ const loadDemoPanels = async () => {
   }
 };
 
+const resetDemoState = async button => {
+  await Yogiyo.withPending(
+    button,
+    async () => {
+      try {
+        await Yogiyo.apiClient.demo.reset();
 
+        sessionStorage.removeItem(
+          'ygy-demo-completed-packages'
+        );
+
+        sessionStorage.removeItem(
+          'ygy-demo-accepted-package'
+        );
+
+        sessionStorage.removeItem(
+          'ygy-demo-rider-position'
+        );
+
+        loadDemoPanels();
+
+        refreshDemoFrame(
+          'demoCustomerFrame'
+        );
+
+        refreshDemoFrame(
+          'demoMerchantFrame'
+        );
+
+        refreshDemoFrame(
+          'demoRiderFrame'
+        );
+
+        appendDemoEvent(
+          'DEMO_RESET',
+          '시연 데이터를 초기 상태로 되돌렸습니다.'
+        );
+
+        Yogiyo.el(
+          'simulationAnnouncement'
+        ).textContent =
+          '시연 데이터를 초기 상태로 되돌렸습니다.';
+
+        Yogiyo.toast(
+          '시연 데이터를 초기화했습니다.'
+        );
+      } catch (error) {
+        appendDemoEvent(
+          'DEMO_RESET_FAILED',
+          Yogiyo.errorMessage(
+            error,
+            '시연 데이터 초기화'
+          )
+        );
+
+        Yogiyo.toast(
+          Yogiyo.errorMessage(
+            error,
+            '시연 데이터를 초기화하지 못했습니다.'
+          )
+        );
+      }
+    }
+  );
+};
 /* -------------------------------------------------------------------------- */
 /* 시작                                                                         */
 /* -------------------------------------------------------------------------- */
+
+const demoResetButton =
+  Yogiyo.el('demoResetButton');
+
+demoResetButton?.addEventListener(
+  'click',
+  () => {
+    resetDemoState(
+      demoResetButton
+    );
+  }
+);
 
 loadDemoPanels();
 

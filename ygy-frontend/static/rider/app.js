@@ -10,11 +10,13 @@ let waitingForBusyConfirmation = false;
 let previousNextStopKey = null;
 let suppressNextStopChangeToast = false;
 let isAcceptingOffer = false;
+let isCompletingStop = false;
 let lastOfferRenderKey = '';
 let riderViewGeneration = 0;
 
 const acceptedPackageKey = 'ygy-demo-accepted-package';
 const completedPackagesKey = 'ygy-demo-completed-packages';
+const riderPositionKey = 'ygy-demo-rider-position';
 
 function restoreAcceptedPackage() {
   try {
@@ -81,20 +83,6 @@ function saveCompletedPackage(pkg) {
 function syncAcceptedPackageStatus(pkg, nextStop) {
   if (!pkg) return null;
 
-  if (nextStop?.type === 'pickup') {
-    return {
-      ...pkg,
-      status: 'MATCHING'
-    };
-  }
-
-  if (nextStop?.type === 'dropoff') {
-    return {
-      ...pkg,
-      status: 'PICKED_UP'
-    };
-  }
-
   if (nextStop?.message === '모든 경로 완료') {
     return {
       ...pkg,
@@ -105,7 +93,12 @@ function syncAcceptedPackageStatus(pkg, nextStop) {
   return pkg;
 }
 
-const packageStatusLabels = Object.freeze({ OFFERED: '수락 가능', MATCHING: '픽업 진행 중', PICKED_UP: '배달 진행 중', COMPLETED: '배달 완료' });
+const packageStatusLabels = Object.freeze({
+  OFFERED: '수락 가능',
+  MATCHING: '픽업 진행 중',
+  IN_PROGRESS: '배달 중',
+  COMPLETED: '배달 완료'
+});
 const packageStatus = status => packageStatusLabels[status] || status || '상태 정보 없음';
 const routeSteps = pkg => (Array.isArray(pkg?.route_detail) ? pkg.route_detail : [])
   .map((step, index) => ({ ...step, sequence: Number(step.sequence ?? index + 1) }))
@@ -150,9 +143,136 @@ function syncVisitedSteps(pkg, nextStop) {
     .map(stopKey)
     .filter(Boolean);
 }
+function riderDisplayPosition(
+  profile,
+  pkg
+) {
+  if (
+    Number.isFinite(
+      Number(
+        simulatedRiderPosition?.lat
+      )
+    ) &&
+    Number.isFinite(
+      Number(
+        simulatedRiderPosition?.lng
+      )
+    )
+  ) {
+    return {
+      lat:
+        Number(
+          simulatedRiderPosition.lat
+        ),
+      lng:
+        Number(
+          simulatedRiderPosition.lng
+        ),
+    };
+  }
+
+  const lastVisitedStep =
+    [...routeSteps(pkg)]
+      .reverse()
+      .find(
+        step =>
+          visitedSteps.includes(
+            stopKey(step)
+          ) &&
+          Number.isFinite(
+            Number(step.lat)
+          ) &&
+          Number.isFinite(
+            Number(step.lng)
+          )
+      );
+
+  if (lastVisitedStep) {
+    return {
+      lat:
+        Number(
+          lastVisitedStep.lat
+        ),
+      lng:
+        Number(
+          lastVisitedStep.lng
+        ),
+    };
+  }
+
+  return {
+    lat: profile?.lat,
+    lng: profile?.lng,
+  };
+}
+function publishRiderPosition(
+  pkg,
+  position,
+  durationMs = 0
+) {
+  const lat =
+    Number(position?.lat);
+
+  const lng =
+    Number(position?.lng);
+
+  if (
+    pkg?.package_id == null ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return;
+  }
+
+  const payload = {
+    riderId: String(
+      currentRider?.profile?.rider_id ||
+      riderId
+    ),
+
+    packageId: String(
+      pkg.package_id
+    ),
+
+    lat,
+    lng,
+    durationMs,
+  };
+
+  sessionStorage.setItem(
+    riderPositionKey,
+    JSON.stringify(payload)
+  );
+
+  if (window.parent !== window) {
+    window.parent.postMessage(
+      {
+        type: 'ygy:rider-position',
+        ...payload,
+      },
+      window.location.origin
+    );
+  }
+}
 const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
 ).join('') || '방문 순서 정보 없음';
+
+const routeSummaryText = pkg =>
+  routeSteps(pkg)
+    .map(
+      step =>
+        `${step.sequence}. ${
+          step.type === 'pickup'
+            ? '픽업'
+            : '배달'
+        } · ${
+          step.label ||
+          '위치 정보 없음'
+        }`
+    )
+    .join(' → ') ||
+  '방문 순서 정보 없음';
 
 function distanceMeters(
   lat1,
@@ -221,16 +341,19 @@ function riderMapData(
    * API의 고정 좌표 대신
    * 프론트에서 이동한 좌표를 사용
    */
-  const displayProfile =
-    simulatedRiderPosition
-      ? {
-          ...profile,
-          lat:
-            simulatedRiderPosition.lat,
-          lng:
-            simulatedRiderPosition.lng,
-        }
-      : profile;
+  const riderPosition =
+    riderDisplayPosition(
+      profile,
+      pkg
+    );
+
+  const displayProfile = {
+    ...profile,
+    lat:
+      riderPosition.lat,
+    lng:
+      riderPosition.lng,
+  };
 
 
   const riderMap =
@@ -536,10 +659,10 @@ function runStatusCard(
 
 
   const riderPosition =
-    simulatedRiderPosition || {
-      lat: profile?.lat,
-      lng: profile?.lng,
-    };
+    riderDisplayPosition(
+      profile,
+      pkg
+    );
 
 
   let destinationText =
@@ -626,10 +749,10 @@ function firstDestinationText(
   }
 
   const riderPosition =
-    simulatedRiderPosition || {
-      lat: profile?.lat,
-      lng: profile?.lng,
-    };
+  riderDisplayPosition(
+    profile,
+    pkg
+  );
 
   if (
     !Number.isFinite(
@@ -708,29 +831,41 @@ function offerCard(
   </div>
 </div>
       <div class="rider-guide-card">
-        <div class="rider-guide-header">
-          <span class="rider-guide-dot"></span>
-          <span class="rider-guide-eyebrow">
-            조리시간까지 고려한 방문 순서예요.
-          </span>
-        </div>
+      <div class="rider-guide-header">
+        <span class="rider-guide-dot"></span>
 
-        <p class="rider-guide-headline">
-          조리시간과 이동 동선을 함께 고려해 \n 운행 동선을 추천했어요.
-        </p>
-
-        <ul class="rider-guide-points">
-          <li>
-            ${Yogiyo.escape(pkg.bundle_size ?? '-')}개 주문의
-            조리 완료 시점을 함께 계산했어요.
-          </li>
-
-          <li>
-            매장에서 기다리는 시간을 줄이도록
-            픽업 순서를 맞췄어요.
-          </li>
-        </ul>
+        <span class="rider-guide-eyebrow">
+          AI 운행 안내
+        </span>
       </div>
+
+      <ul class="rider-guide-points">
+        ${
+          String(
+            pkg.rider_text ||
+            '수익과 추천 방문 순서를 확인한 뒤 수락해 주세요.'
+          )
+            .split(/\r?\n/)
+            .map(line =>
+              line
+                .replace(
+                  /^[•\-]\s*/,
+                  ''
+                )
+                .trim()
+            )
+            .filter(Boolean)
+            .map(
+              line => `
+                <li>
+                  ${Yogiyo.escape(line)}
+                </li>
+              `
+            )
+            .join('')
+        }
+      </ul>
+    </div>
 
       <div class="offer-actions">
         <button
@@ -751,11 +886,8 @@ function offerCard(
   `;
 }
 
-
-
-
 function completedPackageRow(pkg) {
-  const route = routeSummary(pkg);
+  const route = routeSummaryText(pkg);
 
   return `
     <article class="completed-dispatch-row">
@@ -855,6 +987,24 @@ function openPackageDetail(pkg) {
       </div>
       ${routeSchedule(pkg)}
     </div>
+    <div class="card">
+  <div class="notice llm-guidance">
+    <span>✦</span>
+
+    <div>
+      <strong>
+        AI 운행 안내
+      </strong>
+
+      <span>
+        ${Yogiyo.escape(
+          pkg.rider_text ||
+          '배차 정보를 확인해 주세요.'
+        )}
+      </span>
+    </div>
+  </div>
+</div>
   `;
   Yogiyo.el('packageDetailBackdrop').classList.add('open');
   Yogiyo.el('packageDetailSheet').classList.add('open');
@@ -905,15 +1055,59 @@ function renderRider(view) {
   currentRider = view;
   const { profile, offers = [], offersError, nextStop, packages = [] } = view;
   const activePackage = packages[0];
-  const visibleOffers = offers
-    .slice()
-    .sort((left, right) => {
-      const leftRevenue = Number(left.package_revenue || 0);
-      const rightRevenue = Number(right.package_revenue || 0);
+const visibleOffers = offers
+  .slice()
+  .sort((left, right) => {
+    if (
+      offerSort === 'time-asc' ||
+      offerSort === 'time-desc'
+    ) {
+      const leftTime =
+        Number(
+          left.score_detail?.total_time
+        );
 
-      return offerSort === 'revenue-asc'
-        ? leftRevenue - rightRevenue
-        : rightRevenue - leftRevenue;
+      const rightTime =
+        Number(
+          right.score_detail?.total_time
+        );
+
+      const leftValid =
+        Number.isFinite(leftTime);
+
+      const rightValid =
+        Number.isFinite(rightTime);
+
+      if (!leftValid && !rightValid) {
+        return 0;
+      }
+
+      if (!leftValid) {
+        return 1;
+      }
+
+      if (!rightValid) {
+        return -1;
+      }
+
+      return offerSort === 'time-asc'
+        ? leftTime - rightTime
+        : rightTime - leftTime;
+    }
+
+    const leftRevenue =
+      Number(
+        left.package_revenue || 0
+      );
+
+    const rightRevenue =
+      Number(
+        right.package_revenue || 0
+      );
+
+    return offerSort === 'revenue-asc'
+      ? leftRevenue - rightRevenue
+      : rightRevenue - leftRevenue;
   });
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
@@ -989,11 +1183,11 @@ function renderRider(view) {
           )
       );
 
-    const riderPosition =
-      simulatedRiderPosition || {
-        lat: profile?.lat,
-        lng: profile?.lng,
-      };
+  const riderPosition =
+    riderDisplayPosition(
+      profile,
+      activePackage
+    );
 
     let destinationText =
       '다음 목적지를 확인해 주세요.';
@@ -1080,9 +1274,27 @@ function renderRider(view) {
     activePackage,
     profile
   );
-  Yogiyo.el('offerCount').textContent = visibleOffers.length;
-  Yogiyo.el('offerCountDetail').textContent = `${visibleOffers.length}건`;
-  
+const offerCount =
+  Yogiyo.el('offerCount');
+
+const availableOfferCount =
+  offersError
+    ? 0
+    : visibleOffers.length;
+
+offerCount.textContent =
+  availableOfferCount;
+
+offerCount.classList.toggle(
+  'is-empty',
+  availableOfferCount === 0
+);
+
+Yogiyo.el(
+  'offerCountDetail'
+).textContent =
+  `${visibleOffers.length}건`;
+
   const offerRenderKey =
     JSON.stringify({
       activePackage:
@@ -1484,10 +1696,17 @@ async function acceptOffer(
 async function completeCurrentStop(
   button
 ) {
-  await Yogiyo.withPending(
-    button,
-    async () => {
-      try {
+  if (isCompletingStop) {
+    return;
+  }
+
+  isCompletingStop = true;
+
+  try {
+    await Yogiyo.withPending(
+      button,
+      async () => {
+        try {
         /*
          * API 호출 전 현재 패키지를 기억
          */
@@ -1501,6 +1720,11 @@ async function completeCurrentStop(
           await Yogiyo.apiClient.demo
             .riderArrive();
 
+            /*
+        * 방문 완료 전에 시작된 Polling 응답은
+        * 이전 경로 상태이므로 폐기합니다.
+        */
+        riderViewGeneration += 1;
 
         suppressNextStopChangeToast =
           true;
@@ -1526,20 +1750,30 @@ async function completeCurrentStop(
          * 1. 먼저 라이더를 해당 지점까지 이동
          */
         if (
-          completedStop &&
-          Number.isFinite(
-            Number(
-              completedStop.lat
-            )
-          ) &&
-          Number.isFinite(
-            Number(
-              completedStop.lng
-            )
-          )
-        ) {
-          isRiderMoving =
-            true;
+  completedStop &&
+  Number.isFinite(
+    Number(completedStop.lat)
+  ) &&
+  Number.isFinite(
+    Number(completedStop.lng)
+  )
+) {
+  const targetPosition = {
+    lat: Number(
+      completedStop.lat
+    ),
+    lng: Number(
+      completedStop.lng
+    ),
+  };
+
+  publishRiderPosition(
+    currentPackage,
+    targetPosition,
+    900
+  );
+
+  isRiderMoving = true;
 
 
           try {
@@ -1615,27 +1849,54 @@ async function completeCurrentStop(
          * 3. 패키지 상태 갱신
          */
         if (acceptedPackage) {
-          const updatedPackage = {
-            ...acceptedPackage,
-            status:
-              response.package_status
-          };
+        const updatedPackage = {
+          ...acceptedPackage,
+          status:
+            response.package_status
+        };
 
+        if (
+          response.package_status ===
+          'COMPLETED'
+        ) {
+          saveCompletedPackage(
+            updatedPackage
+          );
 
-          if (
-            response.package_status ===
-            'COMPLETED'
-          ) {
-            saveCompletedPackage(
-              updatedPackage
-            );
+          /*
+          * 완료된 패키지는 더 이상
+          * 현재 운행 패키지가 아닙니다.
+          */
+          saveAcceptedPackage(null);
+
+          visitedSteps = [];
+          previousNextStopKey = null;
+          suppressNextStopChangeToast = false;
+          waitingForBusyConfirmation = false;
+
+          /*
+          * 서버 profile 재조회가 실패하더라도
+          * 화면은 즉시 운행 완료 상태로 전환합니다.
+          */
+          if (currentRider) {
+            renderRider({
+              ...currentRider,
+
+              profile: {
+                ...currentRider.profile,
+                status: 'AVAILABLE'
+              },
+
+              packages: [],
+              nextStop: null
+            });
           }
-
-
+        } else {
           saveAcceptedPackage(
             updatedPackage
           );
         }
+      }
 
 
         /*
@@ -1674,16 +1935,19 @@ async function completeCurrentStop(
 
         await loadRider();
 
-      } catch (error) {
-        isRiderMoving =
-          false;
+        } catch (error) {
+          isRiderMoving =
+            false;
 
-        Yogiyo.toast(
-          error.message
-        );
+          Yogiyo.toast(
+            error.message
+          );
+        }
       }
-    }
-  );
+    );
+  } finally {
+    isCompletingStop = false;
+  }
 }
 
 function switchRiderTab(
@@ -1914,6 +2178,21 @@ stopRiderViewPolling =
       }
 
       renderRider(view);
+
+      const activePackage =
+        view.packages?.[0];
+
+      if (activePackage) {
+        publishRiderPosition(
+          activePackage,
+          riderDisplayPosition(
+            view.profile,
+            activePackage
+          ),
+          0
+        );
+      }
+
       setConnection(true);
     },
 
