@@ -713,6 +713,100 @@ def _extra_package_summary(package_id):
     )
 
 
+def _customer_order_config(package_id):
+    if package_id == PACKAGE_ID:
+        return {
+            "order_id": 43351,
+            "store": STORE_A,
+            "delivery": DELIVERY_A,
+            "delivery_address": DELIVERY_A["address"],
+            "menu_items": ORDER_A_MENU,
+            "amount": 20000,
+            "owner_cook_min": state.owner_cook_min,
+        }
+
+    if package_id == 20826:
+        return {
+            "order_id": PACKAGE_20826_ORDER_A_ID,
+            "store": PACKAGE_20826_STORE_A,
+            "delivery": PACKAGE_20826_DELIVERY_A,
+            "delivery_address": "고객 배송지 A",
+            "menu_items": PACKAGE_20826_ORDER_A_MENU,
+            "amount": 16000,
+            "owner_cook_min":
+                state.extra_order_cook_min[
+                    PACKAGE_20826_ORDER_A_ID
+                ],
+        }
+
+    if package_id == 20816:
+        return {
+            "order_id": PACKAGE_20816_ORDER_A_ID,
+            "store": PACKAGE_20816_STORE_A,
+            "delivery": PACKAGE_20816_DELIVERY_A,
+            "delivery_address": "고객 배송지 A",
+            "menu_items": PACKAGE_20816_ORDER_A_MENU,
+            "amount": 7000,
+            "owner_cook_min":
+                state.extra_order_cook_min[
+                    PACKAGE_20816_ORDER_A_ID
+                ],
+        }
+
+    return None
+
+def _customer_order_status(
+    order_id,
+    package_id,
+):
+    # 이미 배송 완료
+    if order_id in state.delivered_order_ids:
+        return "DELIVERED"
+
+    # 현재 라이더가 수락한 패키지인지 확인
+    is_accepted = (
+        state.accepted_package_id
+        == package_id
+    )
+
+    if is_accepted:
+        stage = _current_package_stage()
+
+        if stage in (
+            "MATCHING",
+            "IN_PROGRESS",
+            "COMPLETED",
+        ):
+            if (
+                order_id
+                in state.picked_up_order_ids
+            ):
+                return "PICKED_UP"
+
+            return "MATCHED"
+
+    # 기존 대표 주문
+    if order_id == 43351:
+        if state.merchant_stage in (
+            "COOKING",
+            "COOKED",
+        ):
+            return "COOKING"
+
+        return "NEW"
+
+    # 신규 주문
+    status = state.extra_order_status.get(
+        order_id,
+        "NEW",
+    )
+
+    if status == "COOKING":
+        return "COOKING"
+
+    return "NEW"
+
+
 def _demo_orders():
     return [
         {"order_id": 43351, "store_name": STORE_A["name"], "status": "COOKING", "owner_cook_min": state.owner_cook_min, "predicted_cook_min": 20},
@@ -761,39 +855,235 @@ def _get_demo_explanations(explanation_stage):
     demo_explanations[cache_key] = generated
     return generated
 
+def _customer_config_for_package(package_id):
+    if package_id == PACKAGE_ID:
+        return {
+            "package_id": PACKAGE_ID,
+            "order_id": 43351,
+            "store": STORE_A,
+            "delivery": DELIVERY_A,
+            "menu_items": ORDER_A_MENU,
+            "amount": 20000,
+        }
 
-def _customer_response(order_id=43351, store=STORE_A, menu=ORDER_A_MENU, amount=20000, delivery=DELIVERY_A):
-    status = state.order_status(order_id)
+    if package_id == 20826:
+        return {
+            "package_id": 20826,
+            "order_id": 2082601,
+            "store": PACKAGE_20826_STORE_A,
+            "delivery": PACKAGE_20826_DELIVERY_A,
+            "menu_items": [
+                {
+                    "menu": "새우버거세트",
+                    "qty": 1,
+                    "price": 11000,
+                },
+                {
+                    "menu": "너겟 4조각",
+                    "qty": 1,
+                    "price": 5000,
+                },
+            ],
+            "amount": 16000,
+        }
+
+    if package_id == 20816:
+        return {
+            "package_id": 20816,
+            "order_id": 2081601,
+            "store": PACKAGE_20816_STORE_A,
+            "delivery": PACKAGE_20816_DELIVERY_A,
+            "menu_items": [
+                {
+                    "menu": "치킨버거세트",
+                    "qty": 1,
+                    "price": 7000,
+                },
+            ],
+            "amount": 7000,
+        }
+
+    return None
+
+def _customer_status_for_package(
+    package_id,
+    order_id,
+):
+    # 배달 완료
+    if order_id in state.delivered_order_ids:
+        return "DELIVERED"
+
+    # 해당 주문 픽업 완료
+    if order_id in state.picked_up_order_ids:
+        return "PICKED_UP"
+
+    # 라이더가 현재 이 패키지를 수락한 상태
+    if (
+        state.accepted_package_id == package_id
+        and _current_package_stage()
+        in (
+            "MATCHING",
+            "IN_PROGRESS",
+            "COMPLETED",
+        )
+    ):
+        return "MATCHED"
+
+    # 기존 대표 주문
+    if order_id == 43351:
+        return state.order_status(order_id)
+
+    # 추가 주문
+    status = state.extra_order_status.get(
+        order_id,
+        "NEW",
+    )
+
+    if status == "COOKING":
+        return "COOKING"
+
+    return status
+
+def _customer_response():
+    # 라이더가 패키지를 수락한 경우
+    # 해당 패키지 안의 요기요햄버거 주문 고객을 표시한다.
+    package_id = (
+        state.accepted_package_id
+        if state.accepted_package_id is not None
+        else PACKAGE_ID
+    )
+
+    config = _customer_config_for_package(
+        package_id
+    )
+
+    if config is None:
+        config = _customer_config_for_package(
+            PACKAGE_ID
+        )
+        package_id = PACKAGE_ID
+
+    order_id = config["order_id"]
+    store = config["store"]
+    delivery = config["delivery"]
+
+    status = _customer_status_for_package(
+        package_id,
+        order_id,
+    )
+
+    assigned = (
+        state.accepted_package_id
+        == package_id
+        and status
+        in (
+            "MATCHED",
+            "PICKED_UP",
+            "DELIVERED",
+        )
+    )
 
     consumer_text = None
-    if status == "DELIVERED":
-        consumer_text = "배달이 완료됐어요. 신선하게 받아보셨길 바라요!"
-    elif status in ("MATCHED", "PICKED_UP"):
-        consumer_text = _get_demo_explanations("MATCHED")["consumer_text"]
 
-    food_sitting_min, bag_min = None, None
-    if status in ("MATCHED", "PICKED_UP", "DELIVERED"):
-        for entry in SCORE_DETAIL["timeline"]:
-            if entry["order_id"] == order_id and entry["type"] == "dropoff":
-                food_sitting_min = entry["food_sitting_min"]
-                bag_min = entry["bag_min"]
+    if status == "DELIVERED":
+        consumer_text = (
+            "배달이 완료됐어요. "
+            "신선하게 받아보셨길 바라요!"
+        )
+
+    elif status in (
+        "MATCHED",
+        "PICKED_UP",
+    ):
+        consumer_text = (
+            _get_demo_explanations(
+                "MATCHED"
+            )["consumer_text"]
+        )
+
+    # 기존 20865만 실제 SCORE_DETAIL이 있으므로
+    # 신규 패키지 ETA는 임의 생성하지 않는다.
+    eta_min = None
+
+    if (
+        package_id == PACKAGE_ID
+        and status
+        in (
+            "MATCHED",
+            "PICKED_UP",
+        )
+    ):
+        eta_min = SCORE_DETAIL[
+            "total_time"
+        ]
 
     return {
-        "order_id": order_id, "store_name": store["name"],
-        "store_lat": store["lat"], "store_lng": store["lng"],
-        "delivery_lat": delivery["lat"], "delivery_lng": delivery["lng"],
-        "delivery_address": delivery["address"],
-        "menu_items": menu, "amount": amount, "delivery_fee": 3000,
-        "payment": ORDER_A_PAYMENT,
-        "status": status,
-        "package_id": PACKAGE_ID if status not in ("NEW", "COOKING") else None,
-        "rider_id": RIDER_ID if status in ("MATCHED", "PICKED_UP", "DELIVERED") else None,
-        "route_detail": None,
-        "score_detail": None,
-        "eta_min": None if status == "DELIVERED" else (SCORE_DETAIL["total_time"] if status in ("MATCHED", "PICKED_UP") else None),
-        "consumer_text": consumer_text,
-    }
+        "order_id": order_id,
 
+        "store_name": store["name"],
+        "store_lat": store["lat"],
+        "store_lng": store["lng"],
+
+        "delivery_lat": delivery["lat"],
+        "delivery_lng": delivery["lng"],
+
+        # 신규 배송지는 좌표만 있으므로
+        # address가 없을 경우 fallback
+        "delivery_address": (
+            delivery.get("address")
+            or "고객 배송지"
+        ),
+
+        "menu_items":
+            config["menu_items"],
+
+        "amount":
+            config["amount"],
+
+        "delivery_fee": 3000,
+        "payment": ORDER_A_PAYMENT,
+
+        "status": status,
+
+        "package_id": (
+            package_id
+            if assigned
+            else None
+        ),
+
+        "rider_id": (
+            RIDER_ID
+            if assigned
+            else None
+        ),
+
+        # 고객에게 현재 수락된 패키지 전체 동선 전달
+        "route_detail": (
+            _route_with_visited(
+                package_id
+            )
+            if assigned
+            else None
+        ),
+
+        "score_detail": (
+            SCORE_DETAIL
+            if (
+                package_id == PACKAGE_ID
+                and assigned
+            )
+            else None
+        ),
+
+        "eta_min": (
+            None
+            if status == "DELIVERED"
+            else eta_min
+        ),
+
+        "consumer_text":
+            consumer_text,
+    }
 
 @router.get("/customer/order")
 def demo_customer_order():
