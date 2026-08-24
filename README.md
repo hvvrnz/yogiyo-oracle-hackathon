@@ -42,7 +42,6 @@
 | 배차 결과 설명 생성 | LLM (OCI Generative AI, 사장님 화면 안내 문구 생성) |
 | API 서버 | FastAPI |
 | 프론트엔드 | Vite + React (역할별 화면을 렌더링하는 얇은 로더 구조) |
-| 배치 처리 | cron + Python (Airflow 미사용 — 해커톤 규모 고려) |
 | 인프라 | OCI Compute VM (Oracle Linux 8), VCN/Subnet/IGW 구성 |
 | 컨테이너 | Docker (Kafka, Redis만 컨테이너화, 나머지는 VM에 직접 설치) |
 
@@ -112,7 +111,7 @@ FastAPI로 최종 배달 순서 + 설명 반환
 **스코프 아웃**
 - 라이더 거절/응답 시간 초과에 대한 후속 처리
 - 여러 라이더 후보를 비교하는 로직 (현재는 최근접 1명 그리디 선택)
-- correction_factor 정기 재계산 배치 (cron 스크립트는 있으나 스케줄 미가동)
+- vector_cases 정기 재계산 배치 (스케줄 미가동)
 - 대규모 주문(수백 건 이상 동시 처리) 대비 클러스터링 계산량 최적화
 - 실시간 GPS 연동 (현재는 시뮬레이션)
 
