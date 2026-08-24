@@ -434,7 +434,7 @@ const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
 ).join('') || '방문 순서 정보 없음';
 
-const offerRouteSummary = pkg => {
+const routeOrderColorMap = pkg => {
   const orderColorById =
     new Map();
 
@@ -449,6 +449,13 @@ const offerRouteSummary = pkg => {
       );
     }
   });
+
+  return orderColorById;
+};
+
+const offerRouteSummary = pkg => {
+  const orderColorById =
+    routeOrderColorMap(pkg);
 
   return routeSteps(pkg).map(step => {
     const colorIndex =
@@ -722,6 +729,8 @@ function routeSchedule(
   }
 
   const nextKey = stopKey(nextStop);
+  const orderColorById =
+    routeOrderColorMap(pkg);
 
   return `
     <div class="rider-stop-list">
@@ -753,6 +762,11 @@ function routeSchedule(
             ? '매장 위치'
             : '배달지 위치';
 
+        const colorIndex =
+          orderColorById.get(
+            String(step.order_id)
+          ) ?? 0;
+
         return `
           <div
             class="rider-stop-row
@@ -760,7 +774,10 @@ function routeSchedule(
               ${visited ? 'visited' : ''}
               ${current ? 'current' : ''}"
           >
-            <b>${step.sequence}</b>
+            <b
+              class="order-color-${colorIndex + 1}"
+              aria-hidden="true"
+            ></b>
 
             <div class="rider-stop-copy">
               <strong>${typeLabel}</strong>

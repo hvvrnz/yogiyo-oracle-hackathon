@@ -62,3 +62,17 @@ test('배차 제안 경로는 순서 숫자 대신 주문별 색상을 사용한
     '배차 제안 카드에는 1~6 순서 숫자를 표시하지 않습니다.'
   );
 });
+
+test('운행 상세 경로의 원은 숫자 대신 주문별 색상을 사용한다', () => {
+  const scheduleStart = riderSource.indexOf('function routeSchedule(');
+  const scheduleEnd = riderSource.indexOf('\nfunction runDetail', scheduleStart);
+  const scheduleSource = riderSource.slice(scheduleStart, scheduleEnd);
+
+  assert.match(scheduleSource, /routeOrderColorMap\(pkg\)/);
+  assert.match(scheduleSource, /class="order-color-\$\{colorIndex \+ 1\}"/);
+  assert.doesNotMatch(
+    scheduleSource,
+    /<b>\$\{step\.sequence\}<\/b>/,
+    '운행 상세의 원 안에는 1~6 숫자를 표시하지 않습니다.'
+  );
+});

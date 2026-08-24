@@ -631,6 +631,9 @@ button:disabled { opacity:.45; cursor:not-allowed; transform:none!important; }
 .rider-stop-row.visited b { background: #999; }
 .rider-stop-row.visited strong, .rider-stop-row.visited span { color: #8b9099; }
 .rider-stop-row.current { box-shadow: inset 0 0 0 1px var(--brand); }
+.rider-stop-row b.order-color-1 { background:#fce8ef; }
+.rider-stop-row b.order-color-2 { background:#fbf2cf; }
+.rider-stop-row b.order-color-3 { background:#e7f3dc; }
 
 /* Merchant two-pane order board. */
 .merchant-dashboard { overflow:hidden; }
