@@ -42,20 +42,32 @@
         </div>
         -->
 
-        <div class="rider-map-state">
-          <span class="badge brand" id="packageState">패키지 조회 중</span>
-          <strong id="currentPackageSummary">운행 정보를 확인하고 있어요.</strong>
-          <span id="riderLocationCount">내 위치 조회 중</span>
+<div class="rider-map-state">
+  <span class="badge brand" id="packageState">
+    남은 조리 시간
+  </span>
 
-          <button
-            type="button"
-            class="rider-map-action-button"
-            id="riderMapActionButton"
-            hidden
-          >
-            픽업 완료
-          </button>
-        </div>
+  <div
+    class="rider-cook-time-grid"
+    id="riderCookTimeGrid"
+    aria-live="polite"
+  >
+    <div class="rider-cook-time-item">
+      <span>매장 1</span>
+      <strong>-</strong>
+    </div>
+
+    <div class="rider-cook-time-item">
+      <span>매장 2</span>
+      <strong>-</strong>
+    </div>
+
+    <div class="rider-cook-time-item">
+      <span>매장 3</span>
+      <strong>-</strong>
+    </div>
+  </div>
+</div>
 
         <section
           id="riderLoadState"

@@ -108,6 +108,125 @@ const stopKey = step => {
 
   return `${step.order_id}-${String(step.type || '').toLowerCase()}`;
 };
+function cookStoreName(label) {
+  const name = String(label || '');
+
+  if (name.includes('샌드위치')) {
+    return '샌드위치';
+  }
+
+  if (name.includes('초밥')) {
+    return '초밥';
+  }
+
+  if (
+    name.includes('햄버거') ||
+    name.includes('버거')
+  ) {
+    return '햄버거';
+  }
+
+  return (
+    name
+      .replace(/\s*강남(?:\d+)?점\s*$/, '')
+      .trim() ||
+    '매장'
+  );
+}
+
+function cookTimeItems(pkg) {
+  const timeline =
+    Array.isArray(
+      pkg?.score_detail?.timeline
+    )
+      ? pkg.score_detail.timeline
+      : [];
+
+  return routeSteps(pkg)
+    .filter(
+      step =>
+        String(step.type).toLowerCase() ===
+        'pickup'
+    )
+    .slice(0, 3)
+    .map(step => {
+      const detail =
+        timeline.find(
+          item =>
+            String(item.order_id) ===
+              String(step.order_id) &&
+            String(item.type).toLowerCase() ===
+              'pickup'
+        );
+
+      const waitMinutes =
+        Number(detail?.wait_min);
+
+      const completed =
+        visitedSteps.includes(
+          stopKey(step)
+        ) ||
+        (
+          Number.isFinite(waitMinutes) &&
+          waitMinutes <= 0
+        );
+
+      return {
+        name: cookStoreName(step.label),
+
+        time: completed
+          ? '완료'
+          : Number.isFinite(waitMinutes)
+            ? `${Math.max(
+                1,
+                Math.round(waitMinutes)
+              )}분`
+            : '-',
+
+        completed
+      };
+    });
+}
+
+function renderCookTimeGrid(pkg) {
+  const grid =
+    Yogiyo.el('riderCookTimeGrid');
+
+  const items =
+    cookTimeItems(pkg);
+
+  grid.innerHTML =
+    Array.from(
+      { length: 3 },
+      (_, index) => {
+        const item = items[index];
+
+        const name =
+          item?.name ||
+          `매장 ${index + 1}`;
+
+        const time =
+          item?.time || '-';
+
+        return `
+          <div
+            class="
+              rider-cook-time-item
+              ${item?.completed ? 'is-complete' : ''}
+            "
+          >
+            <span>
+              ${Yogiyo.escape(name)}
+            </span>
+
+            <strong>
+              ${Yogiyo.escape(time)}
+            </strong>
+          </div>
+        `;
+      }
+    ).join('');
+}
 function syncVisitedSteps(pkg, nextStop) {
   const steps = routeSteps(pkg);
 
@@ -1075,60 +1194,14 @@ const visibleOffers = offers
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
   
-  const isWaitingForOffer =
-  !activePackage &&
-  !visibleOffers.length;
-
-  Yogiyo.el('packageState').textContent =
-    activePackage
-      ? packageStatus(activePackage.status)
-      : visibleOffers.length
-        ? `새 배차 ${visibleOffers.length}건`
-        : '배차 대기 중';
-
-
-  const currentPackageSummary =
-    Yogiyo.el('currentPackageSummary');
-
-  currentPackageSummary.textContent =
-    nextStop?.type
-      ? `${
-          nextStop.type === 'pickup'
-            ? ''
-            : ''
-        } ${nextStop.label}`
-      : activePackage
-        ? `패키지 #${activePackage.package_id} 운행 중`
-        : visibleOffers.length
-          ? '✨ 새로운 배차 제안을 확인해 주세요.'
-          : '새로운 배차를 기다리고 있어요.';
-
-
-  currentPackageSummary.classList.toggle(
-    'is-loading',
-    isWaitingForOffer
-  );
-
+  
   const mapActionButton = Yogiyo.el('riderMapActionButton');
-  if (nextStop?.type) {
-    mapActionButton.hidden = false;
-    mapActionButton.textContent =
-      nextStop.type === 'pickup'
-        ? '픽업 완료'
-        : '배달 완료';
-  } else {
-    mapActionButton.hidden = true;
-  }
-  Yogiyo.el('riderLocationCount').textContent = profile.lat != null ? ' · 실시간 내 위치' : '내 위치 정보 없음';
-  if (!isRiderMoving) {
-    Yogiyo.renderMap(
-      'riderMap',
-      riderMapData(
-        profile,
-        activePackage
-      )
-    );
-  }
+ 
+Yogiyo.el('packageState').textContent =
+  '남은 조리 시간';
+
+renderCookTimeGrid(activePackage);
+
   renderMapOfferButton(
   visibleOffers,
   activePackage
@@ -2117,7 +2190,6 @@ function bindRiderSheet() {
 
 Yogiyo.el('offerSortSelect').addEventListener('change', event => { offerSort = event.currentTarget.value; if (currentRider) renderRider(currentRider); });
 Yogiyo.el('packageDetailCloseButton').addEventListener('click', closePackageDetail);
-Yogiyo.el('riderMapActionButton').addEventListener('click', event => completeCurrentStop(event.currentTarget));
 Yogiyo.el('packageDetailBackdrop').addEventListener('click', closePackageDetail);
 bindRiderTabs();
 bindRiderSheet();
