@@ -792,6 +792,45 @@ html.embedded .merchant-shell {
   font-size: 13px;
 }
 
+.offer-route-row-colored {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.offer-route-type {
+  flex: 0 0 36px;
+  padding: 3px 5px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.offer-route-type.order-color-1 {
+  background: #fce8ef;
+  color: #98405f;
+}
+
+.offer-route-type.order-color-2 {
+  background: #fbf2cf;
+  color: #79672b;
+}
+
+.offer-route-type.order-color-3 {
+  background: #e7f3dc;
+  color: #55733f;
+}
+
+.offer-route-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .cook-time-stepper {
   display:flex;
   align-items:center;

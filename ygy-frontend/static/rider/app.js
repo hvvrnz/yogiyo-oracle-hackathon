@@ -434,6 +434,49 @@ const routeSummary = pkg => routeSteps(pkg).map(step =>
   `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
 ).join('') || '방문 순서 정보 없음';
 
+const offerRouteSummary = pkg => {
+  const orderColorById =
+    new Map();
+
+  routeSteps(pkg).forEach(step => {
+    const orderId =
+      String(step.order_id);
+
+    if (!orderColorById.has(orderId)) {
+      orderColorById.set(
+        orderId,
+        orderColorById.size % 3
+      );
+    }
+  });
+
+  return routeSteps(pkg).map(step => {
+    const colorIndex =
+      orderColorById.get(
+        String(step.order_id)
+      ) ?? 0;
+
+    const typeLabel =
+      step.type === 'pickup'
+        ? '픽업'
+        : '배달';
+
+    return `
+      <div class="offer-route-row offer-route-row-colored">
+        <span class="offer-route-type order-color-${colorIndex + 1}">
+          ${typeLabel}
+        </span>
+        <span class="offer-route-label">
+          · ${Yogiyo.escape(
+            step.label ||
+            '위치 정보 없음'
+          )}
+        </span>
+      </div>
+    `;
+  }).join('') || '방문 순서 정보 없음';
+};
+
 const routeSummaryText = pkg =>
   routeSteps(pkg)
     .map(
@@ -1003,7 +1046,7 @@ function offerCard(
 
 <div class="offer-main">
   <div class="offer-route-list">
-    ${routeSummary(pkg)}
+    ${offerRouteSummary(pkg)}
   </div>
 </div>
       <div class="offer-actions">

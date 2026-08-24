@@ -47,3 +47,18 @@ test('라이더 조리시간은 현재 패키지의 서버 잔여시간으로 �
     '운행 중인 패키지를 폴링해 서버 잔여시간을 다시 받아야 합니다.'
   );
 });
+
+test('배차 제안 경로는 순서 숫자 대신 주문별 색상을 사용한다', () => {
+  const summaryStart = riderSource.indexOf('const offerRouteSummary = pkg =>');
+  const summaryEnd = riderSource.indexOf('\nconst routeSummaryText', summaryStart);
+  const summarySource = riderSource.slice(summaryStart, summaryEnd);
+
+  assert.notEqual(summaryStart, -1);
+  assert.match(summarySource, /orderColorById/);
+  assert.match(summarySource, /offer-route-type order-color-/);
+  assert.doesNotMatch(
+    summarySource,
+    /step\.sequence/,
+    '배차 제안 카드에는 1~6 순서 숫자를 표시하지 않습니다.'
+  );
+});
