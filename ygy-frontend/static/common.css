@@ -1709,19 +1709,6 @@ html.embedded .merchant-shell {
 .cluster-rule strong { display:block; font-size:11px; color:var(--muted); margin-bottom:6px; }
 .cluster-rule span { font-size:14px; font-weight:800; color:var(--ink); }
 
-/* 데이터 축적 순환 */
-.pipeline-cycle { display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; margin-top:18px; }
-.pipeline-stage { flex:1; min-width:130px; padding:14px; border:1px solid var(--line); border-radius:14px; background:#fafafd; text-align:center; }
-.pipeline-stage-num { display:inline-grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--brand); color:#fff; font-size:12px; font-weight:800; margin-bottom:8px; }
-.pipeline-stage strong { display:block; font-size:13px; margin-bottom:3px; }
-.pipeline-stage p { margin:0; color:var(--muted); font-size:11px; line-height:1.4; }
-.pipeline-arrow { display:flex; align-items:center; color:#c7c7d1; font-size:16px; flex:0 0 auto; }
-.pipeline-arrow.loop { color:var(--brand); font-size:20px; font-weight:800; }
-.pipeline-example { margin-top:18px; padding:16px; border-radius:14px; background:var(--brand-soft); text-align:center; }
-.pipeline-example strong { display:block; font-size:18px; color:var(--brand-dark); margin-bottom:4px; }
-.pipeline-example p { margin:0; color:var(--brand-dark); font-size:12px; }
-
-
 .candidate-reason { margin:0 0 10px; font-size:11px; color:#6a6c78; line-height:1.5; font-style:italic; }
 
 .fallback-step-fn { margin:0; font-family:ui-monospace,monospace; font-size:9px; color:var(--muted); word-break:break-all; line-height:1.4; }

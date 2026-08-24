@@ -485,11 +485,24 @@ loadDemoPanels();
 /* 알고리즘 근거 모달                                                            */
 /* -------------------------------------------------------------------------- */
 
+const defaultCookReference = Object.freeze({
+  reference_type: 'cold_start',
+  matched_store_name: '버거퀸 강남점🍔',
+  fallback_level: 4,
+  recent_case_count: 10,
+  avg_cook_min: 14.1,
+  similar_cases: [
+    { store_name: '버거퀸 강남점🍔', weekday: '금', time_slot: '저녁', actual_cook_min: 13.3, distance: 0.1765 },
+    { store_name: '버거퀸 강남점🍔', weekday: '금', time_slot: '저녁', actual_cook_min: 13.4, distance: 0.1841 },
+    { store_name: '버거퀸 강남점🍔', weekday: '금', time_slot: '저녁', actual_cook_min: 15.7, distance: 0.1933 },
+  ],
+});
+
 function cookTimeExplanationContent(reference) {
   const hasOwnData = reference.reference_type !== 'cold_start';
   return {
     type: 'cook',
-    title: hasOwnData ? 'AI가 이 매장의 조리 이력을 어떻게 반영했나요?' : 'AI가 조리시간을 어떻게 참고했나요?',
+    title: 'AI 조리시간 판단 보조 결과',
     subtitle: hasOwnData
       ? '이 매장은 자체 조리 이력이 충분해, 다른 매장 데이터 없이 자기 이력만으로 예측해요.'
       : '이 매장은 자체 조리 이력이 부족해 Cold Start 상태예요. 유사 매장 사례로 대신 채워요.',
@@ -506,7 +519,7 @@ function cookTimeExplanationContent(reference) {
           { label: '보정계수 적용', value: `${reference.correction_factor ?? '1.0'}x` },
         ]
       : [
-          { label: '유사 기록', value: `${reference.recent_case_count}건` },
+          { label: '유사 사례 수', value: `${reference.recent_case_count}건` },
           { label: '평균 조리시간', value: `${reference.avg_cook_min}분` },
           { label: '임베딩 방식', value: 'Cohere Embed · 1024차원' },
         ],
@@ -515,18 +528,11 @@ function cookTimeExplanationContent(reference) {
 
 function pendingCookTimeExplanationContent(subtitle) {
   return {
-    type: 'cook',
-    title: 'AI 조리시간 판단 보조 결과',
+    ...cookTimeExplanationContent(
+      defaultCookReference
+    ),
     subtitle,
     pending: true,
-    hasOwnData: false,
-    embeddingInput: null,
-    similarCases: [],
-    metrics: [
-      { label: '현재 상태', value: '조리 시작 전' },
-      { label: '임베딩 모델', value: 'Cohere Multilingual v3.0' },
-      { label: '출력 규격', value: '1024차원' },
-    ],
   };
 }
 
@@ -621,6 +627,10 @@ function renderCookContent(content) {
         </span>
       </div>
     </section>
+    <div class="notice warn" style="margin-top:16px">
+      <strong>최종 조리시간은 사장님이 결정합니다.</strong>
+      <span>AI와 Vector Search는 유사 사례와 판단 근거를 제공하는 보조 수단이며, 최종 값을 자동으로 확정하지 않습니다.</span>
+    </div>
     ${casesTable}
   `;
 }
@@ -628,14 +638,14 @@ function renderCookContent(content) {
 function fallbackExplanationContent() {
   return {
     type: 'fallback',
-    title: 'Vector Search Fallback 단계',
-    subtitle: '자체 데이터가 부족한 매장도 단계적으로 검색 범위를 넓혀 유사 사례를 찾아요.',
+    title: '데이터 부족 매장의 조리시간 전략',
+    subtitle: '자체 데이터가 부족한 초기에만 Vector Search로 참고 사례를 찾고, 데이터 축적 정도에 따라 판단 방식을 고도화합니다.',
     steps: [
       { num: 1, label: '자체 매장 이력', detail: 'get_cases_by_time_slot / get_store_average', matched: false },
-      { num: 2, label: '같은 지역 + 같은 브랜드', detail: 'get_similar_cases_by_brand(same_region=True)', matched: false, note: '' },
-      { num: 3, label: '타 지역 + 같은 브랜드', detail: 'get_similar_cases_by_brand(same_region=False)', matched: false, note: ''},
-      { num: 4, label: '같은 지역 + 같은 카테고리(다른 브랜드)', detail: 'get_similar_cases_by_region_category(exclude_brand=...)', matched: true, note: '버거퀸 강남점🍔' },
-      { num: 5, label: '전체 카테고리(다른 브랜드)', detail: 'get_similar_cases_by_category(exclude_brand=...)', matched: false },
+      { num: 2, label: '같은 지역·브랜드', detail: 'get_similar_cases_by_brand(same_region=True)', matched: false, note: '' },
+      { num: 3, label: '다른 지역·같은 브랜드', detail: 'get_similar_cases_by_brand(same_region=False)', matched: false, note: ''},
+      { num: 4, label: '같은 지역·카테고리', detail: 'get_similar_cases_by_region_category(exclude_brand=...)', matched: true, note: '버거퀸 강남점🍔' },
+      { num: 5, label: '전체 카테고리', detail: 'get_similar_cases_by_category(exclude_brand=...)', matched: false },
     ],
     metrics: [
       { label: '유사 사례', value: '10건' },
@@ -699,6 +709,21 @@ function renderFallbackContent(content) {
       </table>
       <p class="schema-note">${Yogiyo.escape(content.schema.note)}</p>
     </div>
+    <section class="embedding-choice-box">
+      <div>
+        <strong>프랜차이즈 매장</strong>
+        <span>자체 이력이 부족하면 같은 브랜드의 같은 지역 데이터를 먼저 참고하고, 필요하면 다른 지역까지 범위를 넓힙니다.</span>
+      </div>
+
+      <div>
+        <strong>개인 매장</strong>
+        <span>공유할 브랜드 데이터가 없으므로 자체 이력 다음으로 같은 지역·카테고리의 유사 사례를 참고합니다.</span>
+      </div>
+    </section>
+
+    <div class="candidate-insight" style="text-align:left">
+      Vector Search는 초기 데이터가 부족할 때 유사 사례와 근거를 찾기 위한 보조 수단으로만 사용합니다.
+    </div>
     <section class="data-strategy-upgrade">
       <article class="data-strategy-card">
         <strong>현재 MVP</strong>
@@ -712,8 +737,8 @@ function renderFallbackContent(content) {
       <article class="data-strategy-card is-future">
         <strong>실서비스 고도화</strong>
         <span>실제 결과를 매장별로 지속 축적</span>
-        <span>공통 ML 회귀 모델로 조리시간 예측</span>
-        <span>매장별 평균 오차 추가 보정</span>
+        <span>비용·정확도에 유리한 공통 ML 회귀 모델로 조리시간 예측</span>
+        <span>매장별 평균 오차로 추가 보정</span>
         <span>Vector Search는 신규 매장·근거 제공</span>
       </article>
     </section>
@@ -728,18 +753,19 @@ function renderFallbackContent(content) {
 function clusterExplanationContent() {
   return {
     type: 'cluster',
-    title: '주문 클러스터링 로직',
-    subtitle: '자체 개발한 밀도 기반 알고리즘이에요 (ML 모델 아님). 30초 윈도우마다 다시 계산해요.',
-    gate: '서로 다른 권역(region)이면 애초에 후보에서 제외돼요 (무한대 점수 처리).',
+    title: '동선 중심 3건 클러스터링',
+    subtitle: '거리·동선을 1차 기준으로 가까운 주문을 선별하고, 남은 조리시간 차이와 긴급도를 보정 기준으로 반영합니다.',
+    gate: '권역(region)이 다른 주문은 무한대 점수로 처리해 클러스터링 후보에서 제외합니다.',
     formula: [
-      '매장 간 거리 + 배달지 간 거리 + 교차거리(평균) — km 단위 그대로 합산',
-      '조리시간 차이는 "고정값"이 아니라, 그 순간까지 남은 조리시간(remaining_cook_time)의 차이를 사용해요',
-      '이 남은시간 차이(분)를 라이더 평균속도(시속 20km)로 나눠 "km 환산 거리"로 바꿔 더해요',
-      '카테고리 긴급도가 다르면 페널티(km 환산)를 추가해요',
+      '매장 간 거리를 km 단위로 반영',
+      '배달지 간 거리를 km 단위로 반영',
+      '각 매장과 상대 배달지 사이 교차거리의 평균을 반영',
+      '사장님이 확정한 조리시간에서 경과시간을 뺀 남은 조리시간 차이를 km로 환산해 보정',
+      '카테고리 긴급도가 다르면 불일치 페널티를 km로 환산해 추가',
     ],
     keyInsight: {
-      title: '왜 30분짜리 주문도 결국 묶이는가',
-      body: '접수 직후엔 30분 남은 주문과 10분짜리 주문의 차이가 크니 묶이기 어려워요. 하지만 30초 윈도우마다 클러스터링을 다시 계산하기 때문에, 20분이 지나 남은 시간이 10분이 되면 그 시점에 접수된 다른 짧은 주문들과 조리시간이 비슷해지면서 자연스럽게 묶일 기회를 얻어요. 긴 조리시간 주문을 처음부터 포기하지 않고, 시간이 지나며 계속 짝을 찾을 기회를 주는 구조예요.',
+      title: '동선 우선, 조리시간 보정',
+      body: '조리시간이 비슷한 주문을 먼저 묶는 구조가 아닙니다. 동선이 가까운 주문을 먼저 선별한 뒤, 남은 조리시간 차이가 너무 큰 조합을 감점합니다. 30초마다 다시 계산하므로 경과시간에 따라 조합 가능성도 달라집니다.',
     },
     codeSnippet: `def remaining_cook_time(order):
     elapsed_min = (datetime.now() - order["created_at"]).total_seconds() / 60
@@ -759,6 +785,7 @@ function clusterExplanationContent() {
     rules: [
       { label: '권역 불일치', value: '묶기 자체 불가 (inf)' },
       { label: '최대 묶음 크기', value: '3건' },
+      { label: '재계산 주기', value: '30초' },
       { label: '평균점수 초과 시', value: '단건(SOLO)으로 분리' },
     ],
   };
@@ -766,53 +793,102 @@ function clusterExplanationContent() {
 
 // =========================
 
-function dataPipelineExplanationContent() {
+function routeExplanationContent(data = {}) {
+  const selected =
+    data.candidates?.find(
+      candidate => candidate.selected
+    ) ||
+    data.candidates?.[0] ||
+    {};
+
   return {
-    type: 'pipeline',
-    title: '실측 데이터가 쌓이는 구조',
-    subtitle: '예측 → 실행 → 기록, 이 사이클이 반복되면서 다음 예측의 근거가 늘어나요.',
-    stages: [
-      { num: 1, label: '예측', detail: '사장님 입력 조리시간(owner_cook_min)' },
-      { num: 2, label: '실행', detail: 'cook-complete 호출 시각 = 실제 조리완료' },
-      { num: 3, label: '기록', detail: 'vector_cases.actual_cook_time에 저장' },
+    type: 'route',
+    title: '왜 이 방문 순서인가요?',
+    subtitle: '3건의 픽업 3개와 배달 3개를 조합한 유효한 방문 순서를 모두 비교합니다.',
+    items: selected.items || [
+      '🥪 수제에그샌드위치 5분',
+      '🍔 요기요햄버거 20분',
+      '🍣 전통모듬초밥 15분',
     ],
-    example: { before: '입력 20분', after: '실제 14분', note: '이 (요일·시간대·매장) 조합의 새 사례로 vector_cases에 쌓여요.' },
-    hardProblem: {
-      title: '메뉴가 수천 개인데, 메뉴마다 조리시간을 어떻게 알아내나요?',
-      body: '사장님은 메뉴 하나하나가 아니라 "치즈버거세트+콜라+너겟"처럼 주문 전체에 조리시간 하나만 입력해요. 콜라 같은 사이드는 단품으로 팔리지 않아서, "콜라만 시켰을 때 몇 분"이라는 기록 자체가 존재할 수 없어요.',
-      answer: '이건 회귀분석으로 사후에 풀 수 있어요. 메뉴 구성이 서로 다른 주문들의 (구성, 총 조리시간) 데이터가 충분히 쌓이면, 각 메뉴가 전체 조리시간에 기여하는 정도를 통계적으로 분리해낼 수 있어요. 콜라를 단품으로 시킨 기록이 하나도 없어도, 콜라가 낀 여러 조합 주문들만으로 콜라의 몫을 추정할 수 있습니다.',
-    },
-    schemaLink: 'vector_cases의 menu_name 컬럼에는 "치즈버거세트 1개 외 2개"처럼 동시조리 중 가장 오래 걸린 대표 메뉴가 기록돼요 — 실제로는 이 자리에 전체 메뉴 구성(JSON)을 저장해두면, 나중에 회귀 모델을 그 위에 얹을 수 있어요.',
+    visitOrder: selected.route_text
+      ? selected.route_text
+          .replace(/ P(?=\s|→|$)/g, ' 픽업')
+          .replace(/ D(?=\s|→|$)/g, ' 배달')
+      : '샌드위치 픽업 → 샌드위치 배달 → 초밥 픽업 → 햄버거 픽업 → 햄버거 배달 → 초밥 배달',
+    metrics: [
+      { label: '라이더 대기시간', value: '4.6분' },
+      { label: '음식 방치시간', value: '0.9분' },
+      { label: '가방 체류시간', value: '19분' },
+      { label: '전체 수행시간', value: '26.3분' },
+      { label: '총점', value: '50.8점' },
+    ],
+    timeline: [
+      { sequence: 1, event: '샌드위치 픽업', ready: '5.0분', arrival: '0.9분' },
+      { sequence: 2, event: '샌드위치 배달', ready: '-', arrival: '9.5분' },
+      { sequence: 3, event: '초밥 픽업', ready: '15.0분', arrival: '15.9분' },
+      { sequence: 4, event: '햄버거 픽업', ready: '20.0분', arrival: '19.5분' },
+      { sequence: 5, event: '햄버거 배달', ready: '-', arrival: '24.2분' },
+      { sequence: 6, event: '초밥 배달', ready: '-', arrival: '26.3분' },
+    ],
   };
 }
-function renderPipelineContent(content) {
-  const stages = content.stages.map((s, i) => `
-    <div class="pipeline-stage">
-      <span class="pipeline-stage-num">${s.num}</span>
-      <strong>${Yogiyo.escape(s.label)}</strong>
-      <p>${Yogiyo.escape(s.detail)}</p>
+
+function renderRouteContent(content) {
+  const metrics = content.metrics.map(metric => `
+    <div>
+      <span>${Yogiyo.escape(metric.label)}</span>
+      <strong>${Yogiyo.escape(metric.value)}</strong>
     </div>
-    ${i < content.stages.length - 1 ? '<div class="pipeline-arrow">→</div>' : '<div class="pipeline-arrow loop">↺</div>'}
+  `).join('');
+
+  const timelineRows = content.timeline.map(item => `
+    <tr>
+      <td>${item.sequence}</td>
+      <td>${Yogiyo.escape(item.event)}</td>
+      <td>${Yogiyo.escape(item.ready)}</td>
+      <td>${Yogiyo.escape(item.arrival)}</td>
+    </tr>
   `).join('');
 
   return `
     <h2 class="explain-modal-title">${Yogiyo.escape(content.title)}</h2>
     <p class="explain-modal-subtitle">${Yogiyo.escape(content.subtitle)}</p>
-    <div class="pipeline-cycle">${stages}</div>
-    <div class="pipeline-example">
-      <strong>${Yogiyo.escape(content.example.before)} → ${Yogiyo.escape(content.example.after)}</strong>
-      <p>${Yogiyo.escape(content.example.note)}</p>
+
+    <div class="candidate-insight" style="text-align:left">
+      각 주문의 픽업은 해당 배달보다 먼저여야 하므로,
+      유효한 방문 순서는 <strong>6! ÷ 2³ = 90가지</strong>입니다.
+      시스템은 90가지를 완전탐색해 아래 지표 합이 가장 낮은 순서를 제안합니다.
     </div>
+
+    <div class="fallback-metrics">${metrics}</div>
+
+    <div class="candidate-card selected" style="margin-top:16px">
+      <div class="candidate-card-head">
+        <strong>선택된 방문 순서</strong>
+        <span class="candidate-badge">✓ 최저 점수</span>
+      </div>
+      <ul class="candidate-items">
+        ${content.items.map(item => `<li>${Yogiyo.escape(item)}</li>`).join('')}
+      </ul>
+      <p class="candidate-route">${Yogiyo.escape(content.visitOrder)}</p>
+    </div>
+
     <div class="schema-block">
-      <h3>${Yogiyo.escape(content.hardProblem.title)}</h3>
-      <p class="schema-note">${Yogiyo.escape(content.hardProblem.body)}</p>
-      <div class="candidate-insight" style="text-align:left; margin-top:10px">${Yogiyo.escape(content.hardProblem.answer)}</div>
+      <h3>예상 조리완료·도착 타임라인</h3>
+      <table class="schema-table">
+        <thead>
+          <tr><th>순서</th><th>방문 이벤트</th><th>예상 조리완료</th><th>예상 도착</th></tr>
+        </thead>
+        <tbody>${timelineRows}</tbody>
+      </table>
     </div>
-    <p class="schema-note" style="margin-top:14px">${Yogiyo.escape(content.schemaLink)}</p>
+
+    <div class="notice info" style="margin-top:16px">
+      <strong>라이더가 최종 선택합니다.</strong>
+      <span>시스템은 도로 위의 실제 이동 동선을 강제하지 않고 방문 순서만 제안합니다. 라이더는 배차 제안을 수락하거나 거절할 수 있습니다.</span>
+    </div>
   `;
 }
-
-// =====================
 
 function renderClusterContent(content) {
   const formulaLines = content.formula.map(f => `<li>${Yogiyo.escape(f)}</li>`).join('');
@@ -833,6 +909,10 @@ function renderClusterContent(content) {
       <strong style="display:block; margin-bottom:6px">${Yogiyo.escape(content.keyInsight.title)}</strong>
       ${Yogiyo.escape(content.keyInsight.body)}
     </div>
+    <div class="notice info" style="margin-bottom:16px">
+      <strong>조리시간 반영 기준</strong>
+      <span>AI 참고값을 그대로 사용하지 않고, 사장님이 확정한 조리시간에서 주문 접수 후 경과시간을 제외한 remaining_cook_time을 사용합니다.</span>
+    </div>
     <div class="schema-block">
       <h3>${Yogiyo.escape(content.worked.title)}</h3>
       <table class="schema-table">
@@ -848,44 +928,15 @@ function renderClusterContent(content) {
 
 
 function renderExplanationContent(content) {
-  if (content.type === 'candidates') return renderCandidatesContent(content);
   if (content.type === 'fallback') return renderFallbackContent(content);
   if (content.type === 'cluster') return renderClusterContent(content);
-  if (content.type === 'pipeline') return renderPipelineContent(content);
+  if (content.type === 'route') return renderRouteContent(content);
   if (content.type === 'cook') return renderCookContent(content);
   return `
     <h2 class="explain-modal-title">${Yogiyo.escape(content.title)}</h2>
     <ul class="explanation-steps">
       ${content.steps.map(s => `<li>${Yogiyo.escape(s)}</li>`).join('')}
     </ul>
-  `;
-}
-
-function renderCandidatesContent(content) {
-  const cards = content.candidates.map(c => `
-    <div class="candidate-card${c.selected ? ' selected' : ''}">
-      <div class="candidate-card-head">
-        <strong>${Yogiyo.escape(c.label)}</strong>
-        ${c.selected ? '<span class="candidate-badge">✓ 최종 선택</span>' : ''}
-      </div>
-      <ul class="candidate-items">
-        ${c.items.map(i => `<li>${Yogiyo.escape(i)}</li>`).join('')}
-      </ul>
-      <p class="candidate-route">${Yogiyo.escape(c.routeText)}</p>
-      <p class="candidate-reason">${Yogiyo.escape(c.reason)}</p>
-      <div class="candidate-metrics">
-        <div><span>라이더 대기</span><strong>${c.waitMin}분</strong></div>
-        <div><span>음식 방치</span><strong>${c.sittingMin}분</strong></div>
-        <div><span>총 수행시간</span><strong>${c.totalMin}분</strong></div>
-      </div>
-    </div>
-  `).join('');
-
-  return `
-    <h2 class="explain-modal-title">${Yogiyo.escape(content.title)}</h2>
-    <p class="explain-modal-subtitle">${Yogiyo.escape(content.subtitle || '')}</p>
-    <div class="candidate-grid">${cards}</div>
-    ${content.insight ? `<div class="candidate-insight">${Yogiyo.escape(content.insight)}</div>` : ''}
   `;
 }
 
@@ -924,16 +975,13 @@ async function openDispatchExplanation() {
   try {
     const res = await fetch('/api/demo/dispatch/candidates');
     const data = await res.json();
-    openExplanationModal({
-      type: 'candidates',
-      title: data.title,
-      subtitle: data.subtitle,
-      formula: data.formula,
-      insight: data.insight,
-      candidates: data.candidates.map(c => ({ ...c, routeText: c.route_text, waitMin: c.wait_min, sittingMin: c.sitting_min, totalMin: c.total_min, reason: c.reason })),
-    });
+    openExplanationModal(
+      routeExplanationContent(data)
+    );
   } catch {
-    openExplanationModal({ title: '배차 엔진 분석 결과', steps: ['데이터를 불러오지 못했습니다.'] });
+    openExplanationModal(
+      routeExplanationContent()
+    );
   }
 }
 
@@ -942,7 +990,6 @@ const explanationHandlers = {
   route: openDispatchExplanation,
   fallback: () => openExplanationModal(fallbackExplanationContent()),
   cluster: () => openExplanationModal(clusterExplanationContent()),
-  pipeline: () => openExplanationModal(dataPipelineExplanationContent()),
 };
 
 document.querySelectorAll('.algo-explain-buttons button').forEach(btn => {
