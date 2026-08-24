@@ -1736,6 +1736,112 @@ html.embedded .merchant-shell {
 .code-snippet .kw { color:#ff83aa; }
 
 .embedding-input-box { margin:8px 0 10px; padding:12px 14px; border-radius:10px; background:#f6f7fb; border:1px dashed #c7c7d1; font-family:ui-monospace,monospace; font-size:11px; color:#3f6fe5; line-height:1.6; }
+
+.data-strategy-upgrade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.data-strategy-card {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fafafd;
+}
+
+.data-strategy-card strong {
+  margin-bottom: 3px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.data-strategy-card span {
+  position: relative;
+  padding-left: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.data-strategy-card span::before {
+  position: absolute;
+  top: 7px;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand);
+  content: "";
+}
+
+.data-strategy-card.is-future {
+  border-color: #ffd0df;
+  background: var(--brand-soft);
+}
+
+.data-strategy-arrow {
+  align-self: center;
+  color: var(--brand);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.data-strategy-notice {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff6e8;
+  color: #8a5815;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.embedding-choice-box {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.embedding-choice-box > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fafafd;
+}
+
+.embedding-choice-box strong {
+  color: var(--brand-dark);
+  font-size: 12px;
+}
+
+.embedding-choice-box span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .data-strategy-upgrade {
+    grid-template-columns: 1fr;
+  }
+
+  .data-strategy-arrow {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+
+  .embedding-choice-box {
+    grid-template-columns: 1fr;
+  }
+}
 #itemsCard .row { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 #merchantProcessingList[hidden],
 #merchantCompletedList[hidden] {

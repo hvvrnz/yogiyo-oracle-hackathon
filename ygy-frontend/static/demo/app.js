@@ -513,12 +513,37 @@ function cookTimeExplanationContent(reference) {
   };
 }
 
+function pendingCookTimeExplanationContent(subtitle) {
+  return {
+    type: 'cook',
+    title: 'AI 조리시간 판단 보조 결과',
+    subtitle,
+    pending: true,
+    hasOwnData: false,
+    embeddingInput: null,
+    similarCases: [],
+    metrics: [
+      { label: '현재 상태', value: '조리 시작 전' },
+      { label: '임베딩 모델', value: 'Cohere Multilingual v3.0' },
+      { label: '출력 규격', value: '1024차원' },
+    ],
+  };
+}
+
 function renderCookContent(content) {
   const metrics = content.metrics.map(m => `
     <div><span>${Yogiyo.escape(m.label)}</span><strong>${Yogiyo.escape(m.value)}</strong></div>
   `).join('');
 
-  const matchBlock = content.hasOwnData
+  const matchBlock = content.pending
+    ? `
+      <div class="fallback-step" style="max-width:340px">
+        <span class="fallback-step-num">i</span>
+        <strong>조리 시작 전</strong>
+        <p>조리가 시작되면 현재 주문의 실제 참고 결과도 함께 표시됩니다.</p>
+      </div>
+    `
+    : content.hasOwnData
     ? `
       <div class="fallback-step matched" style="max-width:340px">
         <span class="fallback-step-num">✓</span>
@@ -569,6 +594,33 @@ function renderCookContent(content) {
     ${matchBlock}
     <div class="fallback-metrics">${metrics}</div>
     ${embeddingBlock}
+    <section class="embedding-choice-box">
+      <div>
+        <strong>모델 선택</strong>
+        <span>Cohere Embed Multilingual v3.0</span>
+      </div>
+
+      <div>
+        <strong>선택 이유</strong>
+        <span>한국어 주문 정보를 의미적으로 비교할 수 있는 다국어 임베딩 모델</span>
+      </div>
+
+      <div>
+        <strong>1024차원인 이유</strong>
+        <span>
+          팀이 임의로 정한 값이 아니라 선택한 모델의 고정 출력 규격이며,
+          Oracle VECTOR(1024, FLOAT32)와 일치시켰습니다.
+        </span>
+      </div>
+
+      <div>
+        <strong>검증 범위</strong>
+        <span>
+          384차원 Light 모델과 정확도·비용을 직접 비교하지 않았으며,
+          실서비스 적용 전 별도 비교가 필요합니다.
+        </span>
+      </div>
+    </section>
     ${casesTable}
   `;
 }
@@ -647,6 +699,29 @@ function renderFallbackContent(content) {
       </table>
       <p class="schema-note">${Yogiyo.escape(content.schema.note)}</p>
     </div>
+    <section class="data-strategy-upgrade">
+      <article class="data-strategy-card">
+        <strong>현재 MVP</strong>
+        <span>Vector Search로 유사 사례 제공</span>
+        <span>사장님이 최종 조리시간 결정</span>
+        <span>입력시간과 실제 완료시간 차이 표시</span>
+      </article>
+
+      <div class="data-strategy-arrow" aria-hidden="true">→</div>
+
+      <article class="data-strategy-card is-future">
+        <strong>실서비스 고도화</strong>
+        <span>실제 결과를 매장별로 지속 축적</span>
+        <span>공통 ML 회귀 모델로 조리시간 예측</span>
+        <span>매장별 평균 오차 추가 보정</span>
+        <span>Vector Search는 신규 매장·근거 제공</span>
+      </article>
+    </section>
+
+    <p class="data-strategy-notice">
+      현재 MVP에서는 피드백을 화면에 기록하는 흐름까지 구현했으며,
+      DB 영구 축적과 자동 ML 재학습은 향후 고도화 범위입니다.
+    </p>
   `;
 }
 
@@ -828,12 +903,20 @@ async function openCookExplanation() {
     const res = await fetch('/api/demo/merchant/next-to-cook');
     const data = await res.json();
     if (!data.cook_reference) {
-      openExplanationModal({ title: '조리시간 예측 결과', steps: ['아직 참고할 조리시간 데이터가 없어요. 조리 시작 전 단계에서 다시 확인해 주세요.'] });
+      openExplanationModal(
+        pendingCookTimeExplanationContent(
+          '아직 참고할 주문 데이터가 없습니다. 아래에서 임베딩 모델 선택 근거를 확인할 수 있습니다.'
+        )
+      );
       return;
     }
     openExplanationModal(cookTimeExplanationContent(data.cook_reference));
   } catch {
-    openExplanationModal({ title: '조리시간 예측 결과', steps: ['데이터를 불러오지 못했습니다.'] });
+    openExplanationModal(
+      pendingCookTimeExplanationContent(
+        '주문 데이터를 불러오지 못했습니다. 임베딩 모델 선택 근거는 아래에서 확인할 수 있습니다.'
+      )
+    );
   }
 }
 
