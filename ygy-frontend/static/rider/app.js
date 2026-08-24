@@ -872,7 +872,7 @@ function offerCard(
           class="ghost-button"
           type="button"
           data-offer-detail="${pkg.package_id}">
-          상세
+          거절
         </button>
 
         <button

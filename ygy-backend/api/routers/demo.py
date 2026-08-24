@@ -9,12 +9,12 @@ demo_explanations = {}
 
 # ── 매장 3개 ──
 STORE_A = {"store_id": 889, "name": "요기요햄버거🍔 강남점", "category": "버거류", "region": "강남", "lat": 37.505486, "lng": 127.02069, "avg_delivery_eta_min": 35}
-STORE_B = {"store_id": 440, "name": "수제에그샌드위치🥪 강남점", "category": "샌드위치", "region": "강남", "lat": 37.501202, "lng": 127.018949, "avg_delivery_eta_min": 25}
-STORE_C = {"store_id": 442, "name": "전통모듬초밥🍣 강남점", "category": "초밥_회류", "region": "강남", "lat": 37.494788, "lng": 127.018567, "avg_delivery_eta_min": 30}
+STORE_B = {"store_id": 440, "name": "수제에그샌드위치🥪 강남점", "category": "샌드위치", "region": "강남", "lat": 37.503900, "lng": 127.019200, "avg_delivery_eta_min": 25}
+STORE_C = {"store_id": 442, "name": "전통모듬초밥🍣 강남점", "category": "초밥_회류", "region": "강남", "lat": 37.502300, "lng": 127.021500, "avg_delivery_eta_min": 30}
 
-DELIVERY_A = {"lat": 37.516573, "lng": 127.013466, "address": "서울 강남구 89 반포훼밀리 101동"}
-DELIVERY_B = {"lat": 37.512848, "lng": 127.010281, "address": "서울 강남구 40 신사빌라 3층"}
-DELIVERY_C = {"lat": 37.5196, "lng": 127.006504, "address": "반포한강공원 배달픽업지 A"}
+DELIVERY_A = {"lat": 37.507800, "lng": 127.023200, "address": "서울 강남구 논현로 411 신동아빌딩 802호"}
+DELIVERY_B = {"lat": 37.504100, "lng": 127.017000, "address": "서울 강남구 강남대로102길 21 현대아파트 3동 501호"}
+DELIVERY_C = {"lat": 37.508900, "lng": 127.019800, "address": "서울 강남구 도곡로 156 강남캐슬 201호"}
 
 ORDER_A_MENU = [
     {"menu": "치킨버거세트", "qty": 1, "price": 11000},
@@ -355,7 +355,7 @@ RIDER_LAT = 37.504000
 RIDER_LNG = 127.019000
 
 PACKAGE_SCORE = 51
-PACKAGE_REVENUE = 10500
+PACKAGE_REVENUE = 9000
 HOURLY_REVENUE = 24000
 
 ORIGINAL_STOP_SEQUENCE = [
