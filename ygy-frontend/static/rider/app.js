@@ -1193,19 +1193,28 @@ const visibleOffers = offers
   });
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
-  
-  
-  const mapActionButton = Yogiyo.el('riderMapActionButton');
- 
-Yogiyo.el('packageState').textContent =
-  '남은 조리 시간';
 
-renderCookTimeGrid(activePackage);
+  Yogiyo.el('packageState').textContent =
+    '남은 조리 시간';
+
+  renderCookTimeGrid(activePackage);
+
+  // Polling data should keep the route and rider position visible.
+  // Marker animation owns the map while it is moving, so do not replace it mid-frame.
+  if (!isRiderMoving) {
+    Yogiyo.renderMap(
+      'riderMap',
+      riderMapData(
+        profile,
+        activePackage
+      )
+    );
+  }
 
   renderMapOfferButton(
-  visibleOffers,
-  activePackage
-);
+    visibleOffers,
+    activePackage
+  );
   
   if (activePackage) {
     const steps =
