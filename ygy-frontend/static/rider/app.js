@@ -1,6 +1,7 @@
 const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let currentRider;
 let stopRiderViewPolling;
+let stopCookTimeTicker;
 let visitedSteps = []; 
 let offerSort = 'revenue-desc';
 let simulatedRiderPosition = null;
@@ -135,6 +136,11 @@ function cookStoreName(label) {
 }
 
 function cookTimeItems(pkg) {
+  const cookTimeDetail =
+    Array.isArray(pkg?.cook_time_detail)
+      ? pkg.cook_time_detail
+      : [];
+
   const timeline =
     Array.isArray(
       pkg?.score_detail?.timeline
@@ -150,6 +156,13 @@ function cookTimeItems(pkg) {
     )
     .slice(0, 3)
     .map(step => {
+      const cookTime =
+        cookTimeDetail.find(
+          item =>
+            String(item.order_id) ===
+            String(step.order_id)
+        );
+
       const detail =
         timeline.find(
           item =>
@@ -159,29 +172,73 @@ function cookTimeItems(pkg) {
               'pickup'
         );
 
-      const waitMinutes =
-        Number(detail?.wait_min);
+      const syncedAt =
+        Number(pkg?._cook_time_received_at);
+
+      const elapsedSeconds =
+        Number.isFinite(syncedAt)
+          ? Math.max(
+              0,
+              (Date.now() - syncedAt) / 1000
+            )
+          : 0;
+
+      const serverRemainingSeconds =
+        Number(cookTime?.remaining_seconds);
+
+      const remainingSeconds =
+        Number.isFinite(serverRemainingSeconds)
+          ? Math.max(
+              0,
+              serverRemainingSeconds - elapsedSeconds
+            )
+          : null;
+
+      const fallbackCookMinutes =
+        Number(
+          detail?.owner_cook_min ??
+          detail?.predicted_cook_min
+        );
 
       const completed =
         visitedSteps.includes(
           stopKey(step)
         ) ||
-        (
-          Number.isFinite(waitMinutes) &&
-          waitMinutes <= 0
-        );
+        cookTime?.status === 'COMPLETED' ||
+        remainingSeconds === 0;
+
+      let time = '-';
+
+      if (completed) {
+        time = '완료';
+      } else if (remainingSeconds != null) {
+        const totalSeconds =
+          Math.ceil(remainingSeconds);
+
+        const minutes =
+          Math.floor(totalSeconds / 60);
+
+        const seconds =
+          String(totalSeconds % 60)
+            .padStart(2, '0');
+
+        time = `${minutes}분 ${seconds}초`;
+      } else if (
+        Number.isFinite(fallbackCookMinutes)
+      ) {
+        time = `${Math.max(
+          1,
+          Math.round(fallbackCookMinutes)
+        )}분`;
+      }
 
       return {
-        name: cookStoreName(step.label),
+        name: cookStoreName(
+          cookTime?.store_name ||
+          step.label
+        ),
 
-        time: completed
-          ? '완료'
-          : Number.isFinite(waitMinutes)
-            ? `${Math.max(
-                1,
-                Math.round(waitMinutes)
-              )}분`
-            : '-',
+        time,
 
         completed
       };
@@ -1488,13 +1545,32 @@ async function fetchRiderView() {
 
 
   let nextStop = null;
+  let assignedPackage = null;
 
 
   if (profile.status === 'BUSY') {
-    nextStop =
-      await Yogiyo.apiClient.demo
+    const packagesRequest =
+      Yogiyo.apiClient.demo
+        .riderPackages
+        ? Yogiyo.apiClient.demo
+            .riderPackages()
+            .catch(() => null)
+        : Promise.resolve(null);
+
+    const [
+      nextStopResult,
+      packagesResult
+    ] = await Promise.all([
+      Yogiyo.apiClient.demo
         .riderNextStop()
-        .catch(() => null);
+        .catch(() => null),
+      packagesRequest
+    ]);
+
+    nextStop = nextStopResult;
+    assignedPackage =
+      packagesResult?.packages?.[0] ||
+      null;
   }
 
 
@@ -1561,6 +1637,13 @@ async function fetchRiderView() {
     saveAcceptedPackage(null);
   }
 
+
+  if (assignedPackage) {
+    acceptedPackage = {
+      ...acceptedPackage,
+      ...assignedPackage
+    };
+  }
 
   acceptedPackage =
     syncAcceptedPackageStatus(
@@ -2246,4 +2329,23 @@ stopRiderViewPolling =
     }
   );
 
-window.addEventListener('beforeunload', () => stopRiderViewPolling?.(), { once: true });
+stopCookTimeTicker =
+  window.setInterval(
+    () => {
+      renderCookTimeGrid(
+        currentRider?.packages?.[0]
+      );
+    },
+    1000
+  );
+
+window.addEventListener(
+  'beforeunload',
+  () => {
+    stopRiderViewPolling?.();
+    window.clearInterval(
+      stopCookTimeTicker
+    );
+  },
+  { once: true }
+);

@@ -12,7 +12,7 @@
   const toNumber = value => value == null || value === '' ? null : Number(value);
   const normalizeMenuItems = value => asArray(parseJson(value, [])).map(item => ({ ...item, menu: item.menu ?? item.name ?? '메뉴', qty: Number(item.qty ?? item.quantity ?? 0), price: Number(item.price ?? 0) }));
   const normalizeRoute = value => asArray(parseJson(value, [])).map((step, index) => ({ ...step, type: String(step.type || '').toLowerCase(), sequence: Number(step.sequence ?? index + 1) }));
-  const normalizePackage = pkg => ({ ...pkg, package_id: Number(pkg.package_id), bundle_size: Number(pkg.bundle_size ?? 0), score: toNumber(pkg.score), package_revenue: Number(pkg.package_revenue ?? 0), hourly_revenue: Number(pkg.hourly_revenue ?? 0), order_ids: asArray(parseJson(pkg.order_ids, [])), route_detail: normalizeRoute(pkg.route_detail), score_detail: parseJson(pkg.score_detail, {}) || {} });
+  const normalizePackage = pkg => ({ ...pkg, package_id: Number(pkg.package_id), bundle_size: Number(pkg.bundle_size ?? 0), score: toNumber(pkg.score), package_revenue: Number(pkg.package_revenue ?? 0), hourly_revenue: Number(pkg.hourly_revenue ?? 0), order_ids: asArray(parseJson(pkg.order_ids, [])), route_detail: normalizeRoute(pkg.route_detail), score_detail: parseJson(pkg.score_detail, {}) || {}, cook_time_detail: asArray(parseJson(pkg.cook_time_detail, [])), _cook_time_received_at: Date.now() });
   const normalizeOrder = order => ({ ...order, menu_items: normalizeMenuItems(order.menu_items), route_detail: normalizeRoute(order.route_detail), eta_min: toNumber(order.eta_min) });
   const normalizeRider = rider => ({ ...rider, lat: toNumber(rider.lat ?? rider.current_lat), lng: toNumber(rider.lng ?? rider.current_lng), completed_order_count: Number(rider.completed_order_count ?? 0) });
 
@@ -99,6 +99,10 @@
         return { ...data, offers: asArray(data.offers).map(normalizePackage) };
       },
       riderProfile: async () => normalizeRider(await request('/api/demo/rider/profile')),
+      riderPackages: async () => {
+        const data = await request('/api/demo/rider/packages');
+        return { ...data, packages: asArray(data.packages).map(normalizePackage) };
+      },
       acceptPackage: packageId => request(`/api/demo/rider/package/${encodeURIComponent(packageId)}/accept`, { method: 'PUT' }),
       riderNextStop: () => request('/api/demo/rider/next-stop'),
       riderArrive: () => request('/api/demo/rider/arrive', { method: 'POST' }),

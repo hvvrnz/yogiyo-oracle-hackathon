@@ -6,6 +6,10 @@ const riderSource = readFileSync(
   new URL('../static/rider/app.js', import.meta.url),
   'utf8'
 );
+const backendClientSource = readFileSync(
+  new URL('../static/backend-client.js', import.meta.url),
+  'utf8'
+);
 
 test('라이더 데이터 렌더링은 운행 지도를 갱신한다', () => {
   const renderRiderStart = riderSource.indexOf('function renderRider(view)');
@@ -22,5 +26,24 @@ test('라이더 데이터 렌더링은 운행 지도를 갱신한다', () => {
     renderRiderSource,
     /Yogiyo\.renderMap\(\s*['"]riderMap['"]\s*,\s*riderMapData\(\s*profile\s*,\s*activePackage\s*\)/,
     '라이더 조회 후 지도에 현재 경로와 위치를 반영해야 합니다.'
+  );
+});
+
+test('라이더 조리시간은 현재 패키지의 서버 잔여시간으로 갱신된다', () => {
+  const cookTimeStart = riderSource.indexOf('function cookTimeItems(pkg)');
+  const cookTimeEnd = riderSource.indexOf('\nfunction renderCookTimeGrid', cookTimeStart);
+  const cookTimeSource = riderSource.slice(cookTimeStart, cookTimeEnd);
+
+  assert.match(cookTimeSource, /cook_time_detail/);
+  assert.match(cookTimeSource, /remaining_seconds/);
+  assert.doesNotMatch(
+    cookTimeSource,
+    /detail\?\.wait_min/,
+    '배차 시점의 라이더 대기시간을 남은 조리시간으로 사용하면 안 됩니다.'
+  );
+  assert.match(
+    backendClientSource,
+    /riderPackages:\s*async\s*\(\)\s*=>/,
+    '운행 중인 패키지를 폴링해 서버 잔여시간을 다시 받아야 합니다.'
   );
 });

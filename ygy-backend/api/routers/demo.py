@@ -463,6 +463,7 @@ class DemoState:
         self.accepted_package_id = None
         self.owner_cook_min = 15
         self.cook_started_at = None
+        self.package_cook_started_at = {}
         self.extra_order_status = {
             PACKAGE_20826_ORDER_A_ID: "NEW",
             PACKAGE_20816_ORDER_A_ID: "NEW",
@@ -661,12 +662,86 @@ def _route_with_visited(package_id=PACKAGE_ID):
     return result
 
 
+def _package_cook_specs(package_id):
+    if package_id == PACKAGE_ID:
+        return [
+            (44095, STORE_B["name"], 5),
+            (44101, STORE_C["name"], 15),
+            (43351, STORE_A["name"], state.owner_cook_min),
+        ]
+
+    if package_id == 20826:
+        return [
+            (2082601, PACKAGE_20826_STORE_A["name"], state.extra_order_cook_min[2082601]),
+            (2082602, PACKAGE_20826_STORE_B["name"], 10),
+            (2082603, PACKAGE_20826_STORE_C["name"], 5),
+        ]
+
+    if package_id == 20816:
+        return [
+            (2081601, PACKAGE_20816_STORE_A["name"], state.extra_order_cook_min[2081601]),
+            (2081602, PACKAGE_20816_STORE_B["name"], 5),
+            (2081603, PACKAGE_20816_STORE_C["name"], 5),
+        ]
+
+    return []
+
+
+def _package_cook_time_detail(package_id):
+    started_at = state.package_cook_started_at.get(package_id)
+    elapsed_seconds = (
+        max(0.0, time.monotonic() - started_at)
+        if started_at is not None
+        else 0.0
+    )
+
+    details = []
+
+    for order_id, store_name, cook_minutes in _package_cook_specs(package_id):
+        remaining_seconds = max(
+            0.0,
+            float(cook_minutes) * 60 - elapsed_seconds,
+        )
+        completed = (
+            order_id in state.picked_up_order_ids
+            or remaining_seconds <= 0
+            or (
+                order_id == 43351
+                and state.merchant_stage == "COOKED"
+            )
+        )
+
+        details.append({
+            "order_id": order_id,
+            "store_name": store_name,
+            "cook_minutes": cook_minutes,
+            "remaining_seconds": 0 if completed else round(remaining_seconds, 1),
+            "status": "COMPLETED" if completed else "COOKING",
+        })
+
+    return details
+
+
 def _package_summary():
     return {
-        "package_id": PACKAGE_ID, "package_type": "BUNDLE",
-        "score": PACKAGE_SCORE, "package_revenue": PACKAGE_REVENUE, "hourly_revenue": HOURLY_REVENUE,
-        "bundle_size": 3, "order_ids": [43351, 44095, 44101],
-        "route_detail": _route_with_visited(),
+        "package_id": PACKAGE_ID,
+        "package_type": "BUNDLE",
+        "score": PACKAGE_SCORE,
+        "package_revenue": PACKAGE_REVENUE,
+        "hourly_revenue": HOURLY_REVENUE,
+        "bundle_size": 3,
+        "order_ids": [
+            43351,
+            44095,
+            44101,
+        ],
+        "route_detail":
+            _route_with_visited(),
+
+        "score_detail":
+            SCORE_DETAIL,
+        "cook_time_detail":
+            _package_cook_time_detail(PACKAGE_ID),
     }
 
 def _extra_package_summary(package_id):
@@ -683,6 +758,8 @@ def _extra_package_summary(package_id):
                 PACKAGE_20826_ORDER_IDS,
             "route_detail":
                 _route_with_visited(20826),
+            "cook_time_detail":
+                _package_cook_time_detail(20826),
             "rider_text": (
                 "세 주문의 조리시간과 이동 동선을 "
                 "함께 고려한 배차 제안입니다."
@@ -702,6 +779,8 @@ def _extra_package_summary(package_id):
                 PACKAGE_20816_ORDER_IDS,
             "route_detail":
                 _route_with_visited(20816),
+            "cook_time_detail":
+                _package_cook_time_detail(20816),
             "rider_text": (
                 "세 주문의 조리시간과 이동 동선을 "
                 "함께 고려한 배차 제안입니다."
@@ -1205,6 +1284,11 @@ def demo_cook_start(body: CookTimeInput):
         if state.cook_started_at is None:
             state.cook_started_at = time.monotonic()
 
+        state.package_cook_started_at.setdefault(
+            PACKAGE_ID,
+            time.monotonic(),
+        )
+
         _get_demo_explanations("COOKING")
 
         return {
@@ -1240,6 +1324,10 @@ def demo_cook_start(body: CookTimeInput):
             20826
         ] = "OFFERED"
 
+        state.package_cook_started_at[
+            20826
+        ] = time.monotonic()
+
         return {
             "order_id": order_id,
             "status": "COOKING",
@@ -1272,6 +1360,10 @@ def demo_cook_start(body: CookTimeInput):
         state.extra_package_stage[
             20816
         ] = "OFFERED"
+
+        state.package_cook_started_at[
+            20816
+        ] = time.monotonic()
 
         return {
             "order_id": order_id,
@@ -1598,4 +1690,3 @@ def demo_reset_scenario():
     STOP_SEQUENCE = [dict(s) for s in ORIGINAL_STOP_SEQUENCE]
     demo_explanations.clear()
     return {"step": 0}
-
