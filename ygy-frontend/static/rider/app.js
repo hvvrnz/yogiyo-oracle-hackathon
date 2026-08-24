@@ -830,43 +830,6 @@ function offerCard(
     ${routeSummary(pkg)}
   </div>
 </div>
-      <div class="rider-guide-card">
-      <div class="rider-guide-header">
-        <span class="rider-guide-dot"></span>
-
-        <span class="rider-guide-eyebrow">
-          AI 운행 안내
-        </span>
-      </div>
-
-      <ul class="rider-guide-points">
-        ${
-          String(
-            pkg.rider_text ||
-            '수익과 추천 방문 순서를 확인한 뒤 수락해 주세요.'
-          )
-            .split(/\r?\n/)
-            .map(line =>
-              line
-                .replace(
-                  /^[•\-]\s*/,
-                  ''
-                )
-                .trim()
-            )
-            .filter(Boolean)
-            .map(
-              line => `
-                <li>
-                  ${Yogiyo.escape(line)}
-                </li>
-              `
-            )
-            .join('')
-        }
-      </ul>
-    </div>
-
       <div class="offer-actions">
         <button
           class="ghost-button"
