@@ -2,6 +2,8 @@ const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let currentRider;
 let stopRiderViewPolling;
 let stopCookTimeTicker;
+let lastCookCompletionSignature = '';
+let cookStatusRequestInFlight = false;
 let visitedSteps = []; 
 let offerSort = 'revenue-desc';
 let simulatedRiderPosition = null;
@@ -233,6 +235,9 @@ function cookTimeItems(pkg) {
       }
 
       return {
+        orderId:
+          step.order_id,
+
         name: cookStoreName(
           cookTime?.store_name ||
           step.label
@@ -243,6 +248,102 @@ function cookTimeItems(pkg) {
         completed
       };
     });
+}
+
+function completedCookOrderIds(pkg) {
+  return cookTimeItems(pkg)
+    .filter(
+      item =>
+        item.completed &&
+        item.orderId != null
+    )
+    .map(item =>
+      String(item.orderId)
+    );
+}
+
+function cookCompletionSignature(pkg) {
+  return completedCookOrderIds(pkg)
+    .sort()
+    .join('|');
+}
+
+async function refreshActivePackageCookStatus() {
+  const activePackage =
+    currentRider?.packages?.[0];
+
+  const requestPackages =
+    Yogiyo.apiClient.demo
+      ?.riderPackages;
+
+  if (
+    !activePackage ||
+    typeof requestPackages !==
+      'function' ||
+    cookStatusRequestInFlight
+  ) {
+    return activePackage;
+  }
+
+  cookStatusRequestInFlight = true;
+
+  try {
+    const response =
+      await requestPackages();
+
+    const latestPackage =
+      response?.packages?.find(
+        pkg =>
+          String(pkg.package_id) ===
+          String(
+            activePackage.package_id
+          )
+      );
+
+    const currentPackage =
+      currentRider?.packages?.[0];
+
+    if (
+      !latestPackage ||
+      String(currentPackage?.package_id) !==
+        String(activePackage.package_id) ||
+      cookCompletionSignature(
+        latestPackage
+      ) ===
+        cookCompletionSignature(
+          currentPackage
+        )
+    ) {
+      return currentPackage;
+    }
+
+    const updatedPackage = {
+      ...currentPackage,
+      ...latestPackage
+    };
+
+    acceptedPackage =
+      updatedPackage;
+
+    saveAcceptedPackage(
+      updatedPackage
+    );
+
+    currentRider = {
+      ...currentRider,
+      packages: [updatedPackage]
+    };
+
+    return updatedPackage;
+  } catch {
+    return (
+      currentRider?.packages?.[0] ||
+      activePackage
+    );
+  } finally {
+    cookStatusRequestInFlight =
+      false;
+  }
 }
 
 function renderCookTimeGrid(pkg) {
@@ -430,10 +531,6 @@ function publishRiderPosition(
     );
   }
 }
-const routeSummary = pkg => routeSteps(pkg).map(step =>
-  `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
-).join('') || '방문 순서 정보 없음';
-
 const routeOrderColorMap = pkg => {
   const orderColorById =
     new Map();
@@ -558,7 +655,8 @@ function riderMapData(
   const routeMap =
     Yogiyo.mapData.fromRouteDetail(
       pkg?.route_detail || [],
-      visitedSteps
+      visitedSteps,
+      completedCookOrderIds(pkg)
     );
 
 
@@ -959,7 +1057,7 @@ function runStatusCard(
       </div>
 
       <div class="run-route-list">
-        ${routeSummary(pkg)}
+        ${offerRouteSummary(pkg)}
       </div>
 
       <small>
@@ -2391,12 +2489,43 @@ stopRiderViewPolling =
 
 stopCookTimeTicker =
   window.setInterval(
-    () => {
+    async () => {
+      const activePackage =
+        await refreshActivePackageCookStatus();
+
       renderCookTimeGrid(
-        currentRider?.packages?.[0]
+        activePackage
       );
+
+      const completionSignature =
+        cookCompletionSignature(
+          activePackage
+        );
+
+      if (
+        completionSignature !==
+          lastCookCompletionSignature &&
+        !isRiderMoving &&
+        currentRider?.profile
+      ) {
+        Yogiyo.renderMap(
+          'riderMap',
+          riderMapData(
+            currentRider.profile,
+            activePackage
+          )
+        );
+
+        lastCookCompletionSignature =
+          completionSignature;
+      }
     },
     1000
+  );
+
+lastCookCompletionSignature =
+  cookCompletionSignature(
+    currentRider?.packages?.[0]
   );
 
 window.addEventListener(

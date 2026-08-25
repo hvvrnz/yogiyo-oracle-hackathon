@@ -202,15 +202,26 @@
 };
 
 
-const createCustomerPlaceMarker = kind => {
+const createCustomerPlaceMarker = (
+  kind,
+  { cookCompleted = false } = {}
+) => {
   const marker =
     document.createElement('div');
 
-  marker.className =
-    `customer-kakao-marker ${kind}`;
-
   const isStore =
     kind === 'store';
+
+  const isCookCompleted =
+    isStore &&
+    Boolean(cookCompleted);
+
+  marker.className =
+    `customer-kakao-marker ${kind}${
+      isCookCompleted
+        ? ' cook-complete'
+        : ''
+    }`;
 
   marker.innerHTML =
     placeMarkerSvg(kind);
@@ -227,7 +238,9 @@ const createCustomerPlaceMarker = kind => {
 
     background:
       ${isStore
-        ? '#ffffff'
+        ? isCookCompleted
+          ? 'var(--cook-complete)'
+          : '#ffffff'
         : '#ff2f6e'};
 
     color:
@@ -572,7 +585,12 @@ else if (
 ) {
   content =
     createCustomerPlaceMarker(
-      kind
+      kind,
+      {
+        cookCompleted:
+          item.meta
+            ?.cookCompleted
+      }
     );
 
   /*

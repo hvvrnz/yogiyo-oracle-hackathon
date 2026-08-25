@@ -76,3 +76,16 @@ test('운행 상세 경로의 원은 숫자 대신 주문별 색상을 사용한
     '운행 상세의 원 안에는 1~6 숫자를 표시하지 않습니다.'
   );
 });
+
+test('배차 탭의 현재 운행 카드도 숫자 대신 색상 배지를 사용한다', () => {
+  const cardStart = riderSource.indexOf('function runStatusCard(');
+  const cardEnd = riderSource.indexOf('\nfunction firstDestinationText', cardStart);
+  const cardSource = riderSource.slice(cardStart, cardEnd);
+
+  assert.match(cardSource, /offerRouteSummary\(pkg\)/);
+  assert.doesNotMatch(
+    cardSource,
+    /\$\{routeSummary\(pkg\)\}/,
+    '현재 운행 카드에 1~6 순서 숫자를 표시하지 않습니다.'
+  );
+});
