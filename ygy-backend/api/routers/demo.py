@@ -388,11 +388,13 @@ SCORE_DETAIL = {
 
 COLD_START_REFERENCE = {
     "reference_type": "cold_start",
-    "fallback_level": 1,
+    # 자체 이력/동일 브랜드에서 사례를 찾지 못해
+    # 4단계인 "같은 지역 + 같은 카테고리" 범위를 사용한다.
+    "fallback_level": 4,
     "matched_store_id": 306,
     "matched_store_name": "버거퀸 강남점🍔",
     "recent_case_count": 10,
-    "avg_cook_min": 14.1,
+    "avg_cook_min": 14.5,
     "weekday": "금",
     "time_slot": "저녁",
     "concurrent_order_count": 3,
@@ -410,10 +412,10 @@ COLD_START_REFERENCE = {
 # 889번 매장 기준 fallback 스크립트를 다시 돌려서 나온 실측값으로 교체 예정.
 
 DEMO_DISPATCH_CANDIDATES = {
-    "title": "배차 엔진 분석 결과",
-    "subtitle": "실제 배차 엔진(package_id 20865)이 산출한 결과입니다.",
+    "title": "왜 이 방문 순서인가요?",
+    "subtitle": "3건의 픽업과 배달에서 가능한 90가지 방문 순서를 비교한 결과입니다.",
     "formula": (
-    "각 경로의 음식방치시간(food_sitting) · 라이더대기시간(courier_wait) · "
+    "각 방문 순서의 음식방치시간(food_sitting) · 라이더대기시간(courier_wait) · "
     "가방체류시간(bag_time) · 총수행시간(total_time)을 모두 '분' 단위로 환산해 더합니다. "
     "가중치는 현재 구현에서 모두 동일하게 1.0으로 두었습니다. "
     "이 계산에 들어가는 조리시간 예측값은 클러스터링 단계에서 쓰는 remaining_cook_time과 "
@@ -431,7 +433,7 @@ DEMO_DISPATCH_CANDIDATES = {
     },
     "candidates": [
         {
-            "label": "선택된 경로", "selected": True,
+            "label": "선택된 방문 순서", "selected": True,
             "items": ["🥪 수제에그샌드위치 5분", "🍔 요기요햄버거 20분", "🍣 전통모듬초밥 15분"],
             "route_text": "샌드위치 P → 샌드위치 D → 초밥 P → 버거 P → 버거 D → 초밥 D",
             "wait_min": 4.6, "sitting_min": 0.9, "total_min": 26.3,
@@ -1412,25 +1414,38 @@ def demo_cook_complete():
         )
 
     feedback = {
-        "owner_cook_min": owner_min,
-        "actual_cook_min": actual_min,
-        "difference_min": diff_min,
+    "owner_cook_min": owner_min,
+    "actual_cook_min": actual_min,
+    "difference_min": diff_min,
 
-        "title": result_title,
+    "title": result_title,
 
-        "message": (
-            f"오늘 요기요햄버거는 "
-            f"{owner_min}분으로 입력하셨고, "
-            f"실제로는 {actual_min}분 만에 "
-            "조리가 끝났어요."
-        ),
+    "message": (
+        f"예상 {owner_min}분보다 "
+        f"{abs(diff_min)}분 빠른 "
+        f"{actual_min}분 만에 조리가 완료됐어요."
+        if diff_min < 0
+        else (
+            f"예상 {owner_min}분보다 "
+            f"{diff_min}분 늦은 "
+            f"{actual_min}분 만에 조리가 완료됐어요."
+            if diff_min > 0
+            else
+            f"예상한 {owner_min}분과 실제 조리시간이 일치했어요."
+        )
+    ),
 
-        "learning_message": (
-            "이번 차이는 다음 조리시간을 "
-            "더 정확하게 판단하는 데 활용할 수 있는 "
-            "실측 데이터예요."
-        ),
-    }
+    "learning_message": (
+        "입력시간과 실제 완료시간의 차이를 기록했어요. "
+        "이런 결과가 반복해서 쌓이면 매장별 조리시간을 "
+        "보정하는 데이터로 활용할 수 있어요."
+    ),
+
+    "usage_scope": (
+        "현재 MVP에서는 결과를 화면에 기록하는 흐름까지 구현했으며, "
+        "자동 재학습은 향후 고도화 범위입니다."
+    ),
+}
 
     state.cook_feedback = feedback
 
