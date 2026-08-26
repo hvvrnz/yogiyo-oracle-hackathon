@@ -365,7 +365,19 @@
 
 
   const fromRouteDetail =
-     (routeDetail, visitedKeys = []) => {
+     (
+       routeDetail,
+       visitedKeys = [],
+       completedCookOrderIds = []
+     ) => {
+      const completedCookOrderIdSet =
+        new Set(
+          completedCookOrderIds.map(
+            orderId =>
+              String(orderId)
+          )
+        );
+
       const route =
         (
           Array.isArray(
@@ -436,6 +448,11 @@
                 type:
                   step.type,
                 visited: visitedKeys.includes(key),
+                cookCompleted:
+                  isPickup &&
+                  completedCookOrderIdSet.has(
+                    String(step.order_id)
+                  ),
               },
             });
           }
@@ -764,7 +781,7 @@
                 'rider'
                 ? 'rider'
                 : ''
-          } ${riderRole} ${item.meta?.visited ? 'visited' : ''}`;
+          } ${riderRole} ${item.meta?.cookCompleted ? 'cook-complete' : ''} ${item.meta?.visited ? 'visited' : ''}`;
 
         pin.style.left =
           `${position.x}%`;

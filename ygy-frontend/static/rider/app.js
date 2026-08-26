@@ -1,6 +1,9 @@
 const riderId = Yogiyo.qs('riderId', Yogiyo.defaultIds.rider);
 let currentRider;
 let stopRiderViewPolling;
+let stopCookTimeTicker;
+let lastCookCompletionSignature = '';
+let cookStatusRequestInFlight = false;
 let visitedSteps = []; 
 let offerSort = 'revenue-desc';
 let simulatedRiderPosition = null;
@@ -108,6 +111,280 @@ const stopKey = step => {
 
   return `${step.order_id}-${String(step.type || '').toLowerCase()}`;
 };
+function cookStoreName(label) {
+  const name = String(label || '');
+
+  if (name.includes('샌드위치')) {
+    return '샌드위치';
+  }
+
+  if (name.includes('초밥')) {
+    return '초밥';
+  }
+
+  if (
+    name.includes('햄버거') ||
+    name.includes('버거')
+  ) {
+    return '햄버거';
+  }
+
+  return (
+    name
+      .replace(/\s*강남(?:\d+)?점\s*$/, '')
+      .trim() ||
+    '매장'
+  );
+}
+
+function cookTimeItems(pkg) {
+  const cookTimeDetail =
+    Array.isArray(pkg?.cook_time_detail)
+      ? pkg.cook_time_detail
+      : [];
+
+  const timeline =
+    Array.isArray(
+      pkg?.score_detail?.timeline
+    )
+      ? pkg.score_detail.timeline
+      : [];
+
+  return routeSteps(pkg)
+    .filter(
+      step =>
+        String(step.type).toLowerCase() ===
+        'pickup'
+    )
+    .slice(0, 3)
+    .map(step => {
+      const cookTime =
+        cookTimeDetail.find(
+          item =>
+            String(item.order_id) ===
+            String(step.order_id)
+        );
+
+      const detail =
+        timeline.find(
+          item =>
+            String(item.order_id) ===
+              String(step.order_id) &&
+            String(item.type).toLowerCase() ===
+              'pickup'
+        );
+
+      const syncedAt =
+        Number(pkg?._cook_time_received_at);
+
+      const elapsedSeconds =
+        Number.isFinite(syncedAt)
+          ? Math.max(
+              0,
+              (Date.now() - syncedAt) / 1000
+            )
+          : 0;
+
+      const serverRemainingSeconds =
+        Number(cookTime?.remaining_seconds);
+
+      const remainingSeconds =
+        Number.isFinite(serverRemainingSeconds)
+          ? Math.max(
+              0,
+              serverRemainingSeconds - elapsedSeconds
+            )
+          : null;
+
+      const fallbackCookMinutes =
+        Number(
+          detail?.owner_cook_min ??
+          detail?.predicted_cook_min
+        );
+
+      const completed =
+        visitedSteps.includes(
+          stopKey(step)
+        ) ||
+        cookTime?.status === 'COMPLETED' ||
+        remainingSeconds === 0;
+
+      let time = '-';
+
+      if (completed) {
+        time = '완료';
+      } else if (remainingSeconds != null) {
+        const totalSeconds =
+          Math.ceil(remainingSeconds);
+
+        const minutes =
+          Math.floor(totalSeconds / 60);
+
+        const seconds =
+          String(totalSeconds % 60)
+            .padStart(2, '0');
+
+        time = `${minutes}분 ${seconds}초`;
+      } else if (
+        Number.isFinite(fallbackCookMinutes)
+      ) {
+        time = `${Math.max(
+          1,
+          Math.round(fallbackCookMinutes)
+        )}분`;
+      }
+
+      return {
+        orderId:
+          step.order_id,
+
+        name: cookStoreName(
+          cookTime?.store_name ||
+          step.label
+        ),
+
+        time,
+
+        completed
+      };
+    });
+}
+
+function completedCookOrderIds(pkg) {
+  return cookTimeItems(pkg)
+    .filter(
+      item =>
+        item.completed &&
+        item.orderId != null
+    )
+    .map(item =>
+      String(item.orderId)
+    );
+}
+
+function cookCompletionSignature(pkg) {
+  return completedCookOrderIds(pkg)
+    .sort()
+    .join('|');
+}
+
+async function refreshActivePackageCookStatus() {
+  const activePackage =
+    currentRider?.packages?.[0];
+
+  const requestPackages =
+    Yogiyo.apiClient.demo
+      ?.riderPackages;
+
+  if (
+    !activePackage ||
+    typeof requestPackages !==
+      'function' ||
+    cookStatusRequestInFlight
+  ) {
+    return activePackage;
+  }
+
+  cookStatusRequestInFlight = true;
+
+  try {
+    const response =
+      await requestPackages();
+
+    const latestPackage =
+      response?.packages?.find(
+        pkg =>
+          String(pkg.package_id) ===
+          String(
+            activePackage.package_id
+          )
+      );
+
+    const currentPackage =
+      currentRider?.packages?.[0];
+
+    if (
+      !latestPackage ||
+      String(currentPackage?.package_id) !==
+        String(activePackage.package_id) ||
+      cookCompletionSignature(
+        latestPackage
+      ) ===
+        cookCompletionSignature(
+          currentPackage
+        )
+    ) {
+      return currentPackage;
+    }
+
+    const updatedPackage = {
+      ...currentPackage,
+      ...latestPackage
+    };
+
+    acceptedPackage =
+      updatedPackage;
+
+    saveAcceptedPackage(
+      updatedPackage
+    );
+
+    currentRider = {
+      ...currentRider,
+      packages: [updatedPackage]
+    };
+
+    return updatedPackage;
+  } catch {
+    return (
+      currentRider?.packages?.[0] ||
+      activePackage
+    );
+  } finally {
+    cookStatusRequestInFlight =
+      false;
+  }
+}
+
+function renderCookTimeGrid(pkg) {
+  const grid =
+    Yogiyo.el('riderCookTimeGrid');
+
+  const items =
+    cookTimeItems(pkg);
+
+  grid.innerHTML =
+    Array.from(
+      { length: 3 },
+      (_, index) => {
+        const item = items[index];
+
+        const name =
+          item?.name ||
+          `매장 ${index + 1}`;
+
+        const time =
+          item?.time || '-';
+
+        return `
+          <div
+            class="
+              rider-cook-time-item
+              ${item?.completed ? 'is-complete' : ''}
+            "
+          >
+            <span>
+              ${Yogiyo.escape(name)}
+            </span>
+
+            <strong>
+              ${Yogiyo.escape(time)}
+            </strong>
+          </div>
+        `;
+      }
+    ).join('');
+}
 function syncVisitedSteps(pkg, nextStop) {
   const steps = routeSteps(pkg);
 
@@ -254,9 +531,55 @@ function publishRiderPosition(
     );
   }
 }
-const routeSummary = pkg => routeSteps(pkg).map(step =>
-  `<div class="offer-route-row"><b>${step.sequence}</b> ${step.type === 'pickup' ? '픽업' : '배달'} · ${Yogiyo.escape(step.label || '위치 정보 없음')}</div>`
-).join('') || '방문 순서 정보 없음';
+const routeOrderColorMap = pkg => {
+  const orderColorById =
+    new Map();
+
+  routeSteps(pkg).forEach(step => {
+    const orderId =
+      String(step.order_id);
+
+    if (!orderColorById.has(orderId)) {
+      orderColorById.set(
+        orderId,
+        orderColorById.size % 3
+      );
+    }
+  });
+
+  return orderColorById;
+};
+
+const offerRouteSummary = pkg => {
+  const orderColorById =
+    routeOrderColorMap(pkg);
+
+  return routeSteps(pkg).map(step => {
+    const colorIndex =
+      orderColorById.get(
+        String(step.order_id)
+      ) ?? 0;
+
+    const typeLabel =
+      step.type === 'pickup'
+        ? '픽업'
+        : '배달';
+
+    return `
+      <div class="offer-route-row offer-route-row-colored">
+        <span class="offer-route-type order-color-${colorIndex + 1}">
+          ${typeLabel}
+        </span>
+        <span class="offer-route-label">
+          · ${Yogiyo.escape(
+            step.label ||
+            '위치 정보 없음'
+          )}
+        </span>
+      </div>
+    `;
+  }).join('') || '방문 순서 정보 없음';
+};
 
 const routeSummaryText = pkg =>
   routeSteps(pkg)
@@ -332,7 +655,8 @@ function riderMapData(
   const routeMap =
     Yogiyo.mapData.fromRouteDetail(
       pkg?.route_detail || [],
-      visitedSteps
+      visitedSteps,
+      completedCookOrderIds(pkg)
     );
 
 
@@ -503,6 +827,8 @@ function routeSchedule(
   }
 
   const nextKey = stopKey(nextStop);
+  const orderColorById =
+    routeOrderColorMap(pkg);
 
   return `
     <div class="rider-stop-list">
@@ -534,6 +860,11 @@ function routeSchedule(
             ? '매장 위치'
             : '배달지 위치';
 
+        const colorIndex =
+          orderColorById.get(
+            String(step.order_id)
+          ) ?? 0;
+
         return `
           <div
             class="rider-stop-row
@@ -541,7 +872,10 @@ function routeSchedule(
               ${visited ? 'visited' : ''}
               ${current ? 'current' : ''}"
           >
-            <b>${step.sequence}</b>
+            <b
+              class="order-color-${colorIndex + 1}"
+              aria-hidden="true"
+            ></b>
 
             <div class="rider-stop-copy">
               <strong>${typeLabel}</strong>
@@ -723,7 +1057,7 @@ function runStatusCard(
       </div>
 
       <div class="run-route-list">
-        ${routeSummary(pkg)}
+        ${offerRouteSummary(pkg)}
       </div>
 
       <small>
@@ -827,52 +1161,15 @@ function offerCard(
 
 <div class="offer-main">
   <div class="offer-route-list">
-    ${routeSummary(pkg)}
+    ${offerRouteSummary(pkg)}
   </div>
 </div>
-      <div class="rider-guide-card">
-      <div class="rider-guide-header">
-        <span class="rider-guide-dot"></span>
-
-        <span class="rider-guide-eyebrow">
-          AI 운행 안내
-        </span>
-      </div>
-
-      <ul class="rider-guide-points">
-        ${
-          String(
-            pkg.rider_text ||
-            '수익과 추천 방문 순서를 확인한 뒤 수락해 주세요.'
-          )
-            .split(/\r?\n/)
-            .map(line =>
-              line
-                .replace(
-                  /^[•\-]\s*/,
-                  ''
-                )
-                .trim()
-            )
-            .filter(Boolean)
-            .map(
-              line => `
-                <li>
-                  ${Yogiyo.escape(line)}
-                </li>
-              `
-            )
-            .join('')
-        }
-      </ul>
-    </div>
-
       <div class="offer-actions">
         <button
           class="ghost-button"
           type="button"
           data-offer-detail="${pkg.package_id}">
-          상세
+          거절
         </button>
 
         <button
@@ -1111,52 +1408,14 @@ const visibleOffers = offers
   });
   Yogiyo.el('riderName').textContent = profile.name || riderId;
   Yogiyo.el('riderMeta').textContent = [profile.region, profile.status].filter(Boolean).join(' · ');
-  
-  const isWaitingForOffer =
-  !activePackage &&
-  !visibleOffers.length;
 
   Yogiyo.el('packageState').textContent =
-    activePackage
-      ? packageStatus(activePackage.status)
-      : visibleOffers.length
-        ? `새 배차 ${visibleOffers.length}건`
-        : '배차 대기 중';
+    '남은 조리 시간';
 
+  renderCookTimeGrid(activePackage);
 
-  const currentPackageSummary =
-    Yogiyo.el('currentPackageSummary');
-
-  currentPackageSummary.textContent =
-    nextStop?.type
-      ? `${
-          nextStop.type === 'pickup'
-            ? ''
-            : ''
-        } ${nextStop.label}`
-      : activePackage
-        ? `패키지 #${activePackage.package_id} 운행 중`
-        : visibleOffers.length
-          ? '✨ 새로운 배차 제안을 확인해 주세요.'
-          : '새로운 배차를 기다리고 있어요.';
-
-
-  currentPackageSummary.classList.toggle(
-    'is-loading',
-    isWaitingForOffer
-  );
-
-  const mapActionButton = Yogiyo.el('riderMapActionButton');
-  if (nextStop?.type) {
-    mapActionButton.hidden = false;
-    mapActionButton.textContent =
-      nextStop.type === 'pickup'
-        ? '픽업 완료'
-        : '배달 완료';
-  } else {
-    mapActionButton.hidden = true;
-  }
-  Yogiyo.el('riderLocationCount').textContent = profile.lat != null ? ' · 실시간 내 위치' : '내 위치 정보 없음';
+  // Polling data should keep the route and rider position visible.
+  // Marker animation owns the map while it is moving, so do not replace it mid-frame.
   if (!isRiderMoving) {
     Yogiyo.renderMap(
       'riderMap',
@@ -1166,10 +1425,11 @@ const visibleOffers = offers
       )
     );
   }
+
   renderMapOfferButton(
-  visibleOffers,
-  activePackage
-);
+    visibleOffers,
+    activePackage
+  );
   
   if (activePackage) {
     const steps =
@@ -1443,13 +1703,32 @@ async function fetchRiderView() {
 
 
   let nextStop = null;
+  let assignedPackage = null;
 
 
   if (profile.status === 'BUSY') {
-    nextStop =
-      await Yogiyo.apiClient.demo
+    const packagesRequest =
+      Yogiyo.apiClient.demo
+        .riderPackages
+        ? Yogiyo.apiClient.demo
+            .riderPackages()
+            .catch(() => null)
+        : Promise.resolve(null);
+
+    const [
+      nextStopResult,
+      packagesResult
+    ] = await Promise.all([
+      Yogiyo.apiClient.demo
         .riderNextStop()
-        .catch(() => null);
+        .catch(() => null),
+      packagesRequest
+    ]);
+
+    nextStop = nextStopResult;
+    assignedPackage =
+      packagesResult?.packages?.[0] ||
+      null;
   }
 
 
@@ -1516,6 +1795,13 @@ async function fetchRiderView() {
     saveAcceptedPackage(null);
   }
 
+
+  if (assignedPackage) {
+    acceptedPackage = {
+      ...acceptedPackage,
+      ...assignedPackage
+    };
+  }
 
   acceptedPackage =
     syncAcceptedPackageStatus(
@@ -2154,7 +2440,6 @@ function bindRiderSheet() {
 
 Yogiyo.el('offerSortSelect').addEventListener('change', event => { offerSort = event.currentTarget.value; if (currentRider) renderRider(currentRider); });
 Yogiyo.el('packageDetailCloseButton').addEventListener('click', closePackageDetail);
-Yogiyo.el('riderMapActionButton').addEventListener('click', event => completeCurrentStop(event.currentTarget));
 Yogiyo.el('packageDetailBackdrop').addEventListener('click', closePackageDetail);
 bindRiderTabs();
 bindRiderSheet();
@@ -2202,4 +2487,54 @@ stopRiderViewPolling =
     }
   );
 
-window.addEventListener('beforeunload', () => stopRiderViewPolling?.(), { once: true });
+stopCookTimeTicker =
+  window.setInterval(
+    async () => {
+      const activePackage =
+        await refreshActivePackageCookStatus();
+
+      renderCookTimeGrid(
+        activePackage
+      );
+
+      const completionSignature =
+        cookCompletionSignature(
+          activePackage
+        );
+
+      if (
+        completionSignature !==
+          lastCookCompletionSignature &&
+        !isRiderMoving &&
+        currentRider?.profile
+      ) {
+        Yogiyo.renderMap(
+          'riderMap',
+          riderMapData(
+            currentRider.profile,
+            activePackage
+          )
+        );
+
+        lastCookCompletionSignature =
+          completionSignature;
+      }
+    },
+    1000
+  );
+
+lastCookCompletionSignature =
+  cookCompletionSignature(
+    currentRider?.packages?.[0]
+  );
+
+window.addEventListener(
+  'beforeunload',
+  () => {
+    stopRiderViewPolling?.();
+    window.clearInterval(
+      stopCookTimeTicker
+    );
+  },
+  { once: true }
+);

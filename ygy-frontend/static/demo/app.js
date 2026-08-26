@@ -489,10 +489,10 @@ function cookTimeExplanationContent(reference) {
   const hasOwnData = reference.reference_type !== 'cold_start';
   return {
     type: 'cook',
-    title: hasOwnData ? 'AI가 이 매장의 조리 이력을 어떻게 반영했나요?' : 'AI가 조리시간을 어떻게 참고했나요?',
+    title: 'AI 조리시간 판단 보조 결과',
     subtitle: hasOwnData
-      ? '이 매장은 자체 조리 이력이 충분해, 다른 매장 데이터 없이 자기 이력만으로 예측해요.'
-      : '이 매장은 자체 조리 이력이 부족해 Cold Start 상태예요. 유사 매장 사례로 대신 채워요.',
+      ? '이 매장의 자체 조리 이력을 사장님의 조리시간 판단 근거로 제공합니다.'
+      : '자체 조리 이력이 부족해 같은 지역·카테고리의 유사 사례를 참고정보로 제공합니다.',
     matchedStore: hasOwnData ? null : reference.matched_store_name,
     fallbackLevel: hasOwnData ? null : reference.fallback_level,
     hasOwnData,
@@ -506,10 +506,27 @@ function cookTimeExplanationContent(reference) {
           { label: '보정계수 적용', value: `${reference.correction_factor ?? '1.0'}x` },
         ]
       : [
-          { label: '유사 기록', value: `${reference.recent_case_count}건` },
+          { label: '유사 사례', value: `${reference.recent_case_count}건` },
           { label: '평균 조리시간', value: `${reference.avg_cook_min}분` },
           { label: '임베딩 방식', value: 'Cohere Embed · 1024차원' },
         ],
+  };
+}
+
+function pendingCookTimeExplanationContent(subtitle) {
+  return {
+    type: 'cook',
+    title: 'AI 조리시간 판단 보조 결과',
+    subtitle,
+    pending: true,
+    hasOwnData: false,
+    embeddingInput: null,
+    similarCases: [],
+    metrics: [
+      { label: '현재 상태', value: '조리 시작 전' },
+      { label: '임베딩 모델', value: 'Cohere Multilingual v3.0' },
+      { label: '출력 규격', value: '1024차원' },
+    ],
   };
 }
 
@@ -518,7 +535,15 @@ function renderCookContent(content) {
     <div><span>${Yogiyo.escape(m.label)}</span><strong>${Yogiyo.escape(m.value)}</strong></div>
   `).join('');
 
-  const matchBlock = content.hasOwnData
+  const matchBlock = content.pending
+    ? `
+      <div class="fallback-step" style="max-width:340px">
+        <span class="fallback-step-num">i</span>
+        <strong>조리 시작 전</strong>
+        <p>조리가 시작되면 현재 주문의 실제 참고 결과도 함께 표시됩니다.</p>
+      </div>
+    `
+    : content.hasOwnData
     ? `
       <div class="fallback-step matched" style="max-width:340px">
         <span class="fallback-step-num">✓</span>
@@ -529,9 +554,9 @@ function renderCookContent(content) {
     : `
       <div class="fallback-step matched" style="max-width:340px">
         <span class="fallback-step-num">${content.fallbackLevel}</span>
-        <strong>${content.fallbackLevel}단계 매칭</strong>
-        <p>${Yogiyo.escape(content.matchedStore)}</p>
-        <span class="fallback-step-badge">✓ Oracle AI Vector Search</span>
+        <strong>최종 검색 범위</strong>
+        <p>같은 지역 · 같은 카테고리</p>
+        <span class="fallback-step-badge">✓ 강남 · 버거류</span>
       </div>
     `;
 
@@ -551,7 +576,7 @@ function renderCookContent(content) {
           `).join('')}
         </tbody>
       </table>
-      <p class="schema-note">벡터 거리가 가까울수록(0에 가까울수록) 현재 상황과 유사한 사례예요. COSINE 거리 기준이에요.</p>
+      <p class="schema-note">코사인 거리가 0에 가까울수록 현재 주문 상황과 의미적으로 유사한 사례입니다.</p>
     </div>
   ` : '';
   const embeddingBlock = content.embeddingInput ? `
@@ -569,6 +594,36 @@ function renderCookContent(content) {
     ${matchBlock}
     <div class="fallback-metrics">${metrics}</div>
     ${embeddingBlock}
+    <section class="embedding-choice-box">
+      <div>
+        <strong>모델 선택</strong>
+        <span>Cohere Embed Multilingual v3.0</span>
+      </div>
+
+      <div>
+        <strong>선택 이유</strong>
+        <span>한국어 지원과 OCI·Oracle Vector Search 연동을 고려한 다국어 임베딩 모델</span>
+      </div>
+
+      <div>
+        <strong>1024차원인 이유</strong>
+        <span>
+          팀이 임의로 정한 값이 아니라 선택한 모델의 고정 출력 규격이며,
+          Oracle VECTOR(1024, FLOAT32)와 일치시켰습니다.
+        </span>
+      </div>
+
+      <div>
+        <strong>검증 범위</strong>
+        <span>
+          384차원 Light 모델과 정확도·비용을 직접 비교하지 않았으며,
+          실서비스 적용 전 별도 비교가 필요합니다.
+        </span>
+      </div>
+    </section>
+    <p class="data-strategy-notice">
+      유사 사례는 판단 근거이며 최종 조리시간은 사장님이 현재 매장 상황을 반영해 결정합니다.
+    </p>
     ${casesTable}
   `;
 }
@@ -576,41 +631,20 @@ function renderCookContent(content) {
 function fallbackExplanationContent() {
   return {
     type: 'fallback',
-    title: 'Vector Search Fallback 단계',
-    subtitle: '자체 데이터가 부족한 매장도 단계적으로 검색 범위를 넓혀 유사 사례를 찾아요.',
+    title: '데이터 부족 매장의 조리시간 전략',
+    subtitle: '초기에는 유사 사례를 참고하고, 자체 결과가 축적되면 매장별 기준으로 고도화합니다.',
     steps: [
       { num: 1, label: '자체 매장 이력', detail: 'get_cases_by_time_slot / get_store_average', matched: false },
-      { num: 2, label: '같은 지역 + 같은 브랜드', detail: 'get_similar_cases_by_brand(same_region=True)', matched: false, note: '' },
-      { num: 3, label: '타 지역 + 같은 브랜드', detail: 'get_similar_cases_by_brand(same_region=False)', matched: false, note: ''},
-      { num: 4, label: '같은 지역 + 같은 카테고리(다른 브랜드)', detail: 'get_similar_cases_by_region_category(exclude_brand=...)', matched: true, note: '버거퀸 강남점🍔' },
-      { num: 5, label: '전체 카테고리(다른 브랜드)', detail: 'get_similar_cases_by_category(exclude_brand=...)', matched: false },
+      { num: 2, label: '같은 지역 · 같은 브랜드', detail: '동일 브랜드의 같은 지역 사례', matched: false, note: '' },
+      { num: 3, label: '다른 지역 · 같은 브랜드', detail: '동일 브랜드의 다른 지역 사례', matched: false, note: ''},
+      { num: 4, label: '같은 지역 · 같은 카테고리', detail: '다른 브랜드를 포함한 강남 버거류', matched: true, note: '현재 적용 · 강남 버거류' },
+      { num: 5, label: '전체 카테고리', detail: '지역을 확장한 동일 카테고리', matched: false },
     ],
     metrics: [
       { label: '유사 사례', value: '10건' },
       { label: '평균 조리시간', value: '14.5분' },
-      { label: '임베딩 차원', value: '1024차원 (VECTOR(1024,FLOAT32))' },
+      { label: '현재 검색 범위', value: '같은 지역·카테고리' },
     ],
-    codeSnippet: `def embed_situation(store_id, weekday, time_slot, concurrent_order_count, menu_name=None):
-    text = f"매장ID {store_id}, {WEEKDAY_KO[weekday]}, 시간대 {time_slot}, 동시주문 {concurrent_order_count}건"
-    if menu_name:
-        text += f", 메뉴 {menu_name}"
-    # Cohere Embed(multilingual-v3.0)로 1024차원 벡터화
-    return generative_ai_client.embed_text(...).data.embeddings[0]`,
-    codeNote: '요일은 숫자가 아니라 "금요일" 텍스트로 넣습니다. — 자연어 임베딩 모델이 숫자보다 요일명에서 더 많은 맥락(주말 임박, 회식 시즌 등)을 읽어낼 수 있습니다.',
-    schema: {
-      title: 'vector_cases 테이블 구조',
-      note: '메뉴 같은 세부 feature는 별도 컬럼으로 안 쪼개고, embed_situation()이 만드는 임베딩 벡터 안에 자연어로 녹여서 처리합니다.' + ' 3·4단계는 예시를 보여드리기 위해 exclude_brand 조건으로 자기 브랜드를 제외하고 검색했습니다.',
-      columns: [
-        ['case_id', 'NUMBER', 'PK'],
-        ['store_id', 'NUMBER', 'FK → stores'],
-        ['weekday', 'NUMBER', '요일'],
-        ['time_slot', 'VARCHAR2(20)', '시간대 구간'],
-        ['concurrent_order_count', 'NUMBER', '동시 주문 수(혼잡도)'],
-        ['menu_name', 'VARCHAR2(50)', '대표 메뉴 (동시조리 중 가장 오래 걸리는 항목)'],
-        ['actual_cook_time', 'NUMBER', '실제 조리시간(분)'],
-        ['embedding', 'VECTOR(1024, FLOAT32)', 'Cohere Embed 결과'],
-      ],
-    },
   };
 }
 
@@ -629,42 +663,52 @@ function renderFallbackContent(content) {
     <div><span>${Yogiyo.escape(m.label)}</span><strong>${Yogiyo.escape(m.value)}</strong></div>
   `).join('');
 
-  const schemaRows = content.schema.columns.map(([col, type, desc]) => `
-    <tr><td>${Yogiyo.escape(col)}</td><td>${Yogiyo.escape(type)}</td><td>${Yogiyo.escape(desc)}</td></tr>
-  `).join('');
-
   return `
     <h2 class="explain-modal-title">${Yogiyo.escape(content.title)}</h2>
     <p class="explain-modal-subtitle">${Yogiyo.escape(content.subtitle)}</p>
     <div class="fallback-flow">${steps}</div>
     <div class="fallback-metrics">${metrics}</div>
-    ${content.codeSnippet ? `<pre class="code-snippet">${Yogiyo.escape(content.codeSnippet)}</pre><p class="schema-note">${Yogiyo.escape(content.codeNote)}</p>` : ''}
-    <div class="schema-block">
-      <h3>${Yogiyo.escape(content.schema.title)}</h3>
-      <table class="schema-table">
-        <thead><tr><th>컬럼</th><th>타입</th><th>설명</th></tr></thead>
-        <tbody>${schemaRows}</tbody>
-      </table>
-      <p class="schema-note">${Yogiyo.escape(content.schema.note)}</p>
-    </div>
+    <section class="data-strategy-upgrade">
+      <article class="data-strategy-card">
+        <strong>현재 MVP</strong>
+        <span>Vector Search로 유사 사례 제공</span>
+        <span>사장님이 최종 조리시간 결정</span>
+        <span>입력시간과 실제 완료시간 차이 표시</span>
+      </article>
+
+      <div class="data-strategy-arrow" aria-hidden="true">→</div>
+
+      <article class="data-strategy-card is-future">
+        <strong>실서비스 고도화</strong>
+        <span>입력시간과 완료시간을 매장별로 지속 축적</span>
+        <span>공통 ML 회귀 모델로 조리시간 예측</span>
+        <span>매장별 평균 오차 추가 보정</span>
+        <span>Vector Search는 신규 매장·근거 제공</span>
+      </article>
+    </section>
+
+    <p class="data-strategy-notice">
+      현재 MVP에서는 피드백을 화면에 기록하는 흐름까지 구현했으며,
+      DB 영구 축적과 자동 ML 재학습은 향후 고도화 범위입니다.
+    </p>
   `;
 }
 
 function clusterExplanationContent() {
   return {
     type: 'cluster',
-    title: '주문 클러스터링 로직',
-    subtitle: '자체 개발한 밀도 기반 알고리즘이에요 (ML 모델 아님). 30초 윈도우마다 다시 계산해요.',
-    gate: '서로 다른 권역(region)이면 애초에 후보에서 제외돼요 (무한대 점수 처리).',
+    title: '동선·남은 조리시간 기반 3건 클러스터링',
+    subtitle: '같은 권역의 주문을 대상으로 동선 비용과 남은 조리시간 차이를 함께 계산합니다.',
+    gate: '서로 다른 권역의 주문은 클러스터링 후보에서 제외합니다.',
     formula: [
-      '매장 간 거리 + 배달지 간 거리 + 교차거리(평균) — km 단위 그대로 합산',
-      '조리시간 차이는 "고정값"이 아니라, 그 순간까지 남은 조리시간(remaining_cook_time)의 차이를 사용해요',
-      '이 남은시간 차이(분)를 라이더 평균속도(시속 20km)로 나눠 "km 환산 거리"로 바꿔 더해요',
-      '카테고리 긴급도가 다르면 페널티(km 환산)를 추가해요',
+      '매장 간 거리, 배달지 간 거리와 매장-배달지 교차거리의 평균을 반영합니다.',
+      '사장님이 확정한 조리시간에서 경과시간을 뺀 남은 조리시간 차이를 반영합니다.',
+      '현재 MVP에서는 시간 차이를 평균속도 시속 20km 기준의 거리 비용으로 환산합니다.',
+      '남은 조리시간 상태가 크게 다른 조합에는 추가 패널티를 적용합니다.',
     ],
     keyInsight: {
-      title: '왜 30분짜리 주문도 결국 묶이는가',
-      body: '접수 직후엔 30분 남은 주문과 10분짜리 주문의 차이가 크니 묶이기 어려워요. 하지만 30초 윈도우마다 클러스터링을 다시 계산하기 때문에, 20분이 지나 남은 시간이 10분이 되면 그 시점에 접수된 다른 짧은 주문들과 조리시간이 비슷해지면서 자연스럽게 묶일 기회를 얻어요. 긴 조리시간 주문을 처음부터 포기하지 않고, 시간이 지나며 계속 짝을 찾을 기회를 주는 구조예요.',
+      title: '동선과 시간의 결합',
+      body: '조리시간만 비슷한 주문을 먼저 묶는 방식이 아닙니다. 같은 권역 안에서 이동거리와 남은 조리시간 차이를 하나의 점수로 비교하며, 30초마다 남은 시간을 갱신해 묶음 가능 여부를 다시 계산합니다.',
     },
     codeSnippet: `def remaining_cook_time(order):
     elapsed_min = (datetime.now() - order["created_at"]).total_seconds() / 60
@@ -679,7 +723,7 @@ function clusterExplanationContent() {
         ['긴급도 일치 여부', '동일(0km)'],
       ],
       total: 'cluster_score = 0.3 + 0.4 + 0.5 + 2.33 + 0 = 3.53',
-      note: 'group_score는 조합 내 모든 쌍의 cluster_score 합, 이걸 쌍 개수로 나눈 평균이 MAX_ACCEPTABLE_SCORE보다 낮으면 묶여요.',
+      note: '현재 방식은 묶음 후보를 빠르게 비교하기 위한 MVP 휴리스틱입니다. 실제 서비스에서는 거리를 도로 이동시간으로 변환해 예상 도착시각과 조리완료시각을 직접 비교하는 방식으로 고도화할 수 있습니다.',
     },
     rules: [
       { label: '권역 불일치', value: '묶기 자체 불가 (inf)' },
@@ -690,54 +734,6 @@ function clusterExplanationContent() {
 }
 
 // =========================
-
-function dataPipelineExplanationContent() {
-  return {
-    type: 'pipeline',
-    title: '실측 데이터가 쌓이는 구조',
-    subtitle: '예측 → 실행 → 기록, 이 사이클이 반복되면서 다음 예측의 근거가 늘어나요.',
-    stages: [
-      { num: 1, label: '예측', detail: '사장님 입력 조리시간(owner_cook_min)' },
-      { num: 2, label: '실행', detail: 'cook-complete 호출 시각 = 실제 조리완료' },
-      { num: 3, label: '기록', detail: 'vector_cases.actual_cook_time에 저장' },
-    ],
-    example: { before: '입력 20분', after: '실제 14분', note: '이 (요일·시간대·매장) 조합의 새 사례로 vector_cases에 쌓여요.' },
-    hardProblem: {
-      title: '메뉴가 수천 개인데, 메뉴마다 조리시간을 어떻게 알아내나요?',
-      body: '사장님은 메뉴 하나하나가 아니라 "치즈버거세트+콜라+너겟"처럼 주문 전체에 조리시간 하나만 입력해요. 콜라 같은 사이드는 단품으로 팔리지 않아서, "콜라만 시켰을 때 몇 분"이라는 기록 자체가 존재할 수 없어요.',
-      answer: '이건 회귀분석으로 사후에 풀 수 있어요. 메뉴 구성이 서로 다른 주문들의 (구성, 총 조리시간) 데이터가 충분히 쌓이면, 각 메뉴가 전체 조리시간에 기여하는 정도를 통계적으로 분리해낼 수 있어요. 콜라를 단품으로 시킨 기록이 하나도 없어도, 콜라가 낀 여러 조합 주문들만으로 콜라의 몫을 추정할 수 있습니다.',
-    },
-    schemaLink: 'vector_cases의 menu_name 컬럼에는 "치즈버거세트 1개 외 2개"처럼 동시조리 중 가장 오래 걸린 대표 메뉴가 기록돼요 — 실제로는 이 자리에 전체 메뉴 구성(JSON)을 저장해두면, 나중에 회귀 모델을 그 위에 얹을 수 있어요.',
-  };
-}
-function renderPipelineContent(content) {
-  const stages = content.stages.map((s, i) => `
-    <div class="pipeline-stage">
-      <span class="pipeline-stage-num">${s.num}</span>
-      <strong>${Yogiyo.escape(s.label)}</strong>
-      <p>${Yogiyo.escape(s.detail)}</p>
-    </div>
-    ${i < content.stages.length - 1 ? '<div class="pipeline-arrow">→</div>' : '<div class="pipeline-arrow loop">↺</div>'}
-  `).join('');
-
-  return `
-    <h2 class="explain-modal-title">${Yogiyo.escape(content.title)}</h2>
-    <p class="explain-modal-subtitle">${Yogiyo.escape(content.subtitle)}</p>
-    <div class="pipeline-cycle">${stages}</div>
-    <div class="pipeline-example">
-      <strong>${Yogiyo.escape(content.example.before)} → ${Yogiyo.escape(content.example.after)}</strong>
-      <p>${Yogiyo.escape(content.example.note)}</p>
-    </div>
-    <div class="schema-block">
-      <h3>${Yogiyo.escape(content.hardProblem.title)}</h3>
-      <p class="schema-note">${Yogiyo.escape(content.hardProblem.body)}</p>
-      <div class="candidate-insight" style="text-align:left; margin-top:10px">${Yogiyo.escape(content.hardProblem.answer)}</div>
-    </div>
-    <p class="schema-note" style="margin-top:14px">${Yogiyo.escape(content.schemaLink)}</p>
-  `;
-}
-
-// =====================
 
 function renderClusterContent(content) {
   const formulaLines = content.formula.map(f => `<li>${Yogiyo.escape(f)}</li>`).join('');
@@ -776,7 +772,6 @@ function renderExplanationContent(content) {
   if (content.type === 'candidates') return renderCandidatesContent(content);
   if (content.type === 'fallback') return renderFallbackContent(content);
   if (content.type === 'cluster') return renderClusterContent(content);
-  if (content.type === 'pipeline') return renderPipelineContent(content);
   if (content.type === 'cook') return renderCookContent(content);
   return `
     <h2 class="explain-modal-title">${Yogiyo.escape(content.title)}</h2>
@@ -787,30 +782,55 @@ function renderExplanationContent(content) {
 }
 
 function renderCandidatesContent(content) {
-  const cards = content.candidates.map(c => `
-    <div class="candidate-card${c.selected ? ' selected' : ''}">
-      <div class="candidate-card-head">
-        <strong>${Yogiyo.escape(c.label)}</strong>
-        ${c.selected ? '<span class="candidate-badge">✓ 최종 선택</span>' : ''}
-      </div>
-      <ul class="candidate-items">
-        ${c.items.map(i => `<li>${Yogiyo.escape(i)}</li>`).join('')}
-      </ul>
-      <p class="candidate-route">${Yogiyo.escape(c.routeText)}</p>
-      <p class="candidate-reason">${Yogiyo.escape(c.reason)}</p>
-      <div class="candidate-metrics">
-        <div><span>라이더 대기</span><strong>${c.waitMin}분</strong></div>
-        <div><span>음식 방치</span><strong>${c.sittingMin}분</strong></div>
-        <div><span>총 수행시간</span><strong>${c.totalMin}분</strong></div>
-      </div>
-    </div>
+  const selected = content.candidates.find(c => c.selected) || content.candidates[0];
+  const metrics = [
+    ['라이더 대기시간', `${selected?.waitMin ?? 0}분`],
+    ['음식 방치시간', `${selected?.sittingMin ?? 0}분`],
+    ['가방 체류시간', '19분'],
+    ['전체 수행시간', `${selected?.totalMin ?? 0}분`],
+    ['종합점수', '50.8점'],
+  ].map(([label, value]) => `
+    <div><span>${Yogiyo.escape(label)}</span><strong>${Yogiyo.escape(value)}</strong></div>
   `).join('');
+
+  const orderItems = selected?.items?.map(i => `<li>${Yogiyo.escape(i)}</li>`).join('') || '';
 
   return `
     <h2 class="explain-modal-title">${Yogiyo.escape(content.title)}</h2>
     <p class="explain-modal-subtitle">${Yogiyo.escape(content.subtitle || '')}</p>
-    <div class="candidate-grid">${cards}</div>
+    <div class="candidate-insight" style="text-align:left; margin:16px 0">
+      <strong>90가지 방문 순서</strong><br>
+      각 주문의 픽업이 해당 배달보다 먼저여야 하므로 유효한 방문 순서는
+      6! ÷ 2³ = 90가지입니다. 이는 실제 도로 경로가 아니라 지점의 방문 순서입니다.
+    </div>
+    <div class="fallback-metrics">${metrics}</div>
+    <div class="candidate-card selected" style="margin-top:16px">
+      <div class="candidate-card-head">
+        <strong>선택된 방문 순서</strong>
+        <span class="candidate-badge">✓ 최저 점수</span>
+      </div>
+      <ul class="candidate-items">${orderItems}</ul>
+      <p class="candidate-route">${Yogiyo.escape(selected?.routeText || '')}</p>
+    </div>
+    <div class="schema-block">
+      <h3>예상 조리완료·도착 타임라인</h3>
+      <table class="schema-table">
+        <thead><tr><th>순서</th><th>방문 이벤트</th><th>예상 조리완료</th><th>예상 도착</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>샌드위치 픽업</td><td>5.0분</td><td>0.9분</td></tr>
+          <tr><td>2</td><td>샌드위치 배달</td><td>-</td><td>9.5분</td></tr>
+          <tr><td>3</td><td>초밥 픽업</td><td>15.0분</td><td>15.9분</td></tr>
+          <tr><td>4</td><td>햄버거 픽업</td><td>20.0분</td><td>19.5분</td></tr>
+          <tr><td>5</td><td>햄버거 배달</td><td>-</td><td>24.2분</td></tr>
+          <tr><td>6</td><td>초밥 배달</td><td>-</td><td>26.3분</td></tr>
+        </tbody>
+      </table>
+    </div>
     ${content.insight ? `<div class="candidate-insight">${Yogiyo.escape(content.insight)}</div>` : ''}
+    <p class="data-strategy-notice">
+      시스템은 실제 이동 도로를 강제하지 않고 방문 순서만 제안합니다.
+      최종 수락 여부는 라이더가 결정합니다.
+    </p>
   `;
 }
 
@@ -828,12 +848,20 @@ async function openCookExplanation() {
     const res = await fetch('/api/demo/merchant/next-to-cook');
     const data = await res.json();
     if (!data.cook_reference) {
-      openExplanationModal({ title: '조리시간 예측 결과', steps: ['아직 참고할 조리시간 데이터가 없어요. 조리 시작 전 단계에서 다시 확인해 주세요.'] });
+      openExplanationModal(
+        pendingCookTimeExplanationContent(
+          '아직 참고할 주문 데이터가 없습니다. 아래에서 임베딩 모델 선택 근거를 확인할 수 있습니다.'
+        )
+      );
       return;
     }
     openExplanationModal(cookTimeExplanationContent(data.cook_reference));
   } catch {
-    openExplanationModal({ title: '조리시간 예측 결과', steps: ['데이터를 불러오지 못했습니다.'] });
+    openExplanationModal(
+      pendingCookTimeExplanationContent(
+        '주문 데이터를 불러오지 못했습니다. 임베딩 모델 선택 근거는 아래에서 확인할 수 있습니다.'
+      )
+    );
   }
 }
 
@@ -847,6 +875,7 @@ async function openDispatchExplanation() {
       subtitle: data.subtitle,
       formula: data.formula,
       insight: data.insight,
+      workedExample: data.worked_example,
       candidates: data.candidates.map(c => ({ ...c, routeText: c.route_text, waitMin: c.wait_min, sittingMin: c.sitting_min, totalMin: c.total_min, reason: c.reason })),
     });
   } catch {
@@ -859,7 +888,6 @@ const explanationHandlers = {
   route: openDispatchExplanation,
   fallback: () => openExplanationModal(fallbackExplanationContent()),
   cluster: () => openExplanationModal(clusterExplanationContent()),
-  pipeline: () => openExplanationModal(dataPipelineExplanationContent()),
 };
 
 document.querySelectorAll('.algo-explain-buttons button').forEach(btn => {

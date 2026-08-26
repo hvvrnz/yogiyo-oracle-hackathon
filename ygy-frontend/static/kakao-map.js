@@ -202,15 +202,26 @@
 };
 
 
-const createCustomerPlaceMarker = kind => {
+const createCustomerPlaceMarker = (
+  kind,
+  { cookCompleted = false } = {}
+) => {
   const marker =
     document.createElement('div');
 
-  marker.className =
-    `customer-kakao-marker ${kind}`;
-
   const isStore =
     kind === 'store';
+
+  const isCookCompleted =
+    isStore &&
+    Boolean(cookCompleted);
+
+  marker.className =
+    `customer-kakao-marker ${kind}${
+      isCookCompleted
+        ? ' cook-complete'
+        : ''
+    }`;
 
   marker.innerHTML =
     placeMarkerSvg(kind);
@@ -227,7 +238,9 @@ const createCustomerPlaceMarker = kind => {
 
     background:
       ${isStore
-        ? '#ffffff'
+        ? isCookCompleted
+          ? 'var(--cook-complete)'
+          : '#ffffff'
         : '#ff2f6e'};
 
     color:
@@ -557,126 +570,41 @@ const fitMapOnce = (state, data) => {
         }
 
 
-        /*
-        * 2. 라이더 경로의 픽업 / 배달 순서
-        *
-        * 픽업:
-        *   핑크 배경 + 흰 숫자
-        *
-        * 배달:
-        *   흰 배경 + 핑크 테두리/숫자
-        *
-        * 방문 완료:
-        *   모두 회색
-        */
-        else if (
-          isRouteStop &&
-          (
-            kind === 'store' ||
-            kind === 'delivery'
-          )
-        ) {
-          const isPickup =
-            stopType === 'pickup';
+/*
+ * 2. 라이더 경로의 픽업 / 배달 위치
+ *
+ * 고객 지도와 동일한 매장·집 마커를 사용합니다.
+ * 방문 순서 데이터는 유지하되 지도 마커에는 숫자를 표시하지 않습니다.
+ */
+else if (
+  isRouteStop &&
+  (
+    kind === 'store' ||
+    kind === 'delivery'
+  )
+) {
+  content =
+    createCustomerPlaceMarker(
+      kind,
+      {
+        cookCompleted:
+          item.meta
+            ?.cookCompleted
+      }
+    );
 
-          content.textContent =
-            sequence != null
-              ? String(sequence)
-              : '';
+  /*
+   * 방문 완료 지점은 아이콘 형태를 유지하면서
+   * 회색으로 표시합니다.
+   */
+  if (visited) {
+    content.style.filter =
+      'grayscale(1)';
 
-
-          /*
-          * 이미 지나온 지점
-          */
-          if (visited) {
-            content.style.cssText = `
-              width: 32px;
-              height: 32px;
-
-              display: flex;
-              align-items: center;
-              justify-content: center;
-
-              border-radius: 50%;
-
-              background: #9b9ba1;
-              color: #ffffff;
-
-              font-size: 14px;
-              font-weight: 800;
-
-              border: 2px solid #ffffff;
-
-              box-shadow:
-                0 2px 6px
-                rgba(0, 0, 0, 0.16);
-
-              box-sizing: border-box;
-            `;
-          }
-
-
-          /*
-          * 아직 방문하지 않은 픽업 지점
-          */
-          else if (isPickup) {
-            content.style.cssText = `
-              width: 32px;
-              height: 32px;
-
-              display: flex;
-              align-items: center;
-              justify-content: center;
-
-              border-radius: 50%;
-
-              background: #ff2f6e;
-              color: #ffffff;
-
-              font-size: 14px;
-              font-weight: 800;
-
-              border: 2px solid #ffffff;
-
-              box-shadow:
-                0 3px 8px
-                rgba(255, 47, 110, 0.28);
-
-              box-sizing: border-box;
-            `;
-          }
-
-
-          /*
-          * 아직 방문하지 않은 배달 지점
-          */
-          else {
-            content.style.cssText = `
-              width: 32px;
-              height: 32px;
-
-              display: flex;
-              align-items: center;
-              justify-content: center;
-
-              border-radius: 50%;
-
-              background: #ffffff;
-              color: #ff2f6e;
-
-              font-size: 14px;
-              font-weight: 800;
-
-              border: 3px solid #ff2f6e;
-
-              box-shadow:
-                0 3px 8px
-                rgba(31, 31, 38, 0.14);
-
-              box-sizing: border-box;
-            `;
-          }
-        }
+    content.style.opacity =
+      '0.6';
+  }
+}
 
 
         /*

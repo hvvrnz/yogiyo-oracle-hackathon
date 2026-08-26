@@ -9,12 +9,12 @@ demo_explanations = {}
 
 # ── 매장 3개 ──
 STORE_A = {"store_id": 889, "name": "요기요햄버거🍔 강남점", "category": "버거류", "region": "강남", "lat": 37.505486, "lng": 127.02069, "avg_delivery_eta_min": 35}
-STORE_B = {"store_id": 440, "name": "수제에그샌드위치🥪 강남점", "category": "샌드위치", "region": "강남", "lat": 37.501202, "lng": 127.018949, "avg_delivery_eta_min": 25}
-STORE_C = {"store_id": 442, "name": "전통모듬초밥🍣 강남점", "category": "초밥_회류", "region": "강남", "lat": 37.494788, "lng": 127.018567, "avg_delivery_eta_min": 30}
+STORE_B = {"store_id": 440, "name": "수제에그샌드위치🥪 강남점", "category": "샌드위치", "region": "강남", "lat": 37.503900, "lng": 127.019200, "avg_delivery_eta_min": 25}
+STORE_C = {"store_id": 442, "name": "전통모듬초밥🍣 강남점", "category": "초밥_회류", "region": "강남", "lat": 37.502300, "lng": 127.021500, "avg_delivery_eta_min": 30}
 
-DELIVERY_A = {"lat": 37.516573, "lng": 127.013466, "address": "서울 강남구 89 반포훼밀리 101동"}
-DELIVERY_B = {"lat": 37.512848, "lng": 127.010281, "address": "서울 강남구 40 신사빌라 3층"}
-DELIVERY_C = {"lat": 37.5196, "lng": 127.006504, "address": "반포한강공원 배달픽업지 A"}
+DELIVERY_A = {"lat": 37.507800, "lng": 127.023200, "address": "서울 강남구 논현로 411 신동아빌딩 802호"}
+DELIVERY_B = {"lat": 37.504100, "lng": 127.017000, "address": "서울 강남구 강남대로102길 21 현대아파트 3동 501호"}
+DELIVERY_C = {"lat": 37.508900, "lng": 127.019800, "address": "서울 강남구 도곡로 156 강남캐슬 201호"}
 
 ORDER_A_MENU = [
     {"menu": "치킨버거세트", "qty": 1, "price": 11000},
@@ -355,7 +355,7 @@ RIDER_LAT = 37.504000
 RIDER_LNG = 127.019000
 
 PACKAGE_SCORE = 51
-PACKAGE_REVENUE = 10500
+PACKAGE_REVENUE = 9000
 HOURLY_REVENUE = 24000
 
 ORIGINAL_STOP_SEQUENCE = [
@@ -388,11 +388,13 @@ SCORE_DETAIL = {
 
 COLD_START_REFERENCE = {
     "reference_type": "cold_start",
-    "fallback_level": 1,
+    # 자체 이력/동일 브랜드에서 사례를 찾지 못해
+    # 4단계인 "같은 지역 + 같은 카테고리" 범위를 사용한다.
+    "fallback_level": 4,
     "matched_store_id": 306,
     "matched_store_name": "버거퀸 강남점🍔",
     "recent_case_count": 10,
-    "avg_cook_min": 14.1,
+    "avg_cook_min": 14.5,
     "weekday": "금",
     "time_slot": "저녁",
     "concurrent_order_count": 3,
@@ -410,10 +412,10 @@ COLD_START_REFERENCE = {
 # 889번 매장 기준 fallback 스크립트를 다시 돌려서 나온 실측값으로 교체 예정.
 
 DEMO_DISPATCH_CANDIDATES = {
-    "title": "배차 엔진 분석 결과",
-    "subtitle": "실제 배차 엔진(package_id 20865)이 산출한 결과입니다.",
+    "title": "왜 이 방문 순서인가요?",
+    "subtitle": "3건의 픽업과 배달에서 가능한 90가지 방문 순서를 비교한 결과입니다.",
     "formula": (
-    "각 경로의 음식방치시간(food_sitting) · 라이더대기시간(courier_wait) · "
+    "각 방문 순서의 음식방치시간(food_sitting) · 라이더대기시간(courier_wait) · "
     "가방체류시간(bag_time) · 총수행시간(total_time)을 모두 '분' 단위로 환산해 더합니다. "
     "가중치는 현재 구현에서 모두 동일하게 1.0으로 두었습니다. "
     "이 계산에 들어가는 조리시간 예측값은 클러스터링 단계에서 쓰는 remaining_cook_time과 "
@@ -431,7 +433,7 @@ DEMO_DISPATCH_CANDIDATES = {
     },
     "candidates": [
         {
-            "label": "선택된 경로", "selected": True,
+            "label": "선택된 방문 순서", "selected": True,
             "items": ["🥪 수제에그샌드위치 5분", "🍔 요기요햄버거 20분", "🍣 전통모듬초밥 15분"],
             "route_text": "샌드위치 P → 샌드위치 D → 초밥 P → 버거 P → 버거 D → 초밥 D",
             "wait_min": 4.6, "sitting_min": 0.9, "total_min": 26.3,
@@ -463,6 +465,7 @@ class DemoState:
         self.accepted_package_id = None
         self.owner_cook_min = 15
         self.cook_started_at = None
+        self.package_cook_started_at = {}
         self.extra_order_status = {
             PACKAGE_20826_ORDER_A_ID: "NEW",
             PACKAGE_20816_ORDER_A_ID: "NEW",
@@ -661,12 +664,86 @@ def _route_with_visited(package_id=PACKAGE_ID):
     return result
 
 
+def _package_cook_specs(package_id):
+    if package_id == PACKAGE_ID:
+        return [
+            (44095, STORE_B["name"], 5),
+            (44101, STORE_C["name"], 15),
+            (43351, STORE_A["name"], state.owner_cook_min),
+        ]
+
+    if package_id == 20826:
+        return [
+            (2082601, PACKAGE_20826_STORE_A["name"], state.extra_order_cook_min[2082601]),
+            (2082602, PACKAGE_20826_STORE_B["name"], 10),
+            (2082603, PACKAGE_20826_STORE_C["name"], 5),
+        ]
+
+    if package_id == 20816:
+        return [
+            (2081601, PACKAGE_20816_STORE_A["name"], state.extra_order_cook_min[2081601]),
+            (2081602, PACKAGE_20816_STORE_B["name"], 5),
+            (2081603, PACKAGE_20816_STORE_C["name"], 5),
+        ]
+
+    return []
+
+
+def _package_cook_time_detail(package_id):
+    started_at = state.package_cook_started_at.get(package_id)
+    elapsed_seconds = (
+        max(0.0, time.monotonic() - started_at)
+        if started_at is not None
+        else 0.0
+    )
+
+    details = []
+
+    for order_id, store_name, cook_minutes in _package_cook_specs(package_id):
+        remaining_seconds = max(
+            0.0,
+            float(cook_minutes) * 60 - elapsed_seconds,
+        )
+        completed = (
+            order_id in state.picked_up_order_ids
+            or remaining_seconds <= 0
+            or (
+                order_id == 43351
+                and state.merchant_stage == "COOKED"
+            )
+        )
+
+        details.append({
+            "order_id": order_id,
+            "store_name": store_name,
+            "cook_minutes": cook_minutes,
+            "remaining_seconds": 0 if completed else round(remaining_seconds, 1),
+            "status": "COMPLETED" if completed else "COOKING",
+        })
+
+    return details
+
+
 def _package_summary():
     return {
-        "package_id": PACKAGE_ID, "package_type": "BUNDLE",
-        "score": PACKAGE_SCORE, "package_revenue": PACKAGE_REVENUE, "hourly_revenue": HOURLY_REVENUE,
-        "bundle_size": 3, "order_ids": [43351, 44095, 44101],
-        "route_detail": _route_with_visited(),
+        "package_id": PACKAGE_ID,
+        "package_type": "BUNDLE",
+        "score": PACKAGE_SCORE,
+        "package_revenue": PACKAGE_REVENUE,
+        "hourly_revenue": HOURLY_REVENUE,
+        "bundle_size": 3,
+        "order_ids": [
+            43351,
+            44095,
+            44101,
+        ],
+        "route_detail":
+            _route_with_visited(),
+
+        "score_detail":
+            SCORE_DETAIL,
+        "cook_time_detail":
+            _package_cook_time_detail(PACKAGE_ID),
     }
 
 def _extra_package_summary(package_id):
@@ -683,6 +760,8 @@ def _extra_package_summary(package_id):
                 PACKAGE_20826_ORDER_IDS,
             "route_detail":
                 _route_with_visited(20826),
+            "cook_time_detail":
+                _package_cook_time_detail(20826),
             "rider_text": (
                 "세 주문의 조리시간과 이동 동선을 "
                 "함께 고려한 배차 제안입니다."
@@ -702,6 +781,8 @@ def _extra_package_summary(package_id):
                 PACKAGE_20816_ORDER_IDS,
             "route_detail":
                 _route_with_visited(20816),
+            "cook_time_detail":
+                _package_cook_time_detail(20816),
             "rider_text": (
                 "세 주문의 조리시간과 이동 동선을 "
                 "함께 고려한 배차 제안입니다."
@@ -1205,6 +1286,11 @@ def demo_cook_start(body: CookTimeInput):
         if state.cook_started_at is None:
             state.cook_started_at = time.monotonic()
 
+        state.package_cook_started_at.setdefault(
+            PACKAGE_ID,
+            time.monotonic(),
+        )
+
         _get_demo_explanations("COOKING")
 
         return {
@@ -1240,6 +1326,10 @@ def demo_cook_start(body: CookTimeInput):
             20826
         ] = "OFFERED"
 
+        state.package_cook_started_at[
+            20826
+        ] = time.monotonic()
+
         return {
             "order_id": order_id,
             "status": "COOKING",
@@ -1272,6 +1362,10 @@ def demo_cook_start(body: CookTimeInput):
         state.extra_package_stage[
             20816
         ] = "OFFERED"
+
+        state.package_cook_started_at[
+            20816
+        ] = time.monotonic()
 
         return {
             "order_id": order_id,
@@ -1320,25 +1414,38 @@ def demo_cook_complete():
         )
 
     feedback = {
-        "owner_cook_min": owner_min,
-        "actual_cook_min": actual_min,
-        "difference_min": diff_min,
+    "owner_cook_min": owner_min,
+    "actual_cook_min": actual_min,
+    "difference_min": diff_min,
 
-        "title": result_title,
+    "title": result_title,
 
-        "message": (
-            f"오늘 요기요햄버거는 "
-            f"{owner_min}분으로 입력하셨고, "
-            f"실제로는 {actual_min}분 만에 "
-            "조리가 끝났어요."
-        ),
+    "message": (
+        f"예상 {owner_min}분보다 "
+        f"{abs(diff_min)}분 빠른 "
+        f"{actual_min}분 만에 조리가 완료됐어요."
+        if diff_min < 0
+        else (
+            f"예상 {owner_min}분보다 "
+            f"{diff_min}분 늦은 "
+            f"{actual_min}분 만에 조리가 완료됐어요."
+            if diff_min > 0
+            else
+            f"예상한 {owner_min}분과 실제 조리시간이 일치했어요."
+        )
+    ),
 
-        "learning_message": (
-            "이번 차이는 다음 조리시간을 "
-            "더 정확하게 판단하는 데 활용할 수 있는 "
-            "실측 데이터예요."
-        ),
-    }
+    "learning_message": (
+        "입력시간과 실제 완료시간의 차이를 기록했어요. "
+        "이런 결과가 반복해서 쌓이면 매장별 조리시간을 "
+        "보정하는 데이터로 활용할 수 있어요."
+    ),
+
+    "usage_scope": (
+        "현재 MVP에서는 결과를 화면에 기록하는 흐름까지 구현했으며, "
+        "자동 재학습은 향후 고도화 범위입니다."
+    ),
+}
 
     state.cook_feedback = feedback
 
@@ -1598,4 +1705,3 @@ def demo_reset_scenario():
     STOP_SEQUENCE = [dict(s) for s in ORIGINAL_STOP_SEQUENCE]
     demo_explanations.clear()
     return {"step": 0}
-
