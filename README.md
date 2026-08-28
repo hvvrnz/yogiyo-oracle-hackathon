@@ -15,10 +15,7 @@
 **1. 조리 시작 — 신규 매장 콜드스타트, Vector Search 참고정보 표시**
 ![조리 시작](docs/images/demo-01-cook-start.png)
 
-**2. 배차 완료 — 라이더 픽업 진행 중, 90가지 경로 탐색 결과 반영**
-![배차 완료](docs/images/demo-03-dispatched.png)
-
-**3. 배달 완료 — 예측(20분) vs 실측(14분) 피드백, 다음 예측에 반영**
+**2. 배달 완료 — 예측(20분) vs 실측(14분) 피드백, 다음 예측에 반영**
 ![배달 완료](docs/images/demo-04-delivered.png)
 
 ## 핵심 아이디어
